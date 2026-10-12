@@ -192,6 +192,7 @@ validées par Anis, à traiter dans l'ordre (proposer un plan court avant de cod
 
 ## Mise à jour ultérieure
 
+Procédure complète : `docs/MISE-A-JOUR-SERVEUR.md`. En bref : 
 `git -C $SRC pull`, puis relancer l'étape 5 (le script est
 idempotent ; les migrations déjà appliquées sont ignorées).
 
