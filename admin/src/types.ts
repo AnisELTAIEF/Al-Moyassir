@@ -31,7 +31,7 @@ export interface Invitation {
 }
 export interface CreatedInvitation { email: string; code: string; link: string | null; message: string; expiresAt: string }
 
-export interface GroupSummary { id: string; name: string; members: number; managers: number }
+export interface GroupSummary { id: string; name: string; members: number; managers: number; joinCode?: string | null }
 export interface MyGroup { id: string; name: string; role: 'admin' | 'member'; members: number }
 export type AddMemberResult = { added: true; email: string } | ({ invited: true } & CreatedInvitation);
 
@@ -69,5 +69,8 @@ export interface Api {
   groupInvitations(groupId: string): Promise<Invitation[]>;
   revokeGroupInvitation(groupId: string, invitationId: string): Promise<void>;
   groupMembers(groupId: string): Promise<UserStats[]>;
+  /** Code permanent du groupe (6 caractères) et son renouvellement. */
+  groupJoinCode(groupId: string): Promise<string | null>;
+  regenerateJoinCode(groupId: string): Promise<string>;
   memberProgress(groupId: string, userId: string): Promise<AyahProgress[]>;
 }

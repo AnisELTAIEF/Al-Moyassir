@@ -14,13 +14,16 @@ import 'i18n.dart';
 /// Le refresh token est conservé dans le stockage sécurisé du téléphone (Keychain / Keystore).
 class AuthService extends ChangeNotifier {
   AuthService(this._prefs, {FlutterSecureStorage? storage}) : _storage = storage ?? const FlutterSecureStorage() {
+    _prefs.remove('api_url'); // adresse saisie à la main dans les versions ≤ 0.9 : remplacée par l'adresse figée
     _connect(serverUrl);
   }
 
   final SharedPreferences _prefs;
 
-  /// Adresse de l'API : celle saisie dans les réglages, sinon celle fournie à la compilation.
-  String get serverUrl => _prefs.getString('api_url') ?? Env.apiUrl;
+  /// Adresse de l'API : figée dans l'app ([Env.apiUrl]). Une adresse saisie dans une ancienne
+  /// version (clé `api_url`) n'est plus utilisée ; [setServer] ne sert qu'aux tests.
+  String get serverUrl => _override ?? Env.apiUrl;
+  String? _override;
 
   void _connect(String url) {
     api = url.trim().isEmpty
@@ -34,7 +37,7 @@ class AuthService extends ChangeNotifier {
   Future<void> setServer(String url) async {
     if (signedIn) await signOut();
     final clean = url.trim().replaceAll(RegExp(r'/+$'), '');
-    await _prefs.setString('api_url', clean);
+    _override = clean;
     _connect(clean);
     notifyListeners();
   }
@@ -123,12 +126,13 @@ class AuthService extends ChangeNotifier {
     await _applySession(await api!.public('POST', '/auth/login', {'email': email, 'password': password}) as Map<String, dynamic>);
   }
 
-  Future<void> register({required String email, required String password, required String displayName, String? invitationCode}) async {
+  /// [code] : code d'invitation (8 caractères, l'e-mail vient alors de l'invitation) ou code de groupe (6).
+  Future<void> register({String? email, required String password, required String displayName, String? code}) async {
     await _applySession(await api!.public('POST', '/auth/register', {
-      'email': email,
+      if (email != null && email.isNotEmpty) 'email': email,
       'password': password,
       'displayName': displayName,
-      if (invitationCode != null && invitationCode.isNotEmpty) 'invitationCode': invitationCode,
+      if (code != null && code.isNotEmpty) 'invitationCode': code,
     }) as Map<String, dynamic>);
   }
 
@@ -164,8 +168,16 @@ class AuthService extends ChangeNotifier {
   }
 
   /// Aperçu d'une invitation (email invité, groupe…).
-  Future<Map<String, dynamic>> previewInvitation(String code) async =>
-      await api!.public('GET', '/auth/invitations/${Uri.encodeComponent(code.trim())}') as Map<String, dynamic>;
+  /// Aperçu d'un code : `{type: 'invitation', email, groupName…}` ou `{type: 'group', groupName}`.
+  Future<Map<String, dynamic>> previewCode(String code) async =>
+      await api!.public('GET', '/auth/codes/${Uri.encodeComponent(code.trim())}') as Map<String, dynamic>;
+
+  /// Rejoint un groupe (code de groupe, ou code d'invitation adressé à ce compte), puis recharge mes groupes.
+  Future<String> joinGroup(String code) async {
+    final r = await api!.post('/me/groups/join', {'code': code.trim()}) as Map<String, dynamic>;
+    await refreshProfile();
+    return (r['group'] as Map<String, dynamic>)['name'] as String;
+  }
 
   Future<void> updateName(String name) async {
     await api!.patch('/me', {'displayName': name});

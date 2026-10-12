@@ -7,6 +7,7 @@ import meRoutes from './routes/me.js';
 import groupRoutes from './routes/groups.js';
 import adminRoutes from './routes/admin.js';
 import inviteRoutes from './routes/invite.js';
+import { ensureGroupCodes } from './groupCodes.js';
 
 import { HttpError } from './errors.js';
 
@@ -28,6 +29,7 @@ export async function buildApp(cfg, deps) {
   const ayahCounts = new Map(surahRows.map((r) => [Number(r.n), Number(r.ayah_count)]));
   if (ayahCounts.size !== 114) throw new Error('Table surahs incomplète : lancez « npm run migrate ».');
 
+  await ensureGroupCodes(deps.pool);
   app.decorate('cfg', cfg);
   app.decorate('db', deps.pool);
   app.decorate('tokens', tokens);

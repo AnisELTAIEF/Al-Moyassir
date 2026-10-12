@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/audio_cache.dart';
 import '../core/audio_controller.dart';
+import '../core/api_client.dart';
 import '../core/auth_service.dart';
 import '../core/quran_repository.dart';
 import '../core/settings.dart';
@@ -29,33 +30,7 @@ class AccountScreen extends StatelessWidget {
       body: Constrained(
         maxWidth: 620,
         child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 32), children: [
-          if (!auth.enabled)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Row(children: [
-                    Icon(Icons.cloud_off, color: context.tones.muted),
-                    const SizedBox(width: 10),
-                    Text(tr('Mode local'), style: context.text.titleLarge),
-                  ]),
-                  const SizedBox(height: 8),
-                  Text(tr('Votre progression est enregistrée sur ce téléphone uniquement.')),
-                  const SizedBox(height: 8),
-                  Text(
-                    tr('Pour créer un compte ou vous connecter :\n1. Renseignez l’adresse du serveur de votre groupe (fournie par l’administrateur).\n2. Créez votre compte avec le code d’invitation reçu, ou connectez-vous.'),
-                    style: TextStyle(color: context.tones.muted),
-                  ),
-                  const SizedBox(height: 14),
-                  FilledButton.icon(
-                    onPressed: () => _editServer(context, auth),
-                    icon: const Icon(Icons.dns_outlined),
-                    label: Text(tr('Renseigner le serveur')),
-                  ),
-                ]),
-              ),
-            )
-          else if (!auth.signedIn)
+          if (!auth.signedIn)
             Card(child: Padding(padding: EdgeInsets.all(18), child: LoginPanel()))
           else
             _Profile(auth: auth),
@@ -195,16 +170,6 @@ class AccountScreen extends StatelessWidget {
               ]),
             ),
           ),
-          SectionTitle(tr('Serveur')),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.dns_outlined),
-              title: Text(auth.serverUrl.isEmpty ? tr('Aucun (mode local)') : auth.serverUrl, overflow: TextOverflow.ellipsis),
-              subtitle: Text(tr('Adresse de l’API de votre groupe, fournie par l’administrateur')),
-              trailing: const Icon(Icons.edit_outlined),
-              onTap: () => _editServer(context, auth),
-            ),
-          ),
           SectionTitle(tr('Sources et licences')),
           Text(
             tr('Texte : مصحف الأوقاف الليبية برواية قالون (6214 ayat), diffusé avec le projet qalun-timing ; ses conditions propres s’appliquent (usage non commercial signalé comme gratuit ; usage commercial soumis à autorisation).\n\nMinutages des ayat : Abdeljawad Almiladi, qalun-timing.abdeljawad.com — licence CC BY 4.0.\n\nAudio : chaque enregistrement appartient à son éditeur et est lu en streaming depuis son hébergement.\n\nPages du mode Mushaf (604) : données « Qaloon » du Complexe du roi Fahd (KFGQPC, مصحف المدينة برواية قالون), alignées sur le texte libyen.\n\nPolices : Scheherazade New (SIL) et Readex Pro — licence OFL.'),
@@ -214,42 +179,6 @@ class AccountScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-Future<void> _editServer(BuildContext context, AuthService auth) async {
-  final c = TextEditingController(text: auth.serverUrl);
-  String? status;
-  final url = await showDialog<String>(
-    context: context,
-    builder: (d) => StatefulBuilder(
-      builder: (d, set) => AlertDialog(
-        title: Text(tr('Adresse du serveur')),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          TextField(
-            controller: c,
-            keyboardType: TextInputType.url,
-            decoration: InputDecoration(hintText: 'https://quran.exemple.com/api', helperText: tr('Laissez vide pour le mode local')),
-          ),
-          if (status != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(status!)),
-        ]),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              set(() => status = tr('Test en cours…'));
-              final ok = await AuthService.ping(c.text);
-              set(() => status = ok ? tr('✓ Le serveur répond.') : tr('✗ Pas de réponse. Vérifiez l’adresse (elle se termine en général par /api).'));
-            },
-            child: Text(tr('Tester')),
-          ),
-          TextButton(onPressed: () => Navigator.pop(d), child: Text(tr('Annuler'))),
-          FilledButton(onPressed: () => Navigator.pop(d, c.text), child: Text(tr('Enregistrer'))),
-        ],
-      ),
-    ),
-  );
-  if (url == null) return;
-  await auth.setServer(url);
-  if (context.mounted) snack(context, url.trim().isEmpty ? tr('Mode local activé') : tr('Serveur enregistré. Vous pouvez vous connecter.'));
 }
 
 String _fmtSize(int bytes) {
@@ -297,7 +226,16 @@ class _Profile extends StatelessWidget {
                 subtitle: Text(g.isGroupAdmin ? tr('Admin du groupe · {n} membres', {'n': g.members}) : tr('Membre · les admins du groupe voient votre progression')),
               ),
           ],
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              onPressed: () => _join(context),
+              icon: const Icon(Icons.group_add_outlined),
+              label: Text(tr('Rejoindre un groupe avec un code')),
+            ),
+          ),
+          const SizedBox(height: 4),
           Row(children: [
             Expanded(
               child: OutlinedButton.icon(
@@ -322,6 +260,35 @@ class _Profile extends StatelessWidget {
         ]),
       ),
     );
+  }
+
+  Future<void> _join(BuildContext context) async {
+    final c = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(tr('Rejoindre un groupe')),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          autocorrect: false,
+          style: const TextStyle(fontSize: 20, letterSpacing: 2, fontWeight: FontWeight.w600),
+          decoration: InputDecoration(hintText: 'H7KQ2M', helperText: tr('Code du groupe, ou code d’invitation reçu')),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: Text(tr('Annuler'))),
+          FilledButton(onPressed: () => Navigator.pop(d, c.text.trim()), child: Text(tr('Rejoindre'))),
+        ],
+      ),
+    );
+    if (code == null || code.isEmpty || !context.mounted) return;
+    try {
+      final name = await auth.joinGroup(code);
+      if (context.mounted) snack(context, tr('Vous avez rejoint « {g} ».', {'g': name}));
+    } on ApiException catch (e) {
+      if (context.mounted) snack(context, e.message);
+    }
   }
 
   Future<void> _rename(BuildContext context) async {

@@ -51,15 +51,15 @@ export async function validInvitationByEmail(db, email) {
  * Crée un compte. Le rôle vient de l'invitation, ou « admin » pour l'administrateur par défaut.
  * Lève 403 invitation_required si aucun des deux.
  */
-export async function createAccount(conn, cfg, { email, displayName, passwordHash = null, googleSub = null, invitation = null }) {
+export async function createAccount(conn, cfg, { email, displayName, passwordHash = null, googleSub = null, invitation = null, group = null }) {
   email = email.toLowerCase();
   const isBootstrap = email === cfg.bootstrapAdminEmail;
-  if (!invitation && !isBootstrap) {
+  if (!invitation && !group && !isBootstrap) {
     throw new HttpError(403, 'invitation_required',
       'Ce compte n’a pas été invité. Demandez une invitation à un administrateur.');
   }
   const id = uuid();
-  const role = isBootstrap ? 'admin' : invitation.role;
+  const role = isBootstrap ? 'admin' : invitation ? invitation.role : 'user';
   await conn.query(
     `INSERT INTO users (id, email, display_name, password_hash, google_sub, role) VALUES (?, ?, ?, ?, ?, ?)`,
     [id, email, (displayName || email.split('@')[0]).slice(0, 80), passwordHash, googleSub, role]);
@@ -69,6 +69,10 @@ export async function createAccount(conn, cfg, { email, displayName, passwordHas
       await conn.query('INSERT IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
         [invitation.group_id, id, invitation.group_role ?? 'member']);
     }
+  }
+  if (group) {
+    // Code de groupe : membre simple du groupe.
+    await conn.query("INSERT IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')", [group.id, id]);
   }
   const [rows] = await conn.query('SELECT * FROM users WHERE id = ?', [id]);
   return rows[0];

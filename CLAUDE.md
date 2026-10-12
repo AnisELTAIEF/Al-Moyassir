@@ -9,3 +9,4 @@
 - Numérotation des versets : Qalun (mushaf Awqaf libyen), 6214 ayat — pas la numérotation Hafs.
 - Administrateur par défaut : anis.eltaief@gmail.com (variable `BOOTSTRAP_ADMIN_EMAIL`).
 - Après le déploiement du serveur : `docs/A-FAIRE-APRES-SERVEUR.md` (améliorations validées, dans l'ordre).
+- Mettre à jour le serveur après un `git pull` : `docs/MISE-A-JOUR-SERVEUR.md`.
