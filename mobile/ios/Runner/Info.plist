@@ -2,18 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Connexion Google : remplacez par l'« iOS URL scheme » de votre client OAuth iOS (voir README). -->
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.REMPLACER-PAR-ID-CLIENT-IOS</string>
-			</array>
-		</dict>
-	</array>
+	<!--
+	  Connexion Google sur iOS : NON activee (sur iPhone, l'app utilise e-mail/mot de passe).
+	  Pour l'activer plus tard : creer un client OAuth iOS dans Google Cloud, puis ajouter ici un
+	  bloc CFBundleURLTypes contenant son iOS URL scheme (de la forme
+	  com.googleusercontent.apps.VOTRE_ID_CLIENT_IOS), et builder en passant les options
+	  dart-define GOOGLE_IOS_CLIENT_ID et GOOGLE_SERVER_CLIENT_ID. Voir le README du projet.
+	-->
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
