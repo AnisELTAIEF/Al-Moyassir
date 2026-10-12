@@ -5,6 +5,7 @@ import type { Api, User, UserStats } from '../types';
 
 export default function Users({ api, me }: { api: Api; me: User }) {
   const { data, error, reload } = useAsync(() => api.users(), []);
+  const groups = useAsync(() => api.groups(), []);
   const [q, setQ] = useState('');
   const [sel, setSel] = useState<UserStats | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -30,7 +31,7 @@ export default function Users({ api, me }: { api: Api; me: User }) {
         {error && <p className="error">{error}</p>}
         <div className="card table-wrap">
           <table>
-            <thead><tr><th>Personne</th><th>Ayat appris</th><th>Dernière activité</th><th>Rôle</th><th>Compte</th><th /></tr></thead>
+            <thead><tr><th>Personne</th><th>Ayat appris</th><th>Dernière activité</th><th>Rôle</th><th>Groupe</th><th>Compte</th><th /></tr></thead>
             <tbody>
               {rows.map((u) => (
                 <tr key={u.id} className={sel?.id === u.id ? 'sel' : ''}>
@@ -41,6 +42,17 @@ export default function Users({ api, me }: { api: Api; me: User }) {
                     <select value={u.role} aria-label={`Rôle de ${u.displayName}`}
                       onChange={(e) => act(() => api.updateUser(u.id, { role: e.target.value as 'user' | 'admin' }), `Rôle de ${u.displayName} mis à jour`)}>
                       <option value="user">Utilisateur</option><option value="admin">Admin global</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select aria-label={`Ajouter ${u.displayName} à un groupe`} value=""
+                      disabled={!groups.data?.length}
+                      onChange={(e) => {
+                        const g = groups.data?.find((x) => x.id === e.target.value);
+                        if (g) act(() => api.addUserToGroup(g.id, u.id, 'member'), `${u.displayName} ajouté(e) à « ${g.name} »`);
+                      }}>
+                      <option value="">{groups.data?.length ? 'Ajouter à un groupe…' : 'Aucun groupe'}</option>
+                      {(groups.data ?? []).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
                   </td>
                   <td>
