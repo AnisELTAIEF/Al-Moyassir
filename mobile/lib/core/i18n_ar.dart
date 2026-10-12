@@ -1,6 +1,22 @@
 // Traductions arabes de l'interface (clé = texte français, tel qu'écrit dans le code).
 // Les messages d'erreur du serveur figurent à la fin.
 const Map<String, String> arStrings = {
+  // Audio hors ligne (§2)
+  'Audio hors ligne': 'الصوت دون اتصال',
+  'Récitations téléchargées': 'التلاوات المُنزَّلة',
+  'Aucune. Dans une sourate, touchez l’icône ⤓ pour l’écouter hors ligne.': 'لا شيء. داخل سورة، المس أيقونة ⤓ للاستماع دون اتصال.',
+  '{n} sourate(s) · {size}': '{n} سورة · {size}',
+  'Vider le cache audio ?': 'تفريغ ذاكرة الصوت؟',
+  'Les {n} sourate(s) téléchargées ({size}) seront supprimées de ce téléphone.': 'سيتم حذف {n} سورة مُنزَّلة ({size}) من هذا الهاتف.',
+  'Vider': 'تفريغ',
+  'Vider le cache audio': 'تفريغ ذاكرة الصوت',
+  'Téléchargements réservés à votre écoute hors ligne personnelle. Chaque enregistrement appartient à son éditeur ; aucune redistribution.':
+      'التنزيلات مخصّصة لاستماعك الشخصي دون اتصال. كل تسجيل ملك لناشره؛ لا يُعاد توزيعه.',
+  'Télécharger pour l’écoute hors ligne': 'تنزيل للاستماع دون اتصال',
+  'Téléchargé — appuyez pour supprimer': 'مُنزَّل — اضغط للحذف',
+  'Téléchargement supprimé': 'تم حذف التنزيل',
+  'Sourate disponible hors ligne': 'السورة متاحة دون اتصال',
+  'Téléchargement impossible (connexion ?)': 'تعذّر التنزيل (الاتصال؟)',
   ' + tajwid': ' + التجويد',
   ' ayat appris sur {total} · {p}': ' آية محفوظة من {total} · {p}',
   'Acceptée': 'مقبولة',

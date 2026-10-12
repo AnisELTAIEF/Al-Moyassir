@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/audio_cache.dart';
 import '../core/audio_controller.dart';
 import '../core/auth_service.dart';
 import '../core/quran_repository.dart';
@@ -153,6 +154,47 @@ class AccountScreen extends StatelessWidget {
               ]),
             ),
           ),
+          SectionTitle(tr('Audio hors ligne')),
+          Card(
+            child: Consumer<AudioCache>(
+              builder: (context, cache, _) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                ListTile(
+                  leading: const Icon(Icons.offline_pin_outlined),
+                  title: Text(tr('Récitations téléchargées')),
+                  subtitle: Text(cache.count == 0
+                      ? tr('Aucune. Dans une sourate, touchez l’icône ⤓ pour l’écouter hors ligne.')
+                      : tr('{n} sourate(s) · {size}', {'n': cache.count, 'size': _fmtSize(cache.totalBytes)})),
+                ),
+                if (cache.count > 0)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final n = cache.count, size = _fmtSize(cache.totalBytes);
+                          if (await confirm(context,
+                              title: tr('Vider le cache audio ?'),
+                              body: tr('Les {n} sourate(s) téléchargées ({size}) seront supprimées de ce téléphone.', {'n': n, 'size': size}),
+                              ok: tr('Vider'))) {
+                            await cache.clear();
+                          }
+                        },
+                        icon: const Icon(Icons.delete_outline),
+                        label: Text(tr('Vider le cache audio')),
+                      ),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Text(
+                    tr('Téléchargements réservés à votre écoute hors ligne personnelle. Chaque enregistrement appartient à son éditeur ; aucune redistribution.'),
+                    style: TextStyle(fontSize: 12.5, color: context.tones.muted),
+                  ),
+                ),
+              ]),
+            ),
+          ),
           SectionTitle(tr('Serveur')),
           Card(
             child: ListTile(
@@ -208,6 +250,12 @@ Future<void> _editServer(BuildContext context, AuthService auth) async {
   if (url == null) return;
   await auth.setServer(url);
   if (context.mounted) snack(context, url.trim().isEmpty ? tr('Mode local activé') : tr('Serveur enregistré. Vous pouvez vous connecter.'));
+}
+
+String _fmtSize(int bytes) {
+  if (bytes >= 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} Mo';
+  if (bytes >= 1024) return '${(bytes / 1024).toStringAsFixed(0)} Ko';
+  return '$bytes o';
 }
 
 class _Profile extends StatelessWidget {

@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
+import '../core/audio_cache.dart';
 import '../core/audio_controller.dart';
 import '../core/models.dart';
 import '../core/progress_store.dart';
 import '../core/quran_repository.dart';
+import '../core/screen_wakelock.dart';
 import '../core/settings.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
@@ -77,6 +79,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     _settings = context.read<Settings>();
     _audio.addListener(_follow);
     _positions.itemPositions.addListener(_rememberPosition);
+    ScreenWakelock.acquire(this); // écran de lecture ouvert : garder l'écran allumé
   }
 
   void _setImmersive(bool v) {
@@ -89,6 +92,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     if (_immersive) SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _audio.removeListener(_follow);
     _positions.itemPositions.removeListener(_rememberPosition);
+    ScreenWakelock.release(this); // sortie de l'écran de lecture
     super.dispose();
   }
 
@@ -562,6 +566,29 @@ class _MiniPlayer extends StatelessWidget {
                 ),
                 IconButton(tooltip: tr('Ayah précédent'), onPressed: here ? audio.previous : null, icon: Icon(Icons.skip_previous_rounded)),
                 IconButton(tooltip: tr('Ayah suivant'), onPressed: here ? audio.next : null, icon: Icon(Icons.skip_next_rounded)),
+                if (available)
+                  Consumer<AudioCache>(
+                    builder: (context, cache, _) {
+                      final rid = audio.reciter.id;
+                      if (cache.isDownloading(rid, surah)) {
+                        final p = cache.progress(rid, surah);
+                        return SizedBox(
+                          width: 48,
+                          height: 48,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: CircularProgressIndicator(strokeWidth: 2.6, value: (p == null || p == 0) ? null : p),
+                          ),
+                        );
+                      }
+                      final cached = cache.isCached(rid, surah);
+                      return IconButton(
+                        tooltip: cached ? tr('Téléchargé — appuyez pour supprimer') : tr('Télécharger pour l’écoute hors ligne'),
+                        icon: Icon(cached ? Icons.download_done_rounded : Icons.download_outlined, color: cached ? cs.primary : null),
+                        onPressed: () => _toggleDownload(context, cache, audio.reciter, surah),
+                      );
+                    },
+                  ),
                 PopupMenuButton<int>(
                   tooltip: tr('Répétition'),
                   icon: Icon(audio.mode == PlayMode.singleAyah ? Icons.repeat_one_rounded : Icons.repeat_rounded,
@@ -589,6 +616,20 @@ class _MiniPlayer extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _toggleDownload(BuildContext context, AudioCache cache, Reciter reciter, int surah) async {
+    if (cache.isCached(reciter.id, surah)) {
+      await cache.remove(reciter.id, surah);
+      if (context.mounted) snack(context, tr('Téléchargement supprimé'));
+      return;
+    }
+    try {
+      await cache.download(reciter.id, surah, reciter.audioUri(surah));
+      if (context.mounted) snack(context, tr('Sourate disponible hors ligne'));
+    } catch (_) {
+      if (context.mounted) snack(context, tr('Téléchargement impossible (connexion ?)'));
+    }
   }
 }
 
