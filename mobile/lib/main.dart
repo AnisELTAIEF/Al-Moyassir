@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/audio_cache.dart';
 import 'core/audio_controller.dart';
 import 'core/auth_service.dart';
 import 'core/progress_store.dart';
@@ -16,6 +17,8 @@ Future<void> main() async {
   final auth = AuthService(prefs);
   final progress = ProgressStore(prefs, auth);
   final settings = Settings(prefs);
+  final audioCache = AudioCache();
+  await audioCache.init();
   await progress.attach(null);
   // La session est reprise en arrière-plan : l'app s'ouvre tout de suite, même hors ligne.
   auth.addListener(() {
@@ -30,7 +33,8 @@ Future<void> main() async {
       ChangeNotifierProvider<AuthService>.value(value: auth),
       ChangeNotifierProvider<ProgressStore>.value(value: progress),
       ChangeNotifierProvider<Settings>.value(value: settings),
-      ChangeNotifierProvider<AudioController>(create: (_) => AudioController(repo, prefs)),
+      ChangeNotifierProvider<AudioCache>.value(value: audioCache),
+      ChangeNotifierProvider<AudioController>(create: (_) => AudioController(repo, prefs, audioCache)),
     ],
     child: const HifidhApp(),
   ));

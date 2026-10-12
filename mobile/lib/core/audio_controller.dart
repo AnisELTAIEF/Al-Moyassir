@@ -5,8 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'audio_cache.dart';
 import 'models.dart';
 import 'quran_repository.dart';
+import 'screen_wakelock.dart';
 import 'i18n.dart';
 
 enum PlayMode { continuous, singleAyah }
@@ -14,7 +16,7 @@ enum PlayMode { continuous, singleAyah }
 /// Lecture audio d'une sourate (un fichier par sourate) synchronisée ayah par ayah
 /// grâce aux minutages embarqués. Permet de répéter un ayah N fois pour la mémorisation.
 class AudioController extends ChangeNotifier {
-  AudioController(this._repo, this._prefs) {
+  AudioController(this._repo, this._prefs, this._cache) {
     _reciterId = _prefs.getString('reciter_id') ?? _defaultReciterId;
     _posSub = _player
         .createPositionStream(minPeriod: const Duration(milliseconds: 60), maxPeriod: const Duration(milliseconds: 120))
@@ -28,6 +30,7 @@ class AudioController extends ChangeNotifier {
 
   final QuranRepository _repo;
   final SharedPreferences _prefs;
+  final AudioCache _cache;
   final AudioPlayer _player = AudioPlayer();
   late final StreamSubscription<Duration> _posSub;
   late final StreamSubscription<PlayerState> _stateSub;
@@ -94,7 +97,13 @@ class AudioController extends ChangeNotifier {
         _timings = await _repo.timingsFor(_reciterId, surah);
         notifyListeners();
         if (_timings.isEmpty) throw StateError(tr('Minutages indisponibles pour cette sourate.'));
-        await _player.setUrl(reciter.audioUri(surah).toString());
+        // Hors ligne si la sourate a été téléchargée, sinon streaming.
+        final cached = _cache.cachedPath(_reciterId, surah);
+        if (cached != null) {
+          await _player.setFilePath(cached);
+        } else {
+          await _player.setUrl(reciter.audioUri(surah).toString());
+        }
         _loading = false;
       }
       await _seekToAyah(ayah);
@@ -214,11 +223,18 @@ class AudioController extends ChangeNotifier {
     if (s.processingState == ProcessingState.completed) {
       _player.pause();
     }
+    // Écran allumé pendant que l'audio joue, relâché à la pause/fin.
+    if (_player.playing) {
+      ScreenWakelock.acquire(this);
+    } else {
+      ScreenWakelock.release(this);
+    }
     notifyListeners();
   }
 
   @override
   void dispose() {
+    ScreenWakelock.release(this);
     _posSub.cancel();
     _stateSub.cancel();
     _player.dispose();
