@@ -1,0 +1,23 @@
+[Unit]
+Description=API Hifidh al-Qur'an
+After=network.target mariadb.service
+Wants=mariadb.service
+
+[Service]
+Type=simple
+User=hifidh
+Group=hifidh
+WorkingDirectory=/opt/hifidh/server
+EnvironmentFile=/etc/hifidh/api.env
+ExecStart=/usr/bin/env node src/server.js
+Restart=on-failure
+RestartSec=5
+# Durcissement
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/opt/hifidh
+
+[Install]
+WantedBy=multi-user.target
