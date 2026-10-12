@@ -22,7 +22,7 @@ export default function GroupsPage({ api, isAdmin, managed, onOpen }: {
         {(data ?? []).map((g) => (
           <div key={g.id} className="card group-card">
             <button className="link big" onClick={() => onOpen(g)}>{g.name}</button>
-            <span className="muted">{g.members} membres{g.managers ? ` · ${g.managers} admin(s) du groupe` : ''}</span>
+            <span className="muted">{g.members} membres{g.managers ? ` · ${g.managers} admin(s) du groupe` : ''}{g.joinCode ? ` · code ${g.joinCode}` : ''}</span>
             {isAdmin && (
               <div className="row-actions">
                 <button className="btn ghost small" onClick={() => { const n = window.prompt('Nouveau nom du groupe', g.name); if (n && n.trim().length >= 2) api.renameGroup(g.id, n.trim()).then(reload); }}>Renommer</button>

@@ -158,6 +158,24 @@ TapGestureRecognizer ayahRecognizer({required VoidCallback onTap, required VoidC
     ..onTapCancel = () => timer?.cancel();
 }
 
+/// Mode Qira'a : un toucher marque l'ayah « en cours » (قيد الحفظ), un second toucher retire la marque.
+/// Un ayah déjà appris n'est pas modifié par un simple toucher (appui long pour changer).
+Future<void> toggleLearning(BuildContext context, int surah, int ayah) async {
+  final store = context.read<ProgressStore>();
+  final status = store.statusOf(surah, ayah);
+  if (status == AyahStatus.memorized) {
+    snack(context, tr('Ayah {n} déjà appris — appui long pour modifier.', {'n': ayah}));
+    return;
+  }
+  final before = store.snapshotAyahs([(surah, ayah)]);
+  HapticFeedback.selectionClick();
+  final on = status != AyahStatus.learning;
+  await store.setStatus(surah, ayah, on ? AyahStatus.learning : null);
+  if (!context.mounted) return;
+  snack(context, on ? tr('Ayah {n} : en cours de mémorisation', {'n': ayah}) : tr('Ayah {n} : marque retirée', {'n': ayah}),
+      action: SnackBarAction(label: tr('Annuler'), onPressed: () => store.restoreAyahs(before)));
+}
+
 /// Passe un ayah au niveau de maîtrise suivant, avec « Annuler ».
 Future<void> cycleAyahMastery(BuildContext context, int surah, int ayah) async {
   final store = context.read<ProgressStore>();
@@ -258,7 +276,11 @@ class ColoringLegend extends StatelessWidget {
           children.add(swatch(masteryBackground(m, paper: paper, brightness: b, colorBlind: cb), masteryLabel(m), m: m));
         }
         children.add(Text(
-          settings.overdueAsReview
+          m == ReadingMode.mushaf
+              ? (settings.overdueAsReview
+                  ? tr('« À revoir » : marqué par vous, ou révision en retard. En Qira’a, touchez un ayah pour le marquer « en cours » ; appui long pour plus d’options.')
+                  : tr('« À revoir » : marqué par vous. En Qira’a, touchez un ayah pour le marquer « en cours » ; appui long pour plus d’options.'))
+              : settings.overdueAsReview
               ? tr('« À revoir » : marqué par vous, ou révision en retard. Touchez un ayah pour changer son niveau ; appui long pour plus d’options.')
               : tr('« À revoir » : marqué par vous. Touchez un ayah pour changer son niveau ; appui long pour plus d’options.'),
           style: context.text.bodySmall,

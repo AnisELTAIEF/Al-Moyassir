@@ -106,6 +106,8 @@ export function createRestApi(baseUrl: string, googleClientId: string | null): A
     groupInvitations: async (g) => items(await call('GET', `/groups/${g}/invitations`)),
     revokeGroupInvitation: async (g, i) => { await call('DELETE', `/groups/${g}/invitations/${i}`); },
     groupMembers: async (g) => (await call<{ members: never[] }>('GET', `/groups/${g}/overview`)).members,
+    groupJoinCode: async (g) => (await call<{ group: { joinCode?: string | null } }>('GET', `/groups/${g}/overview`)).group.joinCode ?? null,
+    regenerateJoinCode: async (g) => (await call<{ joinCode: string }>('POST', `/groups/${g}/join-code`)).joinCode,
     memberProgress: async (g, u) => items(await call('GET', `/groups/${g}/members/${u}/progress`)),
   };
 }

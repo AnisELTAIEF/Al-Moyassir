@@ -256,6 +256,45 @@ test('rôles : promotion, garde-fou du dernier admin, désactivation', async () 
   assert.equal(stats.body.admins, 2);
 });
 
+test('code de groupe et code d’invitation : un seul champ, e-mail et groupe pré-remplis', async () => {
+  const t = S.admin.accessToken;
+  const g = await call('POST', '/admin/groups', { token: t, body: { name: 'Halaqa du soir' } });
+  assert.match(g.body.joinCode, /^[A-Z2-9]{6}$/);
+  const spaced = g.body.joinCode.toLowerCase().replace(/^(...)/, '$1 ');
+  let r = await call('GET', `/auth/codes/${encodeURIComponent(spaced)}`);
+  assert.deepEqual(r.body, { type: 'group', groupName: 'Halaqa du soir' });
+  // Code de groupe saisi dans le champ « code » : compte créé et membre du groupe.
+  r = await call('POST', '/auth/register', { body: { email: 'eve@x.io', password: 'motdepasse1', displayName: 'Eve', invitationCode: spaced } });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const eve = r.body;
+  let mine = await call('GET', '/me/groups', { token: eve.accessToken });
+  assert.deepEqual(mine.body.items.map((x) => [x.name, x.role]), [['Halaqa du soir', 'member']]);
+  // Invitation par e-mail : le code suffit, l'e-mail vient de l'invitation.
+  const inv = await call('POST', '/admin/invitations', { token: t, body: { email: 'fred@x.io', groupId: g.body.id } });
+  r = await call('GET', `/auth/codes/${inv.body.code}`);
+  assert.equal(r.body.type, 'invitation');
+  assert.equal(r.body.email, 'fred@x.io');
+  assert.equal(r.body.groupName, 'Halaqa du soir');
+  r = await call('POST', '/auth/register', { body: { email: 'autre@x.io', password: 'motdepasse1', displayName: 'Fred', invitationCode: inv.body.code } });
+  assert.equal(r.body.error, 'email_mismatch');
+  r = await call('POST', '/auth/register', { body: { password: 'motdepasse1', displayName: 'Fred', invitationCode: inv.body.code } });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.user.email, 'fred@x.io');
+  // Un compte existant rejoint un autre groupe avec son code.
+  const ov = await call('GET', `/groups/${S.groupId}/overview`, { token: t });
+  r = await call('POST', '/me/groups/join', { token: eve.accessToken, body: { code: ov.body.group.joinCode } });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  mine = await call('GET', '/me/groups', { token: eve.accessToken });
+  assert.equal(mine.body.items.length, 2);
+  // Nouveau code : l'ancien ne marche plus.
+  const re = await call('POST', `/groups/${g.body.id}/join-code`, { token: t });
+  assert.notEqual(re.body.joinCode, g.body.joinCode);
+  assert.equal((await call('GET', `/auth/codes/${g.body.joinCode}`)).status, 404);
+  // Sans code : toujours refusé.
+  r = await call('POST', '/auth/register', { body: { email: 'inconnu@x.io', password: 'motdepasse1', displayName: 'Xavier' } });
+  assert.equal(r.status, 403);
+});
+
 test('refresh : rotation et détection de réutilisation', async () => {
   const r1 = await call('POST', '/auth/refresh', { body: { refreshToken: S.admin.refreshToken } });
   assert.equal(r1.status, 200);

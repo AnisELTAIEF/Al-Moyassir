@@ -47,7 +47,7 @@ class _LoginPanelState extends State<LoginPanel> {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text(tr('Connexion'), style: context.text.headlineSmall),
       const SizedBox(height: 6),
-      Text(tr('L’accès se fait sur invitation. Utilisez l’adresse à laquelle vous avez été invité(e).'),
+      Text(tr('Première fois ? Créez votre compte avec le code reçu (invitation ou code du groupe).'),
           style: TextStyle(color: context.tones.muted)),
       const SizedBox(height: 20),
       if (auth.googleEnabled) ...[
@@ -89,7 +89,7 @@ class _LoginPanelState extends State<LoginPanel> {
       TextButton.icon(
         onPressed: _busy ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InvitationScreen())),
         icon: const Icon(Icons.mark_email_unread_outlined),
-        label: Text(tr('Créer un compte (code d’invitation)')),
+        label: Text(tr('Créer un compte avec un code')),
       ),
     ]);
   }
@@ -107,7 +107,9 @@ class _GoogleMark extends StatelessWidget {
       );
 }
 
-/// Code d'invitation → aperçu → Google ou création d'un mot de passe.
+/// Création de compte en un seul code :
+/// - code d'invitation (8 caractères, ex. K7XQ-M2PA) : e-mail et groupe pré-remplis, il reste nom + mot de passe ;
+/// - code de groupe (6 caractères, ex. H7KQ2M) : nom du groupe affiché, il reste nom + e-mail + mot de passe.
 class InvitationScreen extends StatefulWidget {
   const InvitationScreen({super.key});
   @override
@@ -119,10 +121,12 @@ class _InvitationScreenState extends State<InvitationScreen> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
-  Map<String, dynamic>? _invite;
+  Map<String, dynamic>? _found; // aperçu du code (invitation ou groupe)
   bool _noCode = false; // inscription sans code : réservée à l'adresse administrateur du serveur
   bool _busy = false;
   String? _error;
+
+  bool get _isInvitation => _found?['type'] == 'invitation';
 
   @override
   void dispose() {
@@ -146,74 +150,108 @@ class _InvitationScreenState extends State<InvitationScreen> {
     }
   }
 
+  /// Vérifie le code dès qu'il est complet (6 ou 8 caractères), sans bouton à toucher.
+  void _onCodeChanged(String v) {
+    final n = v.toUpperCase().replaceAll(RegExp('[^A-Z0-9]'), '').length;
+    if (_found != null) setState(() => _found = null);
+    if (n == 6 || n == 8) _check();
+  }
+
+  void _check() => _run(() async {
+        final r = await context.read<AuthService>().previewCode(_code.text);
+        setState(() {
+          _found = r;
+          if (r['type'] == 'invitation') _email.text = r['email'] as String;
+        });
+      });
+
   void _done() {
     if (!mounted) return;
     Navigator.of(context).popUntil((r) => r.isFirst);
     snack(context, tr('Bienvenue ! Votre compte est prêt.'));
   }
 
+  void _submit(AuthService auth) {
+    if (_name.text.trim().length < 2) return setState(() => _error = tr('Indiquez votre nom.'));
+    if (!_isInvitation && !_email.text.contains('@')) return setState(() => _error = tr('Indiquez votre adresse e-mail.'));
+    if (_password.text.length < 8) return setState(() => _error = tr('Le mot de passe doit faire au moins 8 caractères.'));
+    _run(() async {
+      await auth.register(
+        email: _isInvitation ? null : _email.text.trim(),
+        password: _password.text,
+        displayName: _name.text.trim(),
+        code: _noCode ? null : _code.text,
+      );
+      _done();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.read<AuthService>();
-    final inv = _invite;
+    final found = _found;
+    final ready = found != null || _noCode;
     return Scaffold(
       appBar: AppBar(title: Text(tr('Créer un compte'))),
       body: Constrained(
         maxWidth: 520,
         child: ListView(padding: const EdgeInsets.all(20), children: [
-          if (inv == null && !_noCode) ...[
-            Text(tr('Saisissez le code reçu'), style: context.text.headlineSmall),
+          if (!_noCode) ...[
+            Text(tr('Votre code'), style: context.text.headlineSmall),
             const SizedBox(height: 6),
-            Text(tr('Il ressemble à K7XQ-M2PA.'), style: TextStyle(color: context.tones.muted)),
+            Text(tr('Code d’invitation reçu par e-mail (8 caractères, ex. K7XQ-M2PA) ou code de votre groupe (6 caractères).'),
+                style: TextStyle(color: context.tones.muted)),
             const SizedBox(height: 16),
             TextField(
               controller: _code,
+              enabled: !_busy || found != null,
               textCapitalization: TextCapitalization.characters,
+              autocorrect: false,
               style: const TextStyle(fontSize: 24, letterSpacing: 3, fontWeight: FontWeight.w600),
-              decoration: const InputDecoration(hintText: 'XXXX-XXXX'),
+              decoration: InputDecoration(
+                hintText: 'XXXX-XXXX',
+                suffixIcon: _busy && found == null
+                    ? const Padding(padding: EdgeInsets.all(12), child: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+                    : found != null
+                        ? Icon(Icons.check_circle, color: context.colors.primary)
+                        : null,
+              ),
+              onChanged: _onCodeChanged,
+              onSubmitted: (_) => _check(),
             ),
-            const SizedBox(height: 14),
-            FilledButton(
-              onPressed: _busy
-                  ? null
-                  : () => _run(() async {
-                        final r = await auth.previewInvitation(_code.text);
-                        setState(() {
-                          _invite = r;
-                          _email.text = r['email'] as String;
-                        });
-                      }),
-              child: Text(tr('Vérifier le code')),
-            ),
-            const SizedBox(height: 24),
-            Text(tr('Pas de code ? Demandez-en un à l’admin de votre groupe : il le crée depuis l’onglet Suivi ou l’admin web.'),
-                style: TextStyle(color: context.tones.muted)),
-            TextButton(
-              onPressed: _busy ? null : () => setState(() => _noCode = true),
-              child: Text(tr('Je suis l’administrateur principal (sans code)')),
-            ),
-          ] else ...[
+          ],
+          if (ready) ...[
+            const SizedBox(height: 16),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: inv == null
+                child: _noCode
                     ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(tr('Compte administrateur'), style: context.text.titleLarge),
                         const SizedBox(height: 6),
-                        Text(tr('Réservé à l’adresse administrateur configurée sur le serveur. Les autres personnes ont besoin d’un code d’invitation.'),
+                        Text(tr('Réservé à l’adresse administrateur configurée sur le serveur. Les autres personnes ont besoin d’un code.'),
                             style: TextStyle(color: context.tones.muted)),
                       ])
                     : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(tr('Invitation valide'), style: context.text.titleLarge),
-                        const SizedBox(height: 6),
-                        Text(tr('Pour : {email}', {'email': inv['email']})),
-                        if (inv['groupName'] != null) Text(tr('Groupe : {g}', {'g': inv['groupName']})),
-                        if (inv['invitedBy'] != null) Text(tr('De la part de : {name}', {'name': inv['invitedBy']})),
-                        if (inv['role'] == 'admin') Text(tr('Rôle : administrateur'), style: TextStyle(color: context.colors.primary)),
+                        if (found!['groupName'] != null) ...[
+                          Text(tr('Groupe'), style: TextStyle(color: context.tones.muted)),
+                          Text(found['groupName'] as String, style: context.text.titleLarge),
+                        ] else
+                          Text(tr('Invitation valide'), style: context.text.titleLarge),
+                        if (_isInvitation) ...[
+                          const SizedBox(height: 8),
+                          Row(children: [
+                            Icon(Icons.mail_outline, size: 18, color: context.tones.muted),
+                            const SizedBox(width: 6),
+                            Expanded(child: Text(found['email'] as String, style: const TextStyle(fontWeight: FontWeight.w600))),
+                          ]),
+                          if (found['invitedBy'] != null) Text(tr('De la part de : {name}', {'name': found['invitedBy']})),
+                          if (found['role'] == 'admin') Text(tr('Rôle : administrateur'), style: TextStyle(color: context.colors.primary)),
+                        ],
                       ]),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             if (auth.googleEnabled) ...[
               FilledButton.icon(
                 onPressed: _busy ? null : () => _run(() async {
@@ -222,31 +260,34 @@ class _InvitationScreenState extends State<InvitationScreen> {
                 icon: const Icon(Icons.login),
                 label: Text(tr('Continuer avec Google')),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               Text(tr('Ou créez un mot de passe'), style: context.text.titleMedium),
               const SizedBox(height: 10),
             ],
-            TextField(controller: _name, decoration: InputDecoration(labelText: tr('Votre nom (visible par votre groupe)'))),
+            TextField(controller: _name, textCapitalization: TextCapitalization.words, decoration: InputDecoration(labelText: tr('Votre nom (visible par votre groupe)'))),
+            if (!_isInvitation) ...[
+              const SizedBox(height: 10),
+              TextField(controller: _email, keyboardType: TextInputType.emailAddress, autocorrect: false, decoration: InputDecoration(labelText: tr('E-mail'))),
+            ],
             const SizedBox(height: 10),
-            TextField(controller: _email, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: tr('E-mail'))),
-            const SizedBox(height: 10),
-            TextField(controller: _password, obscureText: true, decoration: InputDecoration(labelText: tr('Mot de passe (8 caractères minimum)'))),
-            const SizedBox(height: 14),
-            OutlinedButton(
-              onPressed: _busy
-                  ? null
-                  : () {
-                      if (_name.text.trim().length < 2) return setState(() => _error = tr('Indiquez votre nom.'));
-                      if (_password.text.length < 8) return setState(() => _error = tr('Le mot de passe doit faire au moins 8 caractères.'));
-                      _run(() async {
-                        await auth.register(email: _email.text.trim(), password: _password.text, displayName: _name.text.trim(), invitationCode: _noCode ? null : _code.text);
-                        _done();
-                      });
-                    },
-              child: Text(tr('Créer mon compte')),
+            TextField(
+              controller: _password,
+              obscureText: true,
+              decoration: InputDecoration(labelText: tr('Mot de passe (8 caractères minimum)')),
+              onSubmitted: (_) => _submit(auth),
             ),
+            const SizedBox(height: 14),
+            FilledButton(onPressed: _busy ? null : () => _submit(auth), child: Text(tr('Créer mon compte'))),
           ],
           if (_error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(_error!, style: TextStyle(color: context.colors.error))),
+          if (!ready) ...[
+            const SizedBox(height: 28),
+            Text(tr('Pas de code ? Demandez-le à l’admin de votre groupe.'), style: TextStyle(color: context.tones.muted)),
+            TextButton(
+              onPressed: _busy ? null : () => setState(() => _noCode = true),
+              child: Text(tr('Je suis l’administrateur principal (sans code)')),
+            ),
+          ],
         ]),
       ),
     );

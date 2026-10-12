@@ -85,6 +85,8 @@ export function createDemoApi(): Api {
     addMemberByEmail: async (_g, email) => ({ invited: true as const, email, code: 'K7XQ-M2PA', link: null, expiresAt: ago(-14), message: `Code : K7XQ-M2PA` }),
     groupInvitations: async () => invitations.filter((i) => i.state === 'pending' && i.groupName),
     revokeGroupInvitation: noop,
+    groupJoinCode: async (g) => (g === 'g1' ? 'H7KQ2M' : 'P3XW9R'),
+    regenerateJoinCode: async () => 'N4TB8Z',
     groupMembers: async (g) => (g === 'g1' ? users.slice(0, 8) : users.slice(2, 6)).map((u) => ({ ...u })),
     memberProgress: async (_g, u) => progress.get(u) ?? [],
   };

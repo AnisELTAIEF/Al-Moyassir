@@ -1,4 +1,5 @@
 // Administration : utilisateurs, rôles, invitations, groupes. Réservé au rôle « admin ».
+import { assignGroupCode } from '../groupCodes.js';
 import { HttpError } from '../errors.js';
 import { tx } from '../db.js';
 import { uuid } from '../security.js';
@@ -114,11 +115,11 @@ export default async function adminRoutes(app) {
   // ── Groupes ──
   app.get('/groups', async () => {
     const [rows] = await app.db.query(
-      `SELECT g.id, g.name, g.created_at, COUNT(gm.user_id) AS members,
+      `SELECT g.id, g.name, g.join_code, g.created_at, COUNT(gm.user_id) AS members,
               SUM(gm.role = 'admin') AS managers
        FROM study_groups g LEFT JOIN group_members gm ON gm.group_id = g.id
        GROUP BY g.id ORDER BY g.name`);
-    return { items: rows.map((r) => ({ id: r.id, name: r.name, createdAt: iso(r.created_at), members: Number(r.members), managers: Number(r.managers ?? 0) })) };
+    return { items: rows.map((r) => ({ id: r.id, name: r.name, joinCode: r.join_code, createdAt: iso(r.created_at), members: Number(r.members), managers: Number(r.managers ?? 0) })) };
   });
 
   const nameBody = { type: 'object', required: ['name'], properties: { name: { type: 'string', minLength: 2, maxLength: 80 } } };
@@ -126,7 +127,7 @@ export default async function adminRoutes(app) {
   app.post('/groups', { schema: { body: nameBody } }, async (req) => {
     const id = uuid();
     await app.db.query('INSERT INTO study_groups (id, name, created_by) VALUES (?, ?, ?)', [id, req.body.name.trim(), req.user.id]);
-    return { id, name: req.body.name.trim() };
+    return { id, name: req.body.name.trim(), joinCode: await assignGroupCode(app.db, id) };
   });
 
   app.patch('/groups/:id', { schema: { params: idParam, body: nameBody } }, async (req) => {

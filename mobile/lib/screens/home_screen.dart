@@ -85,9 +85,7 @@ class HomeScreen extends StatelessWidget {
                     contentPadding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
                     leading: Icon(Icons.person_add_alt_1_outlined, color: context.colors.primary),
                     title: Text(tr('Créer un compte ou se connecter')),
-                    subtitle: Text(auth.enabled
-                        ? tr('Retrouvez votre progression sur tous vos appareils et rejoignez votre groupe.')
-                        : tr('Mode local : touchez ici pour renseigner le serveur de votre groupe, puis créer votre compte.')),
+                    subtitle: Text(tr('Retrouvez votre progression sur tous vos appareils et rejoignez votre groupe.')),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountScreen())),
                   ),

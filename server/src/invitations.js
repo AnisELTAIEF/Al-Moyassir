@@ -32,7 +32,7 @@ export async function createInvitation(app, { email, role = 'user', groupId = nu
   return {
     id, email, role, groupId, groupRole, code, link, expiresAt: expires.toISOString(),
     message: `Assalamou alaykoum,\n\nVous êtes invité(e) à rejoindre Almoyassir (الميسّر)${where}.\n` +
-      `Ouvrez l’application, choisissez « J’ai un code d’invitation » et saisissez : ${code}\n` +
+      `Ouvrez l’application, touchez « Créer un compte avec un code » et saisissez : ${code} (votre e-mail et votre groupe s’afficheront tout seuls)\n` +
       (link ? `Ou ouvrez ce lien : ${link}\n` : '') +
       `Vous pouvez aussi simplement vous connecter avec Google avec l’adresse ${email}.\n` +
       `Ce code expire le ${expires.toLocaleDateString('fr-FR')}.`,

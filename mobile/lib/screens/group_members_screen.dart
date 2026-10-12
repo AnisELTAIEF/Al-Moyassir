@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/admin_service.dart';
 import '../core/api_client.dart';
@@ -39,6 +40,46 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
     }
   }
 
+  /// Code du groupe : à donner aux membres, qui le saisissent à la création de leur compte
+  /// (ou dans Compte → « Rejoindre un groupe »).
+  Widget _joinCodeCard(String code) {
+    final message = tr('Assalamou alaykoum,\n\nRejoignez le groupe « {g} » dans l’application Almoyassir (الميسّر) : touchez « Créer un compte avec un code » et saisissez le code {code}.',
+        {'g': _name, 'code': code});
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: context.colors.primary.withValues(alpha: 0.07),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr('Code du groupe'), style: TextStyle(color: context.tones.muted)),
+              SelectableText(code, style: const TextStyle(fontSize: 26, letterSpacing: 4, fontWeight: FontWeight.w700)),
+              Text(tr('À donner aux membres : ils le saisissent en créant leur compte.'), style: context.text.bodySmall),
+            ]),
+          ),
+          IconButton(
+            tooltip: tr('Partager'),
+            icon: const Icon(Icons.share),
+            onPressed: () => SharePlus.instance.share(ShareParams(text: message, subject: tr('Groupe {g}', {'g': _name}))),
+          ),
+          IconButton(
+            tooltip: tr('Nouveau code (l’ancien ne marchera plus)'),
+            icon: const Icon(Icons.autorenew),
+            onPressed: () async {
+              if (await confirm(context,
+                  title: tr('Changer le code du groupe ?'),
+                  body: tr('L’ancien code ne permettra plus de rejoindre le groupe. Les membres actuels restent membres.'),
+                  ok: tr('Changer'))) {
+                await _act(() => widget.admin.regenerateJoinCode(widget.groupId), tr('Nouveau code créé.'));
+              }
+            },
+          ),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -47,16 +88,21 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
         actions: [IconButton(tooltip: tr('Renommer le groupe'), onPressed: _rename, icon: const Icon(Icons.edit_outlined))],
       ),
       floatingActionButton: FloatingActionButton.extended(onPressed: _add, icon: const Icon(Icons.person_add_alt), label: Text(tr('Ajouter'))),
-      body: AsyncView<(List<UserStats>, List<Invitation>)>(
+      body: AsyncView<(List<UserStats>, List<Invitation>, String?)>(
         key: _key,
-        load: () async => (await widget.admin.groupMembers(widget.groupId), await widget.admin.groupInvitations(widget.groupId)),
+        load: () async => (
+          await widget.admin.groupMembers(widget.groupId),
+          await widget.admin.groupInvitations(widget.groupId),
+          await widget.admin.groupJoinCode(widget.groupId),
+        ),
         builder: (context, data, _) {
-          final (members, invitations) = data;
+          final (members, invitations, joinCode) = data;
           final best = members.map((m) => m.memorized).fold<int>(1, (a, b) => b > a ? b : a);
           final total = members.fold<int>(0, (a, m) => a + m.memorized);
           final admins = members.where((m) => m.groupRole == 'admin').length;
           return Constrained(
             child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 96), children: [
+              if (joinCode != null) _joinCodeCard(joinCode),
               if (members.isEmpty)
                 EmptyState(icon: Icons.group_add_outlined, title: tr('Aucun membre'), body: tr('Touchez « Ajouter » et saisissez l’e-mail d’une personne. Si elle n’a pas encore de compte, un code d’invitation est créé.'))
               else

@@ -1,6 +1,7 @@
 import { HttpError } from '../errors.js';
 import { tx } from '../db.js';
 import { sha256, uuid, newRefreshToken, hashPassword, checkPassword, normalizeCode } from '../security.js';
+import { groupByCode, looksLikeGroupCode } from '../groupCodes.js';
 import { issueSession, findUserByEmail, validInvitationByCode, validInvitationByEmail, createAccount, iso } from '../users.js';
 
 const strictLimit = { rateLimit: { max: 20, timeWindow: '1 minute' } };
@@ -12,6 +13,7 @@ export default async function authRoutes(app) {
     schema: { body: { type: 'object', required: ['idToken'], properties: {
       idToken: { type: 'string', minLength: 20, maxLength: 4096 },
       invitationCode: { type: 'string', maxLength: 20 },
+      groupCode: { type: 'string', maxLength: 20 },
     } } },
   }, async (req) => {
     let g;
@@ -28,13 +30,12 @@ export default async function authRoutes(app) {
         if (!u.google_sub) await conn.query('UPDATE users SET google_sub = ? WHERE id = ?', [g.sub, u.id]);
         return u;
       }
-      const invitation = req.body.invitationCode
-        ? await validInvitationByCode(conn, normalizeCode(req.body.invitationCode))
-        : await validInvitationByEmail(conn, g.email);
-      if (req.body.invitationCode && !invitation) {
-        throw new HttpError(400, 'invalid_invitation', 'Code d’invitation invalide ou expiré.');
-      }
-      return createAccount(conn, app.cfg, { email: g.email, displayName: g.name, googleSub: g.sub, invitation });
+      const { invitation, group } = await resolveCodes(conn, req.body);
+      if (invitation && invitation.email !== g.email) throw emailMismatch(invitation.email);
+      return createAccount(conn, app.cfg, {
+        email: g.email, displayName: g.name, googleSub: g.sub,
+        invitation: invitation ?? (group ? null : await validInvitationByEmail(conn, g.email)), group,
+      });
     });
     if (user.status !== 'active') throw new HttpError(403, 'account_disabled', 'Compte désactivé.');
     return issueSession(app, user);
@@ -43,25 +44,26 @@ export default async function authRoutes(app) {
   /** Inscription par e-mail + mot de passe, avec un code d'invitation (ou pour l'admin par défaut). */
   app.post('/register', {
     config: strictLimit,
-    schema: { body: { type: 'object', required: ['email', 'password', 'displayName'], properties: {
+    schema: { body: { type: 'object', required: ['password', 'displayName'], properties: {
+      // Facultatif avec un code d'invitation : l'e-mail de l'invitation est alors utilisé.
       email: { type: 'string', format: 'email', maxLength: 254 },
       password: { type: 'string', minLength: 8, maxLength: 200 },
       displayName: { type: 'string', minLength: 2, maxLength: 80 },
       invitationCode: { type: 'string', maxLength: 20 },
+      groupCode: { type: 'string', maxLength: 20 },
     } } },
   }, async (req) => {
-    const email = req.body.email.trim().toLowerCase();
     const passwordHash = await hashPassword(req.body.password);
     const user = await tx(app.db, async (conn) => {
+      const { invitation, group } = await resolveCodes(conn, req.body);
+      const given = req.body.email?.trim().toLowerCase();
+      if (invitation && given && given !== invitation.email) throw emailMismatch(invitation.email);
+      const email = invitation?.email ?? given;
+      if (!email) throw new HttpError(400, 'email_required', 'Indiquez votre adresse e-mail.');
       if (await findUserByEmail(conn, email)) {
         throw new HttpError(409, 'email_taken', 'Un compte existe déjà avec cet e-mail. Connectez-vous.');
       }
-      let invitation = null;
-      if (req.body.invitationCode) {
-        invitation = await validInvitationByCode(conn, normalizeCode(req.body.invitationCode));
-        if (!invitation) throw new HttpError(400, 'invalid_invitation', 'Code d’invitation invalide ou expiré.');
-      }
-      return createAccount(conn, app.cfg, { email, displayName: req.body.displayName.trim(), passwordHash, invitation });
+      return createAccount(conn, app.cfg, { email, displayName: req.body.displayName.trim(), passwordHash, invitation, group });
     });
     return issueSession(app, user);
   });
@@ -120,6 +122,24 @@ export default async function authRoutes(app) {
     return { ok: true };
   });
 
+  /**
+   * Aperçu public d'un code saisi dans l'app : invitation (8 caractères → e-mail et groupe pré-remplis)
+   * ou code de groupe (6 caractères → nom du groupe).
+   */
+  app.get('/codes/:code', { config: strictLimit }, async (req) => {
+    const code = req.params.code;
+    if (looksLikeGroupCode(code)) {
+      const g = await groupByCode(app.db, code);
+      if (!g) throw new HttpError(404, 'invalid_code', 'Code invalide. Vérifiez-le auprès de l’admin du groupe.');
+      return { type: 'group', groupName: g.name };
+    }
+    const inv = await validInvitationByCode(app.db, normalizeCode(code));
+    if (!inv) throw new HttpError(404, 'invalid_code', 'Code invalide ou expiré. Vérifiez-le auprès de l’admin du groupe.');
+    const [gr] = inv.group_id ? await app.db.query('SELECT name FROM study_groups WHERE id = ?', [inv.group_id]) : [[]];
+    const [by] = inv.invited_by ? await app.db.query('SELECT display_name FROM users WHERE id = ?', [inv.invited_by]) : [[]];
+    return { type: 'invitation', email: inv.email, role: inv.role, groupName: gr[0]?.name ?? null, invitedBy: by[0]?.display_name ?? null, expiresAt: iso(inv.expires_at) };
+  });
+
   /** Aperçu public d'une invitation (pour l'écran « J'ai un code »). */
   app.get('/invitations/:code', { config: strictLimit }, async (req) => {
     const inv = await validInvitationByCode(app.db, normalizeCode(req.params.code));
@@ -128,4 +148,22 @@ export default async function authRoutes(app) {
     const [by] = inv.invited_by ? await app.db.query('SELECT display_name FROM users WHERE id = ?', [inv.invited_by]) : [[]];
     return { email: inv.email, role: inv.role, groupName: g[0]?.name ?? null, invitedBy: by[0]?.display_name ?? null, expiresAt: iso(inv.expires_at) };
   });
+}
+
+const emailMismatch = (email) => new HttpError(400, 'email_mismatch', `Ce code d’invitation est réservé à ${email}.`);
+
+/** Code d'invitation et/ou code de groupe envoyés par l'app (un code de 6 caractères dans invitationCode est accepté comme code de groupe). */
+async function resolveCodes(conn, body) {
+  let invitation = null, group = null;
+  const invCode = body.invitationCode?.trim();
+  const grpCode = body.groupCode?.trim() || (invCode && looksLikeGroupCode(invCode) ? invCode : null);
+  if (invCode && !looksLikeGroupCode(invCode)) {
+    invitation = await validInvitationByCode(conn, normalizeCode(invCode));
+    if (!invitation) throw new HttpError(400, 'invalid_invitation', 'Code d’invitation invalide ou expiré.');
+  }
+  if (grpCode) {
+    group = await groupByCode(conn, grpCode);
+    if (!group) throw new HttpError(400, 'invalid_group_code', 'Code de groupe invalide.');
+  }
+  return { invitation, group };
 }

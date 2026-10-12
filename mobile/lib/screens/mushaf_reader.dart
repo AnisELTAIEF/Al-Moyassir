@@ -62,12 +62,12 @@ class _MushafReaderState extends State<MushafReader> {
     super.dispose();
   }
 
-  /// Toucher : feuille de l'ayah (ou niveau de maîtrise suivant en colorisation par maîtrise) ;
-  /// appui long : toujours la feuille de l'ayah.
+  /// Toucher : marque / démarque l'ayah « en cours » (قيد الحفظ) ; appui long : feuille de l'ayah.
   TapGestureRecognizer _tap(int surah, int ayah) => _taps.putIfAbsent('$surah:$ayah', () {
         void sheet() => showAyahSheet(context, surah, ayah, _repo.surah(surah).ayahs[ayah - 1]);
         return ayahRecognizer(
-          onTap: () => context.read<Settings>().coloring == AyahColoring.mastery ? cycleAyahMastery(context, surah, ayah) : sheet(),
+          onTap: () => toggleLearning(context, surah, ayah), // Qira'a : un toucher = « قيد الحفظ »
+
           onLongPress: sheet,
         );
       });

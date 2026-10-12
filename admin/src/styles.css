@@ -138,3 +138,7 @@ tbody tr:hover, tbody tr.sel { background: color-mix(in srgb, var(--zellige) 6%,
 
 .span-all { grid-column: 1 / -1; margin: 0; }
 .invite-form .check { align-self: center; }
+
+.join-code { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.join-code > div:first-child { display: flex; flex-direction: column; gap: .2rem; }
+.join-code .code { font-size: 1.8rem; letter-spacing: .3em; font-family: ui-monospace, monospace; }

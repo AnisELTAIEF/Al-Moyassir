@@ -3,6 +3,7 @@ import { HttpError } from '../errors.js';
 import { tx } from '../db.js';
 import { progressOf, statsRow } from '../progress.js';
 import { createInvitation, invitationRow } from '../invitations.js';
+import { assignGroupCode } from '../groupCodes.js';
 
 const idParam = { type: 'object', properties: { id: { type: 'string', minLength: 36, maxLength: 36 } } };
 
@@ -23,7 +24,7 @@ export default async function groupRoutes(app) {
   app.addHook('preHandler', app.authenticate);
 
   const guard = async (req) => {
-    const [g] = await app.db.query('SELECT id, name FROM study_groups WHERE id = ?', [req.params.id]);
+    const [g] = await app.db.query('SELECT id, name, join_code FROM study_groups WHERE id = ?', [req.params.id]);
     if (!g[0]) throw new HttpError(404, 'not_found', 'Groupe introuvable.');
     if (!(await canManageGroup(app, req.user, req.params.id))) throw new HttpError(403, 'forbidden', 'Réservé aux admins de ce groupe.');
     return g[0];
@@ -44,7 +45,7 @@ export default async function groupRoutes(app) {
        GROUP BY u.id, gm.role, gm.joined_at
        ORDER BY u.display_name`, [g.id]);
     return {
-      group: { id: g.id, name: g.name },
+      group: { id: g.id, name: g.name, joinCode: g.join_code },
       members: rows.map((r) => ({ ...statsRow(r), groupRole: r.group_role, joinedAt: r.joined_at?.toISOString() })),
     };
   });
@@ -54,6 +55,12 @@ export default async function groupRoutes(app) {
     const [m] = await app.db.query('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?', [req.params.id, req.params.uid]);
     if (!m.length) throw new HttpError(404, 'not_member', 'Cette personne n’est pas membre du groupe.');
     return { items: await progressOf(app.db, req.params.uid) };
+  });
+
+  /** Nouveau code de groupe (l'ancien cesse de fonctionner). */
+  app.post('/:id/join-code', { schema: { params: idParam } }, async (req) => {
+    const g = await guard(req);
+    return { joinCode: await assignGroupCode(app.db, g.id) };
   });
 
   app.patch('/:id', {

@@ -42,6 +42,13 @@ class AdminService {
       message: r['message'] as String?,
     );
   }
+  /// Code permanent du groupe (6 caractères) : à partager pour rejoindre le groupe sans invitation par e-mail.
+  Future<String?> groupJoinCode(String groupId) async {
+    final r = await api.get('/groups/$groupId/overview') as Map<String, dynamic>;
+    return (r['group'] as Map<String, dynamic>)['joinCode'] as String?;
+  }
+  Future<String> regenerateJoinCode(String groupId) async =>
+      ((await api.post('/groups/$groupId/join-code')) as Map<String, dynamic>)['joinCode'] as String;
   Future<List<Invitation>> groupInvitations(String groupId) async => _items(await api.get('/groups/$groupId/invitations'), Invitation.fromJson);
   Future<void> revokeGroupInvitation(String groupId, String invitationId) => api.delete('/groups/$groupId/invitations/$invitationId');
 

@@ -15,7 +15,7 @@ export default async function inviteRoutes(app) {
 .ar{font-size:28px;color:#d9b45a}ol{text-align:left;line-height:1.7}</style></head><body><div class="c">
 <div class="ar">حِفْظُ القُرْآن</div><h1>Vous êtes invité(e)</h1>
 ${valid ? `<p>Votre code d’invitation :</p><div class="code">${esc(code)}</div>
-<ol><li>Installez l’application <b>Almoyassir (الميسّر)</b>.</li><li>Touchez <b>« J’ai un code d’invitation »</b>.</li><li>Saisissez ce code, puis connectez-vous avec Google ou créez un mot de passe.</li></ol>`
+<ol><li>Installez l’application <b>Almoyassir (الميسّر)</b>.</li><li>Touchez <b>« Créer un compte avec un code »</b>.</li><li>Saisissez ce code, puis connectez-vous avec Google ou créez un mot de passe.</li></ol>`
       : '<p>Ce lien d’invitation n’est pas valide.</p>'}
 </div></body></html>`;
   });

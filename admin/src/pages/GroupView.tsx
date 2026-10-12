@@ -11,6 +11,8 @@ export default function GroupView({ api, group, isGlobalAdmin, meId, onBack }: {
 }) {
   const { data: members, error, reload } = useAsync(() => api.groupMembers(group.id), [group.id]);
   const pending = useAsync(() => api.groupInvitations(group.id), [group.id]);
+  const joinCode = useAsync(() => api.groupJoinCode(group.id), [group.id]);
+  const [codeCopied, setCodeCopied] = useState(false);
   const [name, setName] = useState(group.name);
   const [sel, setSel] = useState<UserStats | null>(null);
   const [onlyInactive, setOnlyInactive] = useState(false);
@@ -81,6 +83,20 @@ export default function GroupView({ api, group, isGlobalAdmin, meId, onBack }: {
             <div className="card stat"><span>Ayat appris (total)</span><strong>{total.toLocaleString('fr-FR')}</strong></div>
             <div className="card stat"><span>Moyenne par membre</span><strong>{list.length ? Math.round(total / list.length) : 0}</strong><small>{fmtPct(list.length ? total / list.length : 0)} du Coran</small></div>
             <div className="card stat"><span>Inactifs (7 j et plus)</span><strong className={inactive.size ? 'warn' : ''}>{inactive.size}</strong></div>
+          </div>
+        )}
+
+        {joinCode.data && (
+          <div className="card join-code">
+            <div>
+              <span className="muted">Code du groupe</span>
+              <strong className="code">{joinCode.data}</strong>
+              <small className="muted">À donner aux membres : dans l’app, « Créer un compte avec un code » (ou Compte → « Rejoindre un groupe »).</small>
+            </div>
+            <div className="row-actions">
+              <button className="btn ghost small" onClick={() => navigator.clipboard?.writeText(joinCode.data!).then(() => setCodeCopied(true))}>{codeCopied ? 'Copié ✓' : 'Copier'}</button>
+              <button className="btn ghost small" onClick={() => window.confirm('Créer un nouveau code ? L’ancien ne permettra plus de rejoindre le groupe.') && api.regenerateJoinCode(group.id).then(() => { setCodeCopied(false); joinCode.reload(); })}>Nouveau code</button>
+            </div>
           </div>
         )}
 
