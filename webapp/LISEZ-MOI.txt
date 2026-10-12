@@ -1,0 +1,2 @@
+Fichiers GÉNÉRÉS par tools/build-webapp.sh — ne pas modifier à la main.
+Version web de l'app Almoyassir, publiée sur https://<domaine>/app/ par deploy/install.sh.

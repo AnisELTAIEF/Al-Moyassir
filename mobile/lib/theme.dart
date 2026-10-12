@@ -72,13 +72,14 @@ ThemeData buildTheme(Brightness b) {
     page: dark ? Palette.nightBg : Palette.limewash,
   );
   final base = ThemeData(useMaterial3: true, colorScheme: scheme, fontFamily: 'ReadexPro', brightness: b);
-  final t = base.textTheme;
+  final t = _noLetterSpacing(base.textTheme);
   return base.copyWith(
     scaffoldBackgroundColor: tones.page,
     extensions: [tones],
+    primaryTextTheme: _noLetterSpacing(base.primaryTextTheme),
     textTheme: t.copyWith(
-      displaySmall: t.displaySmall?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -0.5),
-      headlineMedium: t.headlineMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: -0.3),
+      displaySmall: t.displaySmall?.copyWith(fontWeight: FontWeight.w600),
+      headlineMedium: t.headlineMedium?.copyWith(fontWeight: FontWeight.w600),
       headlineSmall: t.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
       titleLarge: t.titleLarge?.copyWith(fontWeight: FontWeight.w600),
       titleMedium: t.titleMedium?.copyWith(fontWeight: FontWeight.w500),
@@ -123,5 +124,29 @@ ThemeData buildTheme(Brightness b) {
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
     bottomSheetTheme: BottomSheetThemeData(backgroundColor: scheme.surface, showDragHandle: true, surfaceTintColor: Colors.transparent),
     dividerTheme: DividerThemeData(color: tones.line, space: 1),
+  );
+}
+
+/// Material 3 espace les lettres de la plupart des styles (0,1 à 0,5 px). En arabe, tout espacement
+/// non nul casse les ligatures : « لا » s'affichait en deux lettres (ل ا), par exemple dans « السلام عليكم ».
+/// Tous les styles du thème ont donc un espacement nul ; ils sont hérités par chaque `Text`.
+TextTheme _noLetterSpacing(TextTheme t) {
+  TextStyle? z(TextStyle? s) => s?.copyWith(letterSpacing: 0);
+  return t.copyWith(
+    displayLarge: z(t.displayLarge),
+    displayMedium: z(t.displayMedium),
+    displaySmall: z(t.displaySmall),
+    headlineLarge: z(t.headlineLarge),
+    headlineMedium: z(t.headlineMedium),
+    headlineSmall: z(t.headlineSmall),
+    titleLarge: z(t.titleLarge),
+    titleMedium: z(t.titleMedium),
+    titleSmall: z(t.titleSmall),
+    bodyLarge: z(t.bodyLarge),
+    bodyMedium: z(t.bodyMedium),
+    bodySmall: z(t.bodySmall),
+    labelLarge: z(t.labelLarge),
+    labelMedium: z(t.labelMedium),
+    labelSmall: z(t.labelSmall),
   );
 }

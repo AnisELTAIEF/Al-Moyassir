@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <!-- Remplacé par --base-href au build (ex. /app/). -->
+  <base href="/app/">
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="الميسّر — قراءة القرآن برواية قالون وحفظه ومراجعته">
+  <meta name="theme-color" content="#0D5C4B">
+
+  <!-- iPhone / iPad : « Sur l’écran d’accueil » ouvre l’app en plein écran, avec son icône. -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="الميسّر">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <title>الميسّر — Almoyassir</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    html, body { margin: 0; height: 100%; background: #F5F6F2; }
+    #chargement {
+      position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px; font-family: -apple-system, "Segoe UI", Tahoma, sans-serif; color: #0D5C4B;
+    }
+    #chargement img { width: 96px; height: 96px; border-radius: 22px; }
+    #chargement .nom { font-size: 28px; }
+    #chargement .msg { font-size: 15px; color: #5B6B66; }
+    #chargement .barre { width: 140px; height: 4px; border-radius: 2px; background: #DCE5E1; overflow: hidden; }
+    #chargement .barre::after {
+      content: ""; display: block; width: 40%; height: 100%; background: #C9A227;
+      animation: va 1.2s ease-in-out infinite alternate;
+    }
+    @keyframes va { from { transform: translateX(150%); } to { transform: translateX(-100%); } }
+    @media (prefers-color-scheme: dark) {
+      html, body { background: #0F1615; }
+      #chargement { color: #9FD3C3; }
+      #chargement .barre { background: #24332E; }
+    }
+  </style>
+</head>
+<body>
+  <div id="chargement" role="status">
+    <img src="icons/Icon-192.png" alt="">
+    <div class="nom">الميسّر</div>
+    <div class="barre"></div>
+    <div class="msg">جارٍ التحميل… · Chargement…</div>
+  </div>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

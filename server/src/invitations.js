@@ -34,6 +34,7 @@ export async function createInvitation(app, { email, role = 'user', groupId = nu
     message: `Assalamou alaykoum,\n\nVous êtes invité(e) à rejoindre Almoyassir (الميسّر)${where}.\n` +
       `Ouvrez l’application, touchez « Créer un compte avec un code » et saisissez : ${code} (votre e-mail et votre groupe s’afficheront tout seuls)\n` +
       (link ? `Ou ouvrez ce lien : ${link}\n` : '') +
+      (app.cfg.publicUrl ? `Sur iPhone : ouvrez ${app.cfg.publicUrl}/app/ dans Safari, puis Partager → « Sur l’écran d’accueil ».\n` : '') +
       `Vous pouvez aussi simplement vous connecter avec Google avec l’adresse ${email}.\n` +
       `Ce code expire le ${expires.toLocaleDateString('fr-FR')}.`,
   };

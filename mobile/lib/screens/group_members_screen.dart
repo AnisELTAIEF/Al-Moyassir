@@ -5,6 +5,7 @@ import '../core/admin_service.dart';
 import '../core/api_client.dart';
 import '../core/models.dart';
 import '../core/quran_repository.dart';
+import '../env.dart';
 import '../theme.dart';
 import '../widgets/async_view.dart';
 import '../widgets/common.dart';
@@ -43,8 +44,8 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
   /// Code du groupe : à donner aux membres, qui le saisissent à la création de leur compte
   /// (ou dans Compte → « Rejoindre un groupe »).
   Widget _joinCodeCard(String code) {
-    final message = tr('Assalamou alaykoum,\n\nRejoignez le groupe « {g} » dans l’application Almoyassir (الميسّر) : touchez « Créer un compte avec un code » et saisissez le code {code}.',
-        {'g': _name, 'code': code});
+    final message = tr('Assalamou alaykoum,\n\nRejoignez le groupe « {g} » dans l’application Almoyassir (الميسّر) : touchez « Créer un compte avec un code » et saisissez le code {code}.\n\nSur iPhone : ouvrez {url} dans Safari, puis Partager → « Sur l’écran d’accueil ».',
+        {'g': _name, 'code': code, 'url': Env.webAppUrl});
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: context.colors.primary.withValues(alpha: 0.07),

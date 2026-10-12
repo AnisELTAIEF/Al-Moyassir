@@ -9,5 +9,8 @@ class Env {
   static const googleServerClientId = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
   static const googleIosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
   static bool get online => apiUrl.isNotEmpty;
+
+  /// Version web (iPhone, navigateur), servie par le même serveur : …/api → …/app/.
+  static String get webAppUrl => apiUrl.isEmpty ? '' : '${apiUrl.replaceFirst(RegExp(r'/api/?$'), '')}/app/';
   static bool get googleEnabled => online && googleServerClientId.isNotEmpty;
 }

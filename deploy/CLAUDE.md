@@ -12,13 +12,19 @@ qui tourne déjà sur la machine.
 | Élément | Valeur |
 |---|---|
 | Dépôt sur le serveur | `/home/anis/repo/Al-Moyassir/Al-Moyassir` (clone de `github.com/AnisELTAIEF/Al-Moyassir`) |
-| Domaine | `quran.bestconsultingit.com` — enregistrement A → `197.240.115.10` (DNS géré dans Microsoft 365) |
+| Domaine | `quran.bestconsultingit.com` — enregistrement A → `197.240.132.72` (DNS géré dans Microsoft 365) |
 | Site Best CIT | **ailleurs** (`bestconsultingit.com` et `www` → 46.105.204.20) : a priori **pas** sur ce serveur |
-| Réseau | IP publique supposée être celle d'une box/routeur : vérifier que 80 et 443 arrivent bien jusqu'au serveur |
+| Réseau | Serveur derrière une box/routeur (IP locale `192.168.1.37`, IP publique `197.240.132.72`) : la box doit rediriger 80 et 443 vers `192.168.1.37` |
 
 À vérifier à l'étape 0 et à signaler à Anis si c'est différent : `curl -s ifconfig.me` doit donner
-`197.240.115.10` ; `getent hosts quran.bestconsultingit.com` doit donner la même IP ; dire si un
+`197.240.132.72` ; `getent hosts quran.bestconsultingit.com` doit donner la même IP ; dire si un
 serveur web, MariaDB ou d'autres sites existent déjà sur la machine.
+
+> **Incident 12/10/2026 — site injoignable de l'extérieur.** L'IP publique du serveur est passée de
+> `197.240.115.10` (ancienne valeur de l'enregistrement A) à `197.240.132.72`, sans que le DNS soit mis
+> à jour : tout le trafic partait vers une IP morte alors que nginx/vhost/cert/backend étaient sains en
+> local. Correctif : enregistrement A `quran` → `197.240.132.72` dans Microsoft 365. ⚠️ Si l'IP publique
+> est dynamique, prévoir une IP fixe ou un DNS dynamique pour éviter la récidive.
 
 ## Règles à respecter (non négociables)
 
@@ -195,6 +201,16 @@ validées par Anis, à traiter dans l'ordre (proposer un plan court avant de cod
 Procédure complète : `docs/MISE-A-JOUR-SERVEUR.md`. En bref : 
 `git -C $SRC pull`, puis relancer l'étape 5 (le script est
 idempotent ; les migrations déjà appliquées sont ignorées).
+
+## Version web de l'app (iPhone, iPad, navigateur) — `/app/`
+
+- Fichiers précompilés dans `webapp/` (générés par `tools/build-webapp.sh`, hors serveur : pas de
+  Flutter sur la VM). `install.sh` les publie dans `/var/www/almoyassir-app/app` et installe
+  `/etc/nginx/snippets/almoyassir-app.conf` (copie de `deploy/nginx-almoyassir-app.conf`).
+- Activation **une seule fois** : `sudo bash deploy/enable-webapp.sh` (sauvegarde du site `hifidh`,
+  ajout d'une ligne `include` avant `location /api/`, `nginx -t`, `reload` ; restauration si échec).
+  Ne modifie que le site `hifidh` (règle 1 : rien d'autre).
+- Même domaine que l'API : aucun réglage CORS nécessaire.
 
 ## Connexion Google (à faire par Anis dans Google Cloud Console)
 

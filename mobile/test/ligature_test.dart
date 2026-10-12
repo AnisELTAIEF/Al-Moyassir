@@ -1,9 +1,24 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifidh_quran/core/quran_repository.dart';
 import 'package:hifidh_quran/core/tajweed.dart';
+import 'package:hifidh_quran/theme.dart';
+import 'package:flutter/material.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('interface : aucun espacement de lettres dans le thème (il casse « لا » dans « السلام »)', () {
+    for (final b in Brightness.values) {
+      final th = buildTheme(b);
+      for (final tt in [th.textTheme, th.primaryTextTheme]) {
+        final styles = [tt.displayLarge, tt.displayMedium, tt.displaySmall, tt.headlineLarge, tt.headlineMedium, tt.headlineSmall,
+          tt.titleLarge, tt.titleMedium, tt.titleSmall, tt.bodyLarge, tt.bodyMedium, tt.bodySmall, tt.labelLarge, tt.labelMedium, tt.labelSmall];
+        for (final s in styles) {
+          expect(s?.letterSpacing ?? 0, 0);
+        }
+      }
+    }
+  });
 
   test('tajwid : la ligature lam-alif (لا) n’est jamais coupée entre deux couleurs', () async {
     final repo = await QuranRepository.load();

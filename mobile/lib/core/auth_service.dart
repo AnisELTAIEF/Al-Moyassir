@@ -52,7 +52,8 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  bool get googleEnabled => api != null && Env.googleServerClientId.isNotEmpty;
+  /// Pas sur la version web : google_sign_in y exige un bouton propre à Google (non intégré).
+  bool get googleEnabled => !kIsWeb && api != null && Env.googleServerClientId.isNotEmpty;
 
   void _saveRefresh(String? t) {
     if (t == null) {

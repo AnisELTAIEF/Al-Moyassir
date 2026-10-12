@@ -36,3 +36,25 @@ if [ -n "${ADMIN_API_URL:-}" ]; then
 else
   echo "Admin web non construit : relancez avec ADMIN_API_URL=https://DOMAINE/api"
 fi
+
+# Version web de l'app (iPhone, iPad, navigateur), précompilée dans webapp/ (tools/build-webapp.sh)
+if [ -f "$ROOT/webapp/index.html" ]; then
+  mkdir -p /var/www/almoyassir-app/app
+  rsync -a --delete "$ROOT/webapp/" /var/www/almoyassir-app/app/
+  chmod -R a+rX /var/www/almoyassir-app
+  echo "Version web publiée dans /var/www/almoyassir-app/app"
+  if [ -d /etc/nginx ]; then
+    mkdir -p /etc/nginx/snippets
+    SNIP=/etc/nginx/snippets/almoyassir-app.conf
+    if ! cmp -s "$ROOT/deploy/nginx-almoyassir-app.conf" "$SNIP"; then
+      [ -f "$SNIP" ] && cp -p "$SNIP" "$SNIP.bak.$(date +%F-%H%M%S)"
+      install -m 644 "$ROOT/deploy/nginx-almoyassir-app.conf" "$SNIP"
+      if grep -RqsF "include $SNIP;" /etc/nginx/sites-enabled /etc/nginx/conf.d; then
+        if nginx -t; then systemctl reload nginx && echo "nginx rechargé (configuration /app/ mise à jour)"
+        else echo "ATTENTION : nginx -t échoue avec le nouveau $SNIP — rien n'a été rechargé ; voir la sauvegarde $SNIP.bak.*"; fi
+      fi
+    fi
+    grep -RqsF "include $SNIP;" /etc/nginx/sites-enabled /etc/nginx/conf.d \
+      || echo "Version web pas encore activée dans nginx : lancez une fois  sudo bash deploy/enable-webapp.sh"
+  fi
+fi

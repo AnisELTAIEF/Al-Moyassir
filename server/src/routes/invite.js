@@ -12,10 +12,11 @@ export default async function inviteRoutes(app) {
 <title>Invitation — Almoyassir (الميسّر)</title>
 <style>body{margin:0;font-family:system-ui,sans-serif;background:#0f2a22;color:#f4efe2;display:grid;place-items:center;min-height:100vh;padding:20px}
 .c{max-width:420px;text-align:center}.code{font:700 34px/1 ui-monospace,monospace;letter-spacing:4px;background:#f4efe2;color:#0f2a22;border-radius:14px;padding:18px;margin:20px 0}
-.ar{font-size:28px;color:#d9b45a}ol{text-align:left;line-height:1.7}</style></head><body><div class="c">
-<div class="ar">حِفْظُ القُرْآن</div><h1>Vous êtes invité(e)</h1>
+.ar{font-size:28px;color:#d9b45a}ol{text-align:left;line-height:1.7}.ios{line-height:1.6}a{color:#d9b45a}</style></head><body><div class="c">
+<div class="ar">الميسّر</div><h1>Vous êtes invité(e)</h1>
 ${valid ? `<p>Votre code d’invitation :</p><div class="code">${esc(code)}</div>
-<ol><li>Installez l’application <b>Almoyassir (الميسّر)</b>.</li><li>Touchez <b>« Créer un compte avec un code »</b>.</li><li>Saisissez ce code, puis connectez-vous avec Google ou créez un mot de passe.</li></ol>`
+<ol><li>Installez l’application <b>Almoyassir (الميسّر)</b>.</li><li>Touchez <b>« Créer un compte avec un code »</b>.</li><li>Saisissez ce code, puis connectez-vous avec Google ou créez un mot de passe.</li></ol>
+<p class="ios">Sur iPhone ou iPad : <a href="/app/">ouvrez la version web</a> dans Safari, puis Partager → « Sur l’écran d’accueil ».</p>`
       : '<p>Ce lien d’invitation n’est pas valide.</p>'}
 </div></body></html>`;
   });

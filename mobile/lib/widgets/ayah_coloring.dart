@@ -101,6 +101,9 @@ class AyahPainter {
 
   bool get mastery => coloring == AyahColoring.mastery;
 
+  /// Médaillons « par niveau » (forme + couleur) : dès que le toucher change le niveau.
+  bool get masteryBadges => tapCyclesMastery(settings);
+
   Mastery masteryOf(int surah, int ayah) => store.masteryOf(surah, ayah, includeOverdue: settings.overdueAsReview, now: _now);
 
   /// Fond d'un ayah ; l'ayah récité garde toujours le surlignage doré.
@@ -158,22 +161,12 @@ TapGestureRecognizer ayahRecognizer({required VoidCallback onTap, required VoidC
     ..onTapCancel = () => timer?.cancel();
 }
 
-/// Mode Qira'a : un toucher marque l'ayah « en cours » (قيد الحفظ), un second toucher retire la marque.
-/// Un ayah déjà appris n'est pas modifié par un simple toucher (appui long pour changer).
-Future<void> toggleLearning(BuildContext context, int surah, int ayah) async {
-  final store = context.read<ProgressStore>();
-  final status = store.statusOf(surah, ayah);
-  if (status == AyahStatus.memorized) {
-    snack(context, tr('Ayah {n} déjà appris — appui long pour modifier.', {'n': ayah}));
-    return;
-  }
-  final before = store.snapshotAyahs([(surah, ayah)]);
-  HapticFeedback.selectionClick();
-  final on = status != AyahStatus.learning;
-  await store.setStatus(surah, ayah, on ? AyahStatus.learning : null);
-  if (!context.mounted) return;
-  snack(context, on ? tr('Ayah {n} : en cours de mémorisation', {'n': ayah}) : tr('Ayah {n} : marque retirée', {'n': ayah}),
-      action: SnackBarAction(label: tr('Annuler'), onPressed: () => store.restoreAyahs(before)));
+/// Un toucher sur un ayah change-t-il son niveau de maîtrise ? Oui en colorisation par maîtrise
+/// (Qira'a et Tahfidh), et aussi en colorisation par ayah en Qira'a (le médaillon montre alors le niveau).
+bool tapCyclesMastery(Settings s, [ReadingMode? mode]) {
+  final m = mode ?? s.readingMode;
+  final c = s.coloringIn(m);
+  return c == AyahColoring.mastery || (c == AyahColoring.perAyah && m == ReadingMode.mushaf);
 }
 
 /// Passe un ayah au niveau de maîtrise suivant, avec « Annuler ».
@@ -270,17 +263,30 @@ class ColoringLegend extends StatelessWidget {
             ]),
           ))
           ..add(Text(tr('Les couleurs alternent d’un ayah à l’autre, sans signification particulière.'), style: context.text.bodySmall));
+        if (m == ReadingMode.mushaf) {
+          children
+            ..add(const SizedBox(height: 10))
+            ..add(Text(tr('Niveau de maîtrise (médaillon de fin d’ayah)'), style: context.text.titleSmall));
+          for (final lv in Mastery.values) {
+            children.add(Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                masteryBadge(context, lv, label: '٣', size: 24, colorBlind: cb),
+                const SizedBox(width: 10),
+                Flexible(child: Text(masteryLabel(lv), style: context.text.bodyMedium)),
+              ]),
+            ));
+          }
+          children.add(Text(tr('Touchez un ayah pour changer son niveau : en cours → acquis → à revoir → non appris. Appui long pour plus d’options.'),
+              style: context.text.bodySmall));
+        }
       case AyahColoring.mastery:
         children.add(Text(tr('Par niveau de maîtrise'), style: context.text.titleSmall));
         for (final m in Mastery.values) {
           children.add(swatch(masteryBackground(m, paper: paper, brightness: b, colorBlind: cb), masteryLabel(m), m: m));
         }
         children.add(Text(
-          m == ReadingMode.mushaf
-              ? (settings.overdueAsReview
-                  ? tr('« À revoir » : marqué par vous, ou révision en retard. En Qira’a, touchez un ayah pour le marquer « en cours » ; appui long pour plus d’options.')
-                  : tr('« À revoir » : marqué par vous. En Qira’a, touchez un ayah pour le marquer « en cours » ; appui long pour plus d’options.'))
-              : settings.overdueAsReview
+          settings.overdueAsReview
               ? tr('« À revoir » : marqué par vous, ou révision en retard. Touchez un ayah pour changer son niveau ; appui long pour plus d’options.')
               : tr('« À revoir » : marqué par vous. Touchez un ayah pour changer son niveau ; appui long pour plus d’options.'),
           style: context.text.bodySmall,
@@ -331,7 +337,7 @@ class _ColoringSettingsPanelState extends State<ColoringSettingsPanel> {
           AyahColoring.none => tr('Texte sur fond uni'),
           AyahColoring.perAyah => _mode == ReadingMode.ayah
               ? tr('Deux fonds doux en alternance (par défaut)')
-              : tr('Six fonds doux en rotation (par défaut)'),
+              : tr('Six fonds doux en rotation (par défaut). Touchez un ayah pour changer son niveau.'),
           AyahColoring.mastery => tr('Non appris, en cours, à revoir, acquis — touchez un ayah pour changer'),
         };
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [

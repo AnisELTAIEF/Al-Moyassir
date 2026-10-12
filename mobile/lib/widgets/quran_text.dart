@@ -94,7 +94,7 @@ List<InlineSpan> ayahRunSpans(
     final recognizer = tap(a);
     final status = store.statusOf(surah.number, a);
     final label = arabicDigits(a);
-    final medallion = painter != null && painter.mastery
+    final medallion = painter != null && painter.masteryBadges
         ? masteryBadge(context, painter.masteryOf(surah.number, a), label: label, size: badge, colorBlind: painter.settings.colorBlind)
         : KhatamBadge(
             label: label,

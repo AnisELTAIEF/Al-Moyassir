@@ -11,11 +11,11 @@ Liste validée par Anis le 12/10/2026 : à traiter **dans cet ordre**, une fois 
 - [ ] Vérifier le texte des invitations (nouveau nom « Almoyassir (الميسّر) ») et la page `/invite/CODE`.
 - [ ] Sauvegarde quotidienne en place (`/var/backups/hifidh`).
 
-## 1. Garder l'écran allumé pendant la lecture et la récitation
+## 1. Garder l'écran allumé pendant la lecture et la récitation — FAIT (0.11.0)
 - Ajouter le paquet `wakelock_plus` (vérifier la version actuelle sur pub.dev) ; l'activer dans le
   lecteur quand l'audio joue ou que l'écran de lecture est ouvert, le relâcher en sortant.
 
-## 2. Audio disponible hors ligne
+## 2. Audio disponible hors ligne — FAIT (0.11.0, Android ; pas sur la version web)
 - Mettre en cache les fichiers audio écoutés (ou téléchargement d'une sourate entière) pour réécouter
   sans connexion ; afficher la place occupée et un bouton pour vider le cache.
 - Vérifier la licence de redistribution des enregistrements avant tout téléchargement en masse.
@@ -31,7 +31,15 @@ Liste validée par Anis le 12/10/2026 : à traiter **dans cet ordre**, une fois 
   des enregistrements audio ; rédiger la politique de confidentialité (comptes, progression).
 - Fiche Play : nom « Almoyassir — الميسّر », captures d'écran, catégorie Éducation/Livres.
 
+## 5. App iPhone native (plus tard, si besoin)
+- En attendant : version web sur `https://quran.bestconsultingit.com/app/` (0.12.0), à ajouter à
+  l'écran d'accueil depuis Safari. Limites : pas d'audio hors ligne, pas de connexion Google,
+  l'écoute s'arrête quand l'écran se verrouille.
+- Pour une vraie app iPhone : compte Apple Developer (payant, à vérifier sur developer.apple.com),
+  compilation sur un Mac (ou service de build macOS), distribution TestFlight puis App Store.
+  Le projet `mobile/ios` existe déjà (identifiant `com.bestconsultingit.hifidhQuran`).
+
 ## Rappel
-- Dernière version de l'app livrée : 0.9.0 (nom Almoyassir / الميسّر, correction de « لا »).
+- Dernière version de l'app livrée : 0.12.0 (version web iPhone ; Android : cycle 4 touchers en Qira'a, « لا » dans l'interface).
 - Les noms techniques restent inchangés (paquet Android `com.bestconsultingit.hifidh_quran`,
   service `hifidh-api`, base `hifidh`) pour ne rien casser.

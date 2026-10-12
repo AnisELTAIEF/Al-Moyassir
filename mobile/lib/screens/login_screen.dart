@@ -158,7 +158,9 @@ class _InvitationScreenState extends State<InvitationScreen> {
   }
 
   void _check() => _run(() async {
-        final r = await context.read<AuthService>().previewCode(_code.text);
+        final asked = _code.text;
+        final r = await context.read<AuthService>().previewCode(asked);
+        if (!mounted || _code.text != asked) return; // code modifié entre-temps : réponse périmée
         setState(() {
           _found = r;
           if (r['type'] == 'invitation') _email.text = r['email'] as String;
@@ -204,7 +206,9 @@ class _InvitationScreenState extends State<InvitationScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: _code,
-              enabled: !_busy || found != null,
+              // Champ toujours modifiable : le désactiver pendant la vérification, alors qu'il a le focus,
+              // provoque une erreur du moteur web (version iPhone/navigateur). Une saisie pendant la
+              // vérification relance simplement la vérification.
               textCapitalization: TextCapitalization.characters,
               autocorrect: false,
               style: const TextStyle(fontSize: 24, letterSpacing: 3, fontWeight: FontWeight.w600),
