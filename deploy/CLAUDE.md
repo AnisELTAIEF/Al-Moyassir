@@ -3,36 +3,49 @@
 > L'application s'appelle désormais **Almoyassir (الميسّر)**. Les noms techniques ne changent pas
 > (service `hifidh-api`, base et utilisateur `hifidh`, dossiers `/opt/hifidh`, `/etc/hifidh`).
 
-Ce fichier est destiné à **Claude Code exécuté sur la VM Linux** qui héberge déjà le site
-Best Consulting IT. Il décrit comment installer l'API (Node.js) et l'admin web en réutilisant
-le **MariaDB déjà en place**, sans perturber le site existant.
+Ce fichier est destiné à **Claude Code exécuté sur le serveur Ubuntu** d'Anis. Il décrit comment
+installer l'API (Node.js), l'admin web et, si besoin, MariaDB et le serveur web, sans perturber ce
+qui tourne déjà sur la machine.
+
+## Contexte connu (12/10/2026)
+
+| Élément | Valeur |
+|---|---|
+| Dépôt sur le serveur | `/home/anis/repo/Al-Moyassir/Al-Moyassir` (clone de `github.com/AnisELTAIEF/Al-Moyassir`) |
+| Domaine | `quran.bestconsultingit.com` — enregistrement A → `197.240.115.10` (DNS géré dans Microsoft 365) |
+| Site Best CIT | **ailleurs** (`bestconsultingit.com` et `www` → 46.105.204.20) : a priori **pas** sur ce serveur |
+| Réseau | IP publique supposée être celle d'une box/routeur : vérifier que 80 et 443 arrivent bien jusqu'au serveur |
+
+À vérifier à l'étape 0 et à signaler à Anis si c'est différent : `curl -s ifconfig.me` doit donner
+`197.240.115.10` ; `getent hosts quran.bestconsultingit.com` doit donner la même IP ; dire si un
+serveur web, MariaDB ou d'autres sites existent déjà sur la machine.
 
 ## Règles à respecter (non négociables)
 
-1. **Ne jamais modifier, supprimer ou redémarrer brutalement ce qui sert le site Best CIT.**
-   On ajoute un site (vhost) séparé ; on ne réécrit pas les fichiers de configuration existants.
+1. **Ne jamais modifier, supprimer ou redémarrer brutalement un service ou un site déjà présent**
+   sur le serveur (dont le site Best CIT s'il s'y trouve). On ajoute un site (vhost) séparé ; on ne
+   réécrit pas les fichiers de configuration existants.
 2. **Base de données** : créer une base `hifidh` et un utilisateur `hifidh` dédiés. Ne jamais
    faire `DROP`, ni toucher aux autres bases, ni changer le mot de passe root.
 3. Avant toute modification d'un fichier système : `cp fichier fichier.bak.$(date +%F)`.
 4. Toujours tester la configuration avant de recharger : `nginx -t` ou `apachectl -t`.
    Recharger (`reload`), jamais `restart` du serveur web.
-5. **Demander à Anis avant** : le choix du domaine, l'ouverture d'un port, l'exécution de
-   certbot, l'installation d'un paquet système majeur (Node.js).
+5. **Demander à Anis avant** : le choix du domaine, l'ouverture d'un port (pare-feu `ufw`, box),
+   l'exécution de certbot, l'installation d'un paquet système majeur (Node.js, Nginx, MariaDB).
 6. Ne jamais afficher ni committer les secrets (`/etc/hifidh/api.env`, `key.properties`).
 
 ## Architecture cible
 
 ```
-Internet ──HTTPS──> Nginx ou Apache (existant)
+Internet ──HTTPS──> (box : redirection 80/443) ──> Nginx ou Apache (existant, sinon Nginx à installer)
                      ├─ DOMAINE/            → /var/www/hifidh-admin   (admin web, fichiers statiques)
                      ├─ DOMAINE/api/…       → http://127.0.0.1:8787/… (API Node, service systemd)
                      └─ DOMAINE/invite/…    → http://127.0.0.1:8787/invite/… (page d'invitation)
 API Node (utilisateur système « hifidh », écoute sur 127.0.0.1 uniquement)
- └─ MariaDB existant : base « hifidh », utilisateur « hifidh »
+ └─ MariaDB (existant, sinon à installer) : base « hifidh », utilisateur « hifidh »
 ```
 
-`DOMAINE` = sous-domaine conseillé, par ex. `quran.bestconsultingit.com` (à confirmer avec Anis ;
-un enregistrement DNS A/AAAA vers l'IP de la VM est nécessaire).
+`DOMAINE` = `quran.bestconsultingit.com` (enregistrement A déjà créé par Anis).
 
 ## Étape 0 — État des lieux (lecture seule)
 
@@ -50,21 +63,36 @@ Résumer à Anis ce qui a été trouvé (serveur web, version MariaDB, Node) ava
 L'API est testée avec MariaDB 10.11 ; elle utilise des fonctions disponibles depuis MariaDB 10.5.
 Si le port 8787 est pris, choisir un autre port et l'utiliser partout (PORT + proxy).
 
-## Étape 1 — Node.js 20 ou plus
+## Étape 1 — Paquets manquants (avec l'accord d'Anis)
+
+Si aucun serveur web ne tourne : proposer **Nginx** (`sudo apt install nginx`). Si MariaDB est absent :
+proposer `sudo apt install mariadb-server` (sur une installation neuve, `sudo mariadb` fonctionne
+sans mot de passe). Pare-feu : si `ufw` est actif, proposer `sudo ufw allow 'Nginx Full'` (80 et 443)
+sans fermer l'accès SSH. Côté box/routeur (fait par Anis) : rediriger les ports TCP 80 et 443 vers
+l'IP locale du serveur (`hostname -I`).
+
+### Node.js 20 ou plus
 
 Si `node -v` < 20 ou absent : **demander l'accord**, puis installer depuis la distribution ou
 NodeSource (vérifier la méthode recommandée actuelle sur nodejs.org). Installer aussi `rsync` si absent.
 
-## Étape 2 — Récupérer le projet
+## Étape 2 — Le projet sur la VM
 
-Copier le dossier du projet sur la VM (git clone si un dépôt existe, sinon scp/rsync depuis
-le PC d'Anis), par ex. dans `/opt/hifidh-src`. Vérifier : `ls /opt/hifidh-src/{server,admin,deploy}`.
+Le dépôt est cloné depuis GitHub (`AnisELTAIEF/Al-Moyassir`) dans le dossier d'Anis :
+```bash
+export SRC=/home/anis/repo/Al-Moyassir/Al-Moyassir   # à redéfinir dans chaque nouveau terminal
+ls $SRC/{server,admin,deploy}                        # doit lister les trois dossiers
+git -C $SRC pull                                     # dernière version
+```
+`install.sh` copie l'API dans `/opt/hifidh` et l'admin dans `/var/www/hifidh-admin` : le service ne lit
+jamais le dossier personnel d'Anis. Après l'étape 5 (lancée avec sudo), rendre le dépôt à Anis :
+`sudo chown -R anis:anis $SRC`.
 
 ## Étape 3 — Base de données
 
 ```bash
 PASS=$(openssl rand -base64 24 | tr -d '/+=' | head -c 28)
-sed "s/MOT_DE_PASSE/$PASS/" /opt/hifidh-src/deploy/create-db.sql | sudo mariadb
+sed "s/MOT_DE_PASSE/$PASS/" $SRC/deploy/create-db.sql | sudo mariadb
 # Vérification (doit lister uniquement la base hifidh pour cet utilisateur) :
 MYSQL_PWD="$PASS" mariadb -u hifidh -e "SHOW DATABASES;"
 ```
@@ -75,7 +103,7 @@ Si `sudo mariadb` demande un mot de passe, demander à Anis comment il se connec
 
 ```bash
 sudo mkdir -p /etc/hifidh
-sudo cp /opt/hifidh-src/deploy/api.env.example /etc/hifidh/api.env
+sudo cp $SRC/deploy/api.env.example /etc/hifidh/api.env
 sudo chmod 600 /etc/hifidh/api.env
 ```
 Renseigner dans `/etc/hifidh/api.env` :
@@ -89,7 +117,7 @@ Renseigner dans `/etc/hifidh/api.env` :
 ## Étape 5 — Installation
 
 ```bash
-cd /opt/hifidh-src
+cd $SRC
 sudo ADMIN_API_URL=https://DOMAINE/api ADMIN_GOOGLE_CLIENT_ID=<id client Web ou vide> bash deploy/install.sh
 ```
 Le script : crée l'utilisateur système `hifidh`, copie l'API dans `/opt/hifidh/server`,
@@ -107,7 +135,7 @@ journalctl -u hifidh-api -n 50 --no-pager      # en cas de problème
 
 **Nginx** :
 ```bash
-sudo cp /opt/hifidh-src/deploy/nginx-hifidh.conf /etc/nginx/sites-available/hifidh
+sudo cp $SRC/deploy/nginx-hifidh.conf /etc/nginx/sites-available/hifidh
 sudo sed -i 's/DOMAINE/quran.bestconsultingit.com/' /etc/nginx/sites-available/hifidh   # domaine validé par Anis
 sudo ln -s /etc/nginx/sites-available/hifidh /etc/nginx/sites-enabled/hifidh
 sudo nginx -t && sudo systemctl reload nginx
@@ -117,7 +145,7 @@ sudo nginx -t && sudo systemctl reload nginx
 **Apache** :
 ```bash
 sudo a2enmod proxy proxy_http headers rewrite
-sudo cp /opt/hifidh-src/deploy/apache-hifidh.conf /etc/apache2/sites-available/hifidh.conf
+sudo cp $SRC/deploy/apache-hifidh.conf /etc/apache2/sites-available/hifidh.conf
 sudo sed -i 's/DOMAINE/quran.bestconsultingit.com/' /etc/apache2/sites-available/hifidh.conf
 sudo a2ensite hifidh && sudo apachectl -t && sudo systemctl reload apache2
 ```
@@ -140,7 +168,7 @@ Puis : `curl -s https://DOMAINE/api/health`.
 ## Étape 8 — Sauvegardes
 
 ```bash
-sudo install -m 750 /opt/hifidh-src/deploy/backup.sh /usr/local/bin/hifidh-backup
+sudo install -m 750 $SRC/deploy/backup.sh /usr/local/bin/hifidh-backup
 echo '30 2 * * * root /usr/local/bin/hifidh-backup' | sudo tee /etc/cron.d/hifidh-backup
 sudo /usr/local/bin/hifidh-backup && ls -lh /var/backups/hifidh
 ```
@@ -164,7 +192,7 @@ validées par Anis, à traiter dans l'ordre (proposer un plan court avant de cod
 
 ## Mise à jour ultérieure
 
-Récupérer la nouvelle version dans `/opt/hifidh-src`, puis relancer l'étape 5 (le script est
+`git -C $SRC pull`, puis relancer l'étape 5 (le script est
 idempotent ; les migrations déjà appliquées sont ignorées).
 
 ## Connexion Google (à faire par Anis dans Google Cloud Console)
