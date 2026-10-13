@@ -483,6 +483,7 @@ const Map<String, String> arStrings = {
   'Activez la localisation de votre appareil, puis réessayez.': 'فعّل خدمة تحديد الموقع في جهازك ثم أعد المحاولة.',
   'Localisation refusée. Choisissez votre ville dans la liste.': 'تم رفض تحديد الموقع. اختر مدينتك من القائمة.',
   'Localisation indisponible. Choisissez votre ville dans la liste.': 'تعذّر تحديد الموقع. اختر مدينتك من القائمة.',
+  'La localisation a pris trop de temps. Réessayez à ciel ouvert, ou choisissez votre ville.': 'استغرق تحديد الموقع وقتًا طويلًا. أعد المحاولة في العراء أو اختر مدينتك.',
   'Réinitialiser': 'إعادة الضبط',
   'Fait': 'تمّ',
   'Toucher': 'المس',

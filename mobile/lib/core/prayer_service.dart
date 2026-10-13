@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:adhan/adhan.dart';
 import 'package:flutter/foundation.dart';
@@ -220,14 +221,43 @@ class PrayerService extends ChangeNotifier {
       if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
         return 'Localisation refusée. Choisissez votre ville dans la liste.';
       }
+      // Haute précision : GPS de l'appareil (sinon le navigateur renvoie une position
+      // approximative basée sur l'IP, qui tombe souvent sur la capitale de l'opérateur).
       final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 20)),
       );
-      await _setLocation(pos.latitude, pos.longitude, 'Ma position');
+      await _setLocation(pos.latitude, pos.longitude, _labelFor(pos.latitude, pos.longitude));
       return null;
+    } on TimeoutException {
+      return 'La localisation a pris trop de temps. Réessayez à ciel ouvert, ou choisissez votre ville.';
     } catch (_) {
       return 'Localisation indisponible. Choisissez votre ville dans la liste.';
     }
+  }
+
+  /// Nomme la position détectée d'après la ville connue la plus proche (sinon « Ma position »).
+  /// Les horaires sont toujours calculés avec les coordonnées exactes, pas celles de la ville.
+  String _labelFor(double lat, double lng) {
+    City? best;
+    var bestKm = double.infinity;
+    for (final c in kCities) {
+      final d = _distanceKm(lat, lng, c.lat, c.lng);
+      if (d < bestKm) {
+        bestKm = d;
+        best = c;
+      }
+    }
+    return (best != null && bestKm < 25) ? best.label : 'Ma position';
+  }
+
+  /// Distance en km (formule de haversine).
+  static double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
+    const r = 6371.0;
+    double rad(double d) => d * math.pi / 180;
+    final dLat = rad(lat2 - lat1), dLng = rad(lng2 - lng1);
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(rad(lat1)) * math.cos(rad(lat2)) * math.sin(dLng / 2) * math.sin(dLng / 2);
+    return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
   }
 
   @override
