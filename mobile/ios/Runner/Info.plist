@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Horaires de priere : localisation facultative (sinon, choix d'une ville dans la liste). -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Votre position sert uniquement a calculer les horaires de priere de votre lieu.</string>
 	<!--
 	  Connexion Google sur iOS : NON activee (sur iPhone, l'app utilise e-mail/mot de passe).
 	  Pour l'activer plus tard : creer un client OAuth iOS dans Google Cloud, puis ajouter ici un

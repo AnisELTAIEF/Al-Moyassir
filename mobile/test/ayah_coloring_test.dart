@@ -99,12 +99,12 @@ void main() {
       SharedPreferences.setMockInitialValues({'flutter.tajweed': false});
       final prefs = await SharedPreferences.getInstance();
       final s = Settings(prefs);
-      expect(s.coloringIn(ReadingMode.ayah), AyahColoring.perAyah, reason: 'par ayah par défaut');
-      expect(s.coloringIn(ReadingMode.mushaf), AyahColoring.perAyah);
+      expect(s.coloringIn(ReadingMode.ayah), AyahColoring.perAyah, reason: 'Tahfidh : par ayah par défaut');
+      expect(s.coloringIn(ReadingMode.mushaf), AyahColoring.mastery, reason: 'Qira’a : par maîtrise par défaut');
       expect(s.tajweedIn(ReadingMode.mushaf), isFalse, reason: 'reprend l’ancien réglage global');
       s.setColoringIn(ReadingMode.ayah, AyahColoring.mastery);
       s.setTajweedIn(ReadingMode.mushaf, true);
-      expect(s.coloringIn(ReadingMode.mushaf), AyahColoring.perAyah);
+      expect(s.coloringIn(ReadingMode.mushaf), AyahColoring.mastery, reason: 'réglage du mode Qira’a indépendant');
       s.readingMode = ReadingMode.ayah;
       expect(s.coloring, AyahColoring.mastery);
       expect(s.tajweed, isFalse);

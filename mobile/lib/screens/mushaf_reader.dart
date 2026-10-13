@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/audio_controller.dart';
+import '../core/i18n.dart';
 import '../core/models.dart';
 import '../core/progress_store.dart';
 import '../core/quran_repository.dart';
