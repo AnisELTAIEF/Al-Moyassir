@@ -30,6 +30,24 @@ export default async function adminRoutes(app) {
     };
   });
 
+  /** Ayat appris par jour sur les N derniers jours (tendance du tableau de bord). */
+  app.get('/activity', {
+    schema: { querystring: { type: 'object', properties: { days: { type: 'integer', minimum: 1, maximum: 90 } } } },
+  }, async (req) => {
+    const days = req.query.days ?? 30;
+    const [rows] = await app.db.query(
+      `SELECT DATE(memorized_at) AS d, COUNT(*) AS c FROM memorized_ayahs
+       WHERE status = 'memorized' AND memorized_at IS NOT NULL
+         AND memorized_at >= UTC_TIMESTAMP(3) - INTERVAL ? DAY
+       GROUP BY DATE(memorized_at) ORDER BY d`, [days]);
+    return {
+      items: rows.map((r) => ({
+        day: r.d instanceof Date ? r.d.toISOString().slice(0, 10) : String(r.d).slice(0, 10),
+        memorized: Number(r.c),
+      })),
+    };
+  });
+
   // ── Utilisateurs ──
   app.get('/users', async () => {
     const [rows] = await app.db.query(`${STATS_SQL} GROUP BY u.id ORDER BY u.display_name`);

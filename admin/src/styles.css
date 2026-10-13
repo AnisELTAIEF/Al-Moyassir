@@ -144,3 +144,21 @@ tbody tr:hover, tbody tr.sel { background: color-mix(in srgb, var(--zellige) 6%,
 .join-code { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .join-code > div:first-child { display: flex; flex-direction: column; gap: .2rem; }
 .join-code .code { font-size: 1.8rem; letter-spacing: .3em; font-family: ui-monospace, monospace; }
+
+/* Fiche utilisateur (panneau) */
+.fiche-meta { display: flex; align-items: center; gap: 10px; margin: 2px 0 12px; flex-wrap: wrap; }
+.user-groups .list.plain li { align-items: center; }
+.user-groups .row-actions { margin-top: 0; }
+.user-groups select { padding: 5px 8px; font-size: 0.85rem; }
+
+/* Petits écrans (téléphone) */
+@media (max-width: 640px) {
+  h1 { font-size: 1.5rem; }
+  .content { padding: 16px 12px 44px; }
+  .stat strong { font-size: 1.6rem; }
+  th, td { padding: 9px 10px; }
+  .prog { min-width: 150px; } .prog .bar { min-width: 60px; }
+  .list li { grid-template-columns: minmax(0, 1fr) 60px auto; gap: 8px; }
+  .list.plain li { grid-template-columns: minmax(0, 1fr) auto; }
+  .join-code .code { font-size: 1.4rem; letter-spacing: .2em; }
+}

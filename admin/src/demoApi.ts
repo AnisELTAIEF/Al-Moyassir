@@ -65,6 +65,13 @@ export function createDemoApi(): Api {
     signOut: async () => set(false),
     myGroups: async () => groups.map((g) => ({ id: g.id, name: g.name, role: 'admin' as const, members: g.members })),
     stats: async () => ({ users: users.length, admins: 1, activeUsers: 9, memorizedTotal: users.reduce((a, u) => a + u.memorized, 0), learners: 9, active7Days: 6, pendingInvitations: 1, groups: 2 }),
+    activity: async (days = 30) => {
+      const r = rng(42);
+      return Array.from({ length: days }, (_, i) => ({
+        day: new Date(Date.now() - (days - 1 - i) * DAY).toISOString().slice(0, 10),
+        memorized: Math.round(r() * 18) + (i % 7 === 5 ? 12 : 0),
+      }));
+    },
     users: async () => users.map((u) => ({ ...u })),
     updateUser: async (id, p) => { const u = users.find((x) => x.id === id)!; Object.assign(u, p); },
     deleteUser: noop,

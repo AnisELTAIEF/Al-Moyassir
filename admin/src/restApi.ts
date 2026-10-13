@@ -85,6 +85,7 @@ export function createRestApi(baseUrl: string, googleClientId: string | null): A
     },
     myGroups: async () => items(await call('GET', '/me/groups')),
     stats: () => call('GET', '/admin/stats'),
+    activity: async (days = 30) => items(await call('GET', `/admin/activity?days=${days}`)),
     users: async () => items(await call('GET', '/admin/users')),
     updateUser: async (id, patch) => { await call('PATCH', `/admin/users/${id}`, patch); },
     deleteUser: async (id) => { await call('DELETE', `/admin/users/${id}`); },

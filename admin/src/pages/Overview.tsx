@@ -5,9 +5,40 @@ import { TOTAL_AYAHS } from '../data/surahs';
 
 type Dest = 'users' | 'invitations' | 'groups';
 
+const DAYS = 30;
+
+/** Mini histogramme (SVG) des ayat appris par jour, responsive. */
+function ActivityChart({ data }: { data: { day: string; memorized: number }[] }) {
+  const byDay = new Map(data.map((d) => [d.day, d.memorized]));
+  const series = Array.from({ length: DAYS }, (_, i) => {
+    const day = new Date(Date.now() - (DAYS - 1 - i) * 86_400_000).toISOString().slice(0, 10);
+    return { day, v: byDay.get(day) ?? 0 };
+  });
+  const max = Math.max(1, ...series.map((p) => p.v));
+  const total = series.reduce((a, p) => a + p.v, 0);
+  const W = 320, H = 64, bw = W / DAYS;
+  return (
+    <>
+      <div className="row"><h2 style={{ margin: 0 }}>Activité — 30 derniers jours</h2>
+        <span className="muted num">{total.toLocaleString('fr-FR')} ayat appris</span></div>
+      {total === 0 ? <p className="muted" style={{ marginTop: 10 }}>Aucun ayah appris sur la période.</p> : (
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="72" preserveAspectRatio="none" role="img"
+          aria-label={`Ayat appris par jour sur 30 jours, total ${total}`} style={{ marginTop: 10, display: 'block' }}>
+          {series.map((p, i) => {
+            const h = (p.v / max) * (H - 6);
+            return <rect key={p.day} x={i * bw + 0.5} y={H - h} width={bw - 1} height={h} rx={1}
+              fill="var(--zellige)"><title>{`${new Date(p.day).toLocaleDateString('fr-FR')} : ${p.v}`}</title></rect>;
+          })}
+        </svg>
+      )}
+    </>
+  );
+}
+
 export default function Overview({ api, onNavigate }: { api: Api; onNavigate: (p: Dest) => void }) {
   const stats = useAsync(() => api.stats(), []);
   const users = useAsync(() => api.users(), []);
+  const activity = useAsync(() => api.activity(DAYS), []);
   const s = stats.data;
   const list = users.data ?? [];
   const active = list.filter((u) => u.status === 'active');
@@ -34,6 +65,10 @@ export default function Overview({ api, onNavigate }: { api: Api; onNavigate: (p
             hint={`soit ${(s.memorizedTotal / TOTAL_AYAHS).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} khatma(s)`} />
           <Stat label="Invitations en attente" value={String(s.pendingInvitations)} hint={`${s.groups} groupe(s)`} to="invitations" />
         </div>
+      )}
+
+      {activity.data && (
+        <section className="card" style={{ marginBottom: 18 }}><ActivityChart data={activity.data} /></section>
       )}
 
       {s && active.length > 0 && (

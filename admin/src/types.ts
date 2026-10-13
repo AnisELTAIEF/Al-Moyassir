@@ -45,6 +45,8 @@ export interface Api {
   demo: boolean;
   googleClientId: string | null;
   restore(): Promise<User | null>;
+  /** Ayat appris par jour (tendance), N derniers jours. */
+  activity(days?: number): Promise<{ day: string; memorized: number }[]>;
   signIn(email: string, password: string): Promise<User>;
   signInWithGoogle(idToken: string): Promise<User>;
   signOut(): Promise<void>;
