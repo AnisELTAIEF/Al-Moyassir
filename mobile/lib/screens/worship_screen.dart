@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -185,6 +187,41 @@ class _PrayerSettingsSheet extends StatefulWidget {
 
 class _PrayerSettingsSheetState extends State<_PrayerSettingsSheet> {
   bool _locating = false;
+  bool _searching = false;
+  String _query = '';
+  List<City> _results = const [];
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearch(String v) {
+    setState(() => _query = v);
+    _debounce?.cancel();
+    if (v.trim().length < 2) {
+      setState(() => _results = const []);
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 450), () async {
+      setState(() => _searching = true);
+      final r = await context.read<PrayerService>().searchPlaces(v);
+      if (!mounted) return;
+      setState(() {
+        _results = r;
+        _searching = false;
+      });
+    });
+  }
+
+  void _choose(BuildContext context, City c) {
+    final messenger = ScaffoldMessenger.of(context);
+    context.read<PrayerService>().setCity(c);
+    Navigator.pop(context);
+    messenger.showSnackBar(SnackBar(content: Text(c.label)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -211,16 +248,43 @@ class _PrayerSettingsSheetState extends State<_PrayerSettingsSheet> {
               ),
             ),
           ]),
-          const SizedBox(height: 10),
-          DropdownButtonFormField<City>(
-            initialValue: null,
-            isExpanded: true,
-            decoration: InputDecoration(labelText: tr('Ou choisir une ville')),
-            items: [for (final c in kCities) DropdownMenuItem(value: c, child: Text(c.label, overflow: TextOverflow.ellipsis))],
-            onChanged: (c) {
-              if (c != null) context.read<PrayerService>().setCity(c);
-            },
+          const SizedBox(height: 12),
+          TextField(
+            decoration: InputDecoration(
+              labelText: tr('Chercher ma ville'),
+              hintText: tr('Ex. : Zliten, Sabratha, Nalout…'),
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searching
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
+                  : null,
+            ),
+            textInputAction: TextInputAction.search,
+            onChanged: _onSearch,
           ),
+          const SizedBox(height: 4),
+          if (_query.trim().length >= 2 && !_searching && _results.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text(tr('Aucune ville trouvée.'), style: TextStyle(color: context.tones.muted)),
+            ),
+          for (final c in _results)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.place_outlined, color: context.colors.primary),
+              title: Text(c.label),
+              onTap: () => _choose(context, c),
+            ),
+          if (_results.isEmpty && _query.isEmpty) ...[
+            const SizedBox(height: 8),
+            Text(tr('Villes fréquentes'), style: TextStyle(fontSize: 12, color: context.tones.muted)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final c in kCities.take(8)) ActionChip(label: Text(c.ar), onPressed: () => _choose(context, c)),
+            ]),
+          ],
           const Divider(height: 32),
           // Méthode de calcul.
           Text(tr('Méthode de calcul'), style: context.text.titleMedium),

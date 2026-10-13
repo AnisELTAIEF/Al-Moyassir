@@ -6,6 +6,10 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../env.dart';
+import 'api_client.dart';
+import 'i18n.dart';
+
 /// Les prières (et le lever du soleil) d'une journée.
 enum Salat { fajr, sunrise, dhuhr, asr, maghrib, isha }
 
@@ -39,7 +43,7 @@ class City {
   const City(this.ar, this.fr, this.lat, this.lng);
   final String ar, fr;
   final double lat, lng;
-  String get label => '$ar · $fr';
+  String get label => (fr.isEmpty || fr == ar) ? ar : '$ar · $fr';
 }
 
 /// Villes libyennes principales d'abord, puis quelques repères.
@@ -197,6 +201,34 @@ class PrayerService extends ChangeNotifier {
   Future<void> setCity(City c) async {
     await _setLocation(c.lat, c.lng, c.label);
   }
+
+  /// Recherche une ville/commune par son nom (via le proxy de géocodage de l'API).
+  /// Renvoie une liste vide en cas d'échec ; ne lève pas d'exception.
+  Future<List<City>> searchPlaces(String query) async {
+    final q = query.trim();
+    if (q.length < 2 || Env.apiUrl.isEmpty) return const [];
+    try {
+      final lang = I18n.isAr ? 'ar' : 'fr';
+      final r = await ApiClient(Env.apiUrl)
+          .public('GET', '/geocode?lang=$lang&q=${Uri.encodeQueryComponent(q)}');
+      final list = (r is Map && r['results'] is List) ? r['results'] as List : const [];
+      return [
+        for (final e in list)
+          if (e is Map && e['lat'] is num && e['lng'] is num)
+            City(
+              _shortName('${e['name'] ?? ''}'),
+              '',
+              (e['lat'] as num).toDouble(),
+              (e['lng'] as num).toDouble(),
+            ),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Garde les premiers éléments du nom complet (ville, région) pour l'affichage.
+  static String _shortName(String full) => full.split(',').take(3).map((s) => s.trim()).join(', ');
 
   Future<void> _setLocation(double lat, double lng, String place) async {
     _lat = lat;
