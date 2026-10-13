@@ -76,6 +76,8 @@ button.chip { cursor: pointer; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 8px 0 18px; }
 .stat { display: grid; gap: 2px; } .stat span { color: var(--muted); font-size: 0.85rem; }
 .stat strong { font-size: 2rem; font-weight: 600; line-height: 1.15; } .stat small { color: var(--muted); }
+button.stat { text-align: left; font: inherit; cursor: pointer; transition: border-color 0.15s, transform 0.05s; }
+button.stat:hover { border-color: var(--zellige); } button.stat:active { transform: translateY(1px); }
 .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin-bottom: 18px; }
 .group-card { display: grid; gap: 6px; align-content: start; }

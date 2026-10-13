@@ -80,7 +80,7 @@ export default function App() {
         {group ? (
           <GroupView api={api} group={group} isGlobalAdmin={isAdmin} meId={user.id} onBack={() => setGroup(null)} />
         ) : current === 'overview' ? (
-          <Overview api={api} onOpenUsers={() => go('users')} />
+          <Overview api={api} onNavigate={go} />
         ) : current === 'users' ? (
           <Users api={api} me={user} />
         ) : current === 'invitations' ? (
