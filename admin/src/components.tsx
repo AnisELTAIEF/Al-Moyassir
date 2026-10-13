@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SURAHS, TOTAL_AYAHS } from './data/surahs';
 import { fmtPct, memorizedPerSurah, pct, sinceLabel } from './lib';
 import type { AyahProgress } from './types';
@@ -23,6 +23,19 @@ export function SurahMap({ items }: { items: AyahProgress[] }) {
       })}
     </div>
   );
+}
+
+/** Message éphémère : s'efface tout seul au bout de `ms` (3 s par défaut). */
+export function useFlash(ms = 3000): [string | null, (m: string | null) => void] {
+  const [msg, setMsg] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const flash = useCallback((m: string | null) => {
+    setMsg(m);
+    clearTimeout(timer.current);
+    if (m) timer.current = setTimeout(() => setMsg(null), ms);
+  }, [ms]);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  return [msg, flash];
 }
 
 export function useAsync<T>(load: () => Promise<T>, deps: unknown[]) {

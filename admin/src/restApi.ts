@@ -89,6 +89,7 @@ export function createRestApi(baseUrl: string, googleClientId: string | null): A
     updateUser: async (id, patch) => { await call('PATCH', `/admin/users/${id}`, patch); },
     deleteUser: async (id) => { await call('DELETE', `/admin/users/${id}`); },
     userProgress: async (id) => items(await call('GET', `/admin/users/${id}/progress`)),
+    userGroups: async (id) => items(await call('GET', `/admin/users/${id}/groups`)),
     invitations: async () => items(await call('GET', '/admin/invitations')),
     invite: (email, role, groupId, groupRole = 'member') => call('POST', '/admin/invitations', { email, role, groupId, groupRole }),
     revokeInvitation: async (id) => { await call('DELETE', `/admin/invitations/${id}`); },
@@ -108,6 +109,8 @@ export function createRestApi(baseUrl: string, googleClientId: string | null): A
     groupMembers: async (g) => (await call<{ members: never[] }>('GET', `/groups/${g}/overview`)).members,
     groupJoinCode: async (g) => (await call<{ group: { joinCode?: string | null } }>('GET', `/groups/${g}/overview`)).group.joinCode ?? null,
     regenerateJoinCode: async (g) => (await call<{ joinCode: string }>('POST', `/groups/${g}/join-code`)).joinCode,
+    groupJoinOpen: async (g) => (await call<{ group: { joinOpen?: boolean } }>('GET', `/groups/${g}/overview`)).group.joinOpen ?? true,
+    setGroupJoinOpen: async (g, open) => { await call('PUT', `/groups/${g}/join-open`, { open }); },
     memberProgress: async (g, u) => items(await call('GET', `/groups/${g}/members/${u}/progress`)),
   };
 }

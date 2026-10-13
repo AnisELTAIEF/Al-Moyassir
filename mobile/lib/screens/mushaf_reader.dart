@@ -72,6 +72,30 @@ class _MushafReaderState extends State<MushafReader> {
         );
       });
 
+  /// Va à la page voisine (balayage toujours actif ; flèches utiles au clavier/souris et sur grand écran).
+  void _goRelative(int delta) {
+    if (!_controller.hasClients) return;
+    final target = _current + delta;
+    if (target < 0 || target >= _repo.mushafPages.length) return;
+    _controller.animateToPage(target, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
+  }
+
+  /// Flèche de feuilletage, collée à un bord (début = droite en RTL = page précédente).
+  Widget _arrow({required bool start, required IconData icon, required String tooltip, VoidCallback? onPressed}) => PositionedDirectional(
+        start: start ? 4 : null,
+        end: start ? null : 4,
+        top: 0,
+        bottom: 0,
+        child: Center(
+          child: IconButton.filledTonal(
+            tooltip: tooltip,
+            onPressed: onPressed,
+            icon: Icon(icon),
+            style: IconButton.styleFrom(backgroundColor: context.colors.surface.withValues(alpha: 0.72)),
+          ),
+        ),
+      );
+
   /// Suit la récitation, y compris d'une page à l'autre.
   void _follow() {
     final s = _audio.surah, a = _audio.currentAyah;
@@ -103,8 +127,13 @@ class _MushafReaderState extends State<MushafReader> {
   /// Plus grande taille de texte pour que la page REMPLISSE le cadre : réduite si la page ne tient pas,
   /// agrandie sur grand écran (tablette). Plafond : la plus grande de la taille choisie et d'environ
   /// 1/13 de la largeur (au moins une dizaine de mots par ligne), sans dépasser 96.
+  ///
+  /// En paysage (téléphone tourné), la page est large mais basse : au lieu de réduire le texte à une
+  /// taille minuscule pour tout faire tenir, on garde la taille choisie (≈ 2-3 ayat visibles) et la
+  /// page défile verticalement.
   double _fitFont(int page, Size size, double chosenFont, TextScaler scaler) {
     return _fit.putIfAbsent(page, () {
+      if (size.width > size.height) return chosenFont;
       final width = size.width - _outer.horizontal - _inset.horizontal;
       final avail = size.height - _outer.vertical - _inset.vertical;
       final maxFont = math.max(chosenFont, math.min(width / 13, 96.0));
@@ -135,16 +164,22 @@ class _MushafReaderState extends State<MushafReader> {
       }
       return Directionality(
         textDirection: TextDirection.rtl, // feuilletage de droite à gauche, comme un mushaf
-        child: PageView.builder(
-          controller: _controller,
-          itemCount: _repo.mushafPages.length,
-          onPageChanged: (i) {
-            _current = i;
-            final (s, a) = _repo.mushafPages[i];
-            widget.onShown(s, a);
-          },
-          itemBuilder: (context, i) => _page(context, i + 1, c.biggest, settings, scaler),
-        ),
+        child: Stack(children: [
+          PageView.builder(
+            controller: _controller,
+            itemCount: _repo.mushafPages.length,
+            onPageChanged: (i) {
+              setState(() => _current = i);
+              final (s, a) = _repo.mushafPages[i];
+              widget.onShown(s, a);
+            },
+            itemBuilder: (context, i) => _page(context, i + 1, c.biggest, settings, scaler),
+          ),
+          _arrow(start: true, icon: Icons.chevron_right, tooltip: tr('Page précédente'),
+              onPressed: _current > 0 ? () => _goRelative(-1) : null),
+          _arrow(start: false, icon: Icons.chevron_left, tooltip: tr('Page suivante'),
+              onPressed: _current < _repo.mushafPages.length - 1 ? () => _goRelative(1) : null),
+        ]),
       );
     });
   }

@@ -48,6 +48,7 @@ const invitations: Invitation[] = [
   { id: 'i1', email: 'hamza@exemple.tn', role: 'user', groupName: 'Halaqa du vendredi', state: 'pending', createdAt: ago(2), expiresAt: ago(-12) },
   { id: 'i2', email: 'sarra@exemple.tn', role: 'user', groupName: null, state: 'accepted', createdAt: ago(9), expiresAt: ago(-5) },
 ];
+const joinOpen = new Map<string, boolean>();
 const me = { id: 'u0', email: 'anis.eltaief@gmail.com', displayName: 'Anis E.', role: 'admin' as const };
 
 export function createDemoApi(): Api {
@@ -68,6 +69,13 @@ export function createDemoApi(): Api {
     updateUser: async (id, p) => { const u = users.find((x) => x.id === id)!; Object.assign(u, p); },
     deleteUser: noop,
     userProgress: async (id) => progress.get(id) ?? [],
+    userGroups: async (id) => {
+      const i = users.findIndex((u) => u.id === id);
+      const out: { id: string; name: string; role: 'admin' | 'member' }[] = [];
+      if (i >= 0 && i < 8) out.push({ id: 'g1', name: 'Halaqa du vendredi', role: i === 1 ? 'admin' : 'member' });
+      if (i >= 2 && i < 6) out.push({ id: 'g2', name: 'Jeunes — Monastir', role: 'member' });
+      return out;
+    },
     invitations: async () => [...invitations],
     invite: async (email, role) => {
       invitations.unshift({ id: `i${invitations.length + 1}`, email, role, groupName: null, state: 'pending', createdAt: new Date().toISOString(), expiresAt: ago(-14) });
@@ -87,6 +95,8 @@ export function createDemoApi(): Api {
     revokeGroupInvitation: noop,
     groupJoinCode: async (g) => (g === 'g1' ? 'H7KQ2M' : 'P3XW9R'),
     regenerateJoinCode: async () => 'N4TB8Z',
+    groupJoinOpen: async (g) => (joinOpen.get(g) ?? true),
+    setGroupJoinOpen: async (g, open) => { joinOpen.set(g, open); },
     groupMembers: async (g) => (g === 'g1' ? users.slice(0, 8) : users.slice(2, 6)).map((u) => ({ ...u })),
     memberProgress: async (_g, u) => progress.get(u) ?? [],
   };

@@ -24,7 +24,7 @@ export default async function groupRoutes(app) {
   app.addHook('preHandler', app.authenticate);
 
   const guard = async (req) => {
-    const [g] = await app.db.query('SELECT id, name, join_code FROM study_groups WHERE id = ?', [req.params.id]);
+    const [g] = await app.db.query('SELECT id, name, join_code, join_open FROM study_groups WHERE id = ?', [req.params.id]);
     if (!g[0]) throw new HttpError(404, 'not_found', 'Groupe introuvable.');
     if (!(await canManageGroup(app, req.user, req.params.id))) throw new HttpError(403, 'forbidden', 'Réservé aux admins de ce groupe.');
     return g[0];
@@ -45,7 +45,7 @@ export default async function groupRoutes(app) {
        GROUP BY u.id, gm.role, gm.joined_at
        ORDER BY u.display_name`, [g.id]);
     return {
-      group: { id: g.id, name: g.name, joinCode: g.join_code },
+      group: { id: g.id, name: g.name, joinCode: g.join_code, joinOpen: !!g.join_open },
       members: rows.map((r) => ({ ...statsRow(r), groupRole: r.group_role, joinedAt: r.joined_at?.toISOString() })),
     };
   });
@@ -61,6 +61,15 @@ export default async function groupRoutes(app) {
   app.post('/:id/join-code', { schema: { params: idParam } }, async (req) => {
     const g = await guard(req);
     return { joinCode: await assignGroupCode(app.db, g.id) };
+  });
+
+  /** Autorise ou non l'adhésion avec le code du groupe (activé par défaut). */
+  app.put('/:id/join-open', {
+    schema: { params: idParam, body: { type: 'object', required: ['open'], properties: { open: { type: 'boolean' } } } },
+  }, async (req) => {
+    const g = await guard(req);
+    await app.db.query('UPDATE study_groups SET join_open = ? WHERE id = ?', [req.body.open ? 1 : 0, g.id]);
+    return { ok: true, joinOpen: req.body.open };
   });
 
   app.patch('/:id', {

@@ -1,5 +1,4 @@
-// Fonctions partagées : sérialisation, sessions, création de compte depuis une invitation.
-import { HttpError } from './errors.js';
+// Fonctions partagées : sérialisation, sessions, création de compte (inscription ouverte).
 import { uuid, sha256, newRefreshToken } from './security.js';
 
 export const iso = (d) => (d ? new Date(d).toISOString() : null);
@@ -48,16 +47,13 @@ export async function validInvitationByEmail(db, email) {
 }
 
 /**
- * Crée un compte. Le rôle vient de l'invitation, ou « admin » pour l'administrateur par défaut.
- * Lève 403 invitation_required si aucun des deux.
+ * Crée un compte. L'inscription est ouverte : toute personne peut créer un compte (rôle « user »),
+ * ce qui permet de conserver sa progression d'un appareil à l'autre. Le rôle vient de l'invitation
+ * si elle existe, ou « admin » pour l'administrateur par défaut.
  */
 export async function createAccount(conn, cfg, { email, displayName, passwordHash = null, googleSub = null, invitation = null, group = null }) {
   email = email.toLowerCase();
   const isBootstrap = email === cfg.bootstrapAdminEmail;
-  if (!invitation && !group && !isBootstrap) {
-    throw new HttpError(403, 'invitation_required',
-      'Ce compte n’a pas été invité. Demandez une invitation à un administrateur.');
-  }
   const id = uuid();
   const role = isBootstrap ? 'admin' : invitation ? invitation.role : 'user';
   await conn.query(

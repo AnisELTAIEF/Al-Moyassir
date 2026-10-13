@@ -122,7 +122,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   Map<String, dynamic>? _found; // aperçu du code (invitation ou groupe)
-  bool _noCode = false; // inscription sans code : réservée à l'adresse administrateur du serveur
+  bool _noCode = false; // inscription ouverte : création de compte par e-mail sans code d'invitation
   bool _busy = false;
   String? _error;
 
@@ -231,9 +231,9 @@ class _InvitationScreenState extends State<InvitationScreen> {
                 padding: const EdgeInsets.all(16),
                 child: _noCode
                     ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(tr('Compte administrateur'), style: context.text.titleLarge),
+                        Text(tr('Nouveau compte'), style: context.text.titleLarge),
                         const SizedBox(height: 6),
-                        Text(tr('Réservé à l’adresse administrateur configurée sur le serveur. Les autres personnes ont besoin d’un code.'),
+                        Text(tr('Créez votre compte avec votre e-mail. Votre progression sera sauvegardée et vous la retrouverez sur tous vos appareils.'),
                             style: TextStyle(color: context.tones.muted)),
                       ])
                     : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -286,10 +286,10 @@ class _InvitationScreenState extends State<InvitationScreen> {
           if (_error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(_error!, style: TextStyle(color: context.colors.error))),
           if (!ready) ...[
             const SizedBox(height: 28),
-            Text(tr('Pas de code ? Demandez-le à l’admin de votre groupe.'), style: TextStyle(color: context.tones.muted)),
+            Text(tr('Pas de code ? Vous pouvez créer un compte directement pour garder votre progression sur tous vos appareils.'), style: TextStyle(color: context.tones.muted)),
             TextButton(
               onPressed: _busy ? null : () => setState(() => _noCode = true),
-              child: Text(tr('Je suis l’administrateur principal (sans code)')),
+              child: Text(tr('Créer un compte sans code')),
             ),
           ],
         ]),

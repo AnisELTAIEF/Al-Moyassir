@@ -40,6 +40,15 @@ export default async function adminRoutes(app) {
     items: await progressOf(app.db, req.params.id),
   }));
 
+  /** Groupes auxquels appartient un utilisateur (avec son rôle dans chacun). */
+  app.get('/users/:id/groups', { schema: { params: idParam } }, async (req) => {
+    const [rows] = await app.db.query(
+      `SELECT g.id, g.name, gm.role FROM group_members gm
+       JOIN study_groups g ON g.id = gm.group_id
+       WHERE gm.user_id = ? ORDER BY g.name`, [req.params.id]);
+    return { items: rows.map((r) => ({ id: r.id, name: r.name, role: r.role })) };
+  });
+
   app.patch('/users/:id', {
     schema: { params: idParam, body: { type: 'object', minProperties: 1, properties: {
       role: { type: 'string', enum: ['user', 'admin'] },
@@ -115,11 +124,11 @@ export default async function adminRoutes(app) {
   // ── Groupes ──
   app.get('/groups', async () => {
     const [rows] = await app.db.query(
-      `SELECT g.id, g.name, g.join_code, g.created_at, COUNT(gm.user_id) AS members,
+      `SELECT g.id, g.name, g.join_code, g.join_open, g.created_at, COUNT(gm.user_id) AS members,
               SUM(gm.role = 'admin') AS managers
        FROM study_groups g LEFT JOIN group_members gm ON gm.group_id = g.id
        GROUP BY g.id ORDER BY g.name`);
-    return { items: rows.map((r) => ({ id: r.id, name: r.name, joinCode: r.join_code, createdAt: iso(r.created_at), members: Number(r.members), managers: Number(r.managers ?? 0) })) };
+    return { items: rows.map((r) => ({ id: r.id, name: r.name, joinCode: r.join_code, joinOpen: !!r.join_open, createdAt: iso(r.created_at), members: Number(r.members), managers: Number(r.managers ?? 0) })) };
   });
 
   const nameBody = { type: 'object', required: ['name'], properties: { name: { type: 'string', minLength: 2, maxLength: 80 } } };

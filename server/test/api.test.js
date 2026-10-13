@@ -57,12 +57,13 @@ test('migrations idempotentes + 114 sourates / 6214 ayat', async () => {
   assert.equal(Number(r.s), 6214);
 });
 
-test('un inconnu ne peut pas entrer sans invitation (Google et mot de passe)', async () => {
+test('inscription ouverte : un inconnu crée son compte (rôle utilisateur) par Google et par mot de passe', async () => {
   const g = await google('s-x', 'inconnu@x.io', 'Inconnu');
-  assert.equal(g.status, 403);
-  assert.equal(g.body.error, 'invitation_required');
-  const r = await call('POST', '/auth/register', { body: { email: 'inconnu@x.io', password: 'motdepasse1', displayName: 'Inc' } });
-  assert.equal(r.status, 403);
+  assert.equal(g.status, 200, JSON.stringify(g.body));
+  assert.equal(g.body.user.role, 'user');
+  const r = await call('POST', '/auth/register', { body: { email: 'inconnu2@x.io', password: 'motdepasse1', displayName: 'Inc' } });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.user.role, 'user');
 });
 
 test('anis.eltaief@gmail.com devient admin par défaut via Google', async () => {

@@ -5,6 +5,7 @@ import '../../core/admin_service.dart';
 import '../../core/api_client.dart';
 import '../../core/auth_service.dart';
 import '../../core/models.dart';
+import '../../core/quran_repository.dart';
 import '../../theme.dart';
 import '../../widgets/async_view.dart';
 import '../../widgets/common.dart';
@@ -38,7 +39,6 @@ class _UsersTabState extends State<UsersTab> with AutomaticKeepAliveClientMixin 
         final q = _q.toLowerCase();
         final list = users.where((u) => q.isEmpty || u.name.toLowerCase().contains(q) || u.email.contains(q)).toList()
           ..sort((a, b) => b.memorized.compareTo(a.memorized));
-        final best = users.map((u) => u.memorized).fold<int>(1, (a, b) => b > a ? b : a);
         return Constrained(
           child: ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 32), children: [
             TextField(
@@ -69,7 +69,7 @@ class _UsersTabState extends State<UsersTab> with AutomaticKeepAliveClientMixin 
                           ]),
                           Text(u.email, style: TextStyle(fontSize: 12.5, color: context.tones.muted), overflow: TextOverflow.ellipsis),
                           const SizedBox(height: 6),
-                          ThinBar(value: u.memorized / best, height: 4),
+                          ThinBar(value: u.memorized / QuranRepository.totalAyahs, height: 4),
                           const SizedBox(height: 4),
                           Text(tr('{m} appris · {l} en cours · actif {t}', {'m': u.memorized, 'l': u.learning, 't': since(u.lastActivity)}),
                               style: TextStyle(fontSize: 12, color: context.tones.muted)),

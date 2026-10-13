@@ -67,10 +67,13 @@ class Settings extends ChangeNotifier {
   /// Colorisation des ayat (fond) dans le mode de lecture courant.
   AyahColoring get coloring => coloringIn(_readingMode);
 
-  /// Colorisation des ayat dans un mode, par compte. Par défaut : « par ayah » dans les deux modes
-  /// (2 couleurs en Tahfidh, 6 en Qira'a).
+  /// Colorisation par défaut d'un mode : « par ayah » en Tahfidh (alternance douce),
+  /// « par niveau de maîtrise » en Qira'a (plus utile pour suivre sa mémorisation à la lecture).
+  static AyahColoring defaultColoring(ReadingMode m) => m == ReadingMode.mushaf ? AyahColoring.mastery : AyahColoring.perAyah;
+
+  /// Colorisation des ayat dans un mode, par compte (voir [defaultColoring]).
   AyahColoring coloringIn(ReadingMode m) =>
-      AyahColoring.values.asNameMap()[_prefs.getString('coloring_${_owner}_${m.name}')] ?? AyahColoring.perAyah;
+      AyahColoring.values.asNameMap()[_prefs.getString('coloring_${_owner}_${m.name}')] ?? defaultColoring(m);
   void setColoringIn(ReadingMode m, AyahColoring c) {
     _prefs.setString('coloring_${_owner}_${m.name}', c.name);
     notifyListeners();

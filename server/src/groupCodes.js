@@ -11,8 +11,10 @@ export const normalizeGroupCode = (c) => String(c ?? '').toUpperCase().replace(/
 /** Vrai si le texte saisi a la forme d'un code de groupe (6 caractères) plutôt que d'invitation (8). */
 export const looksLikeGroupCode = (c) => normalizeGroupCode(c).length === 6;
 
+/** Groupe correspondant au code, seulement si l'adhésion par code est autorisée (join_open = 1). */
 export async function groupByCode(db, code) {
-  const [rows] = await db.query('SELECT id, name, join_code FROM study_groups WHERE join_code = ?', [normalizeGroupCode(code)]);
+  const [rows] = await db.query(
+    'SELECT id, name, join_code FROM study_groups WHERE join_code = ? AND join_open = 1', [normalizeGroupCode(code)]);
   return rows[0] ?? null;
 }
 

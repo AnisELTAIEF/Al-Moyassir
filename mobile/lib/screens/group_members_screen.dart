@@ -98,7 +98,6 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
         ),
         builder: (context, data, _) {
           final (members, invitations, joinCode) = data;
-          final best = members.map((m) => m.memorized).fold<int>(1, (a, b) => b > a ? b : a);
           final total = members.fold<int>(0, (a, m) => a + m.memorized);
           final admins = members.where((m) => m.groupRole == 'admin').length;
           return Constrained(
@@ -112,7 +111,7 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
                   style: TextStyle(color: context.tones.muted),
                 ),
               const SizedBox(height: 12),
-              for (final m in members) _memberCard(m, best, admins),
+              for (final m in members) _memberCard(m, admins),
               if (invitations.isNotEmpty) ...[
                 SectionTitle(tr('Invitations en attente')),
                 for (final i in invitations)
@@ -140,7 +139,7 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
     );
   }
 
-  Widget _memberCard(UserStats m, int best, int admins) {
+  Widget _memberCard(UserStats m, int admins) {
     final isAdmin = m.groupRole == 'admin';
     final inactive = m.lastActivity == null || DateTime.now().difference(m.lastActivity!).inDays >= 7;
     return Card(
@@ -167,7 +166,7 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
                   ],
                 ]),
                 const SizedBox(height: 6),
-                ThinBar(value: m.memorized / best),
+                ThinBar(value: m.memorized / QuranRepository.totalAyahs),
                 const SizedBox(height: 6),
                 Text(tr('{m} appris · {l} en cours · actif {t}', {'m': m.memorized, 'l': m.learning, 't': since(m.lastActivity)}),
                     style: TextStyle(fontSize: 12.5, color: inactive ? context.tones.red : context.tones.muted)),

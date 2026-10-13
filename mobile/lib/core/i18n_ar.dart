@@ -1,6 +1,18 @@
 // Traductions arabes de l'interface (clé = texte français, tel qu'écrit dans le code).
 // Les messages d'erreur du serveur figurent à la fin.
 const Map<String, String> arStrings = {
+  'Créer un compte sans code': 'إنشاء حساب بدون رمز',
+  'Créez votre compte avec votre e-mail. Votre progression sera sauvegardée et vous la retrouverez sur tous vos appareils.':
+      'أنشئ حسابك ببريدك الإلكتروني. سيُحفَظ تقدّمك وتجده على جميع أجهزتك.',
+  'Non appris, en cours, à revoir, acquis — touchez un ayah pour changer (par défaut)':
+      'غير محفوظة، قيد الحفظ، للمراجعة، محفوظة — المس آية لتغيير مستواها (افتراضي)',
+  'Nouveau compte': 'حساب جديد',
+  'Page précédente': 'الصفحة السابقة',
+  'Page suivante': 'الصفحة التالية',
+  'Pas de code ? Vous pouvez créer un compte directement pour garder votre progression sur tous vos appareils.':
+      'ليس لديك رمز؟ يمكنك إنشاء حساب مباشرةً للاحتفاظ بتقدّمك على جميع أجهزتك.',
+  'Six fonds doux en rotation. Touchez un ayah pour changer son niveau.':
+      'ست خلفيات هادئة بالتناوب. المس آية لتغيير مستواها.',
   ' + tajwid': ' + التجويد',
   ' ayat appris sur {total} · {p}': ' آية محفوظة من {total} · {p}',
   'Acceptée': 'مقبولة',
