@@ -1,6 +1,14 @@
 // Traductions arabes de l'interface (clé = texte français, tel qu'écrit dans le code).
 // Les messages d'erreur du serveur figurent à la fin.
 const Map<String, String> arStrings = {
+  'Indiquez le code reçu.': 'أدخل الرمز الذي استلمته.',
+  'Mot de passe oublié ?': 'هل نسيت كلمة المرور؟',
+  'Mot de passe réinitialisé. Vous êtes connecté.': 'تمت إعادة تعيين كلمة المرور. تم تسجيل دخولك.',
+  'Nouveau mot de passe (8 caractères minimum)': 'كلمة مرور جديدة (8 أحرف على الأقل)',
+  'Réinitialiser le mot de passe': 'إعادة تعيين كلمة المرور',
+  'Saisissez le code de réinitialisation fourni par votre administrateur, puis choisissez un nouveau mot de passe.':
+      'أدخل رمز إعادة التعيين الذي زوّدك به المشرف، ثم اختر كلمة مرور جديدة.',
+  'Sourate précédente': 'السورة السابقة',
   'Créer un compte sans code': 'إنشاء حساب بدون رمز',
   'Créez votre compte avec votre e-mail. Votre progression sera sauvegardée et vous la retrouverez sur tous vos appareils.':
       'أنشئ حسابك ببريدك الإلكتروني. سيُحفَظ تقدّمك وتجده على جميع أجهزتك.',

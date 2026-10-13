@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Bar, ProgressPanel, TOTAL, useAsync, useFlash } from '../components';
 import { daysSince, downloadCsv, fmtPct, membersCsv, sinceLabel } from '../lib';
-import type { Api, GroupSummary, User, UserStats } from '../types';
+import type { Api, GroupSummary, PasswordReset, User, UserStats } from '../types';
 
 export default function Users({ api, me }: { api: Api; me: User }) {
   const { data, error, reload } = useAsync(() => api.users(), []);
@@ -58,6 +58,8 @@ function UserFiche({ api, user, me, allGroups, flash, onChanged, onClose }: {
   const isMe = user.id === me.id;
   const [role, setRole] = useState(user.role);
   const [status, setStatus] = useState(user.status);
+  const [reset, setReset] = useState<PasswordReset | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function run(f: () => Promise<void>, ok: string) {
     flash(null);
@@ -90,6 +92,20 @@ function UserFiche({ api, user, me, allGroups, flash, onChanged, onClose }: {
             run(async () => { await api.deleteUser(user.id); onClose(); }, 'Compte supprimé.')}>Supprimer</button>
         </div>
       )}
+      <h3>Mot de passe</h3>
+      <button className="btn ghost small" onClick={() => run(async () => { setReset(await api.resetUserPassword(user.id)); setCopied(false); }, 'Code de réinitialisation généré.')}>
+        Réinitialiser le mot de passe
+      </button>
+      {reset && (
+        <div className="card created" role="status" style={{ marginTop: 10 }}>
+          <div>
+            <p className="small">Code à transmettre (valable 7 jours). La personne le saisit dans l’app via « Mot de passe oublié » pour choisir un nouveau mot de passe.</p>
+            <div className="code">{reset.code}</div>
+          </div>
+          <button className="btn small" onClick={() => { navigator.clipboard?.writeText(reset.message); setCopied(true); }}>{copied ? 'Message copié' : 'Copier le message'}</button>
+        </div>
+      )}
+
       <UserGroups api={api} user={user} allGroups={allGroups} flash={flash} onChanged={onChanged} />
     </>
   );

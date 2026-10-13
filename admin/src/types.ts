@@ -30,6 +30,7 @@ export interface Invitation {
   state: 'pending' | 'accepted' | 'revoked' | 'expired'; createdAt: string; expiresAt: string;
 }
 export interface CreatedInvitation { email: string; code: string; link: string | null; message: string; expiresAt: string }
+export interface PasswordReset { code: string; message: string; expiresAt: string }
 
 export interface GroupSummary { id: string; name: string; members: number; managers: number; joinCode?: string | null; joinOpen?: boolean }
 export interface UserGroupRef { id: string; name: string; role: 'admin' | 'member' }
@@ -55,6 +56,8 @@ export interface Api {
   users(): Promise<UserStats[]>;
   updateUser(id: string, patch: { role?: Role; status?: 'active' | 'disabled' }): Promise<void>;
   deleteUser(id: string): Promise<void>;
+  /** Génère un code de réinitialisation du mot de passe à transmettre à la personne. */
+  resetUserPassword(id: string): Promise<PasswordReset>;
   userProgress(id: string): Promise<AyahProgress[]>;
   /** Groupes d'un utilisateur (avec son rôle dans chacun), pour la fiche utilisateur. */
   userGroups(id: string): Promise<UserGroupRef[]>;

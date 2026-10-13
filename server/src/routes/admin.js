@@ -2,7 +2,7 @@
 import { assignGroupCode } from '../groupCodes.js';
 import { HttpError } from '../errors.js';
 import { tx } from '../db.js';
-import { uuid } from '../security.js';
+import { uuid, sha256, normalizeCode, newInvitationCode } from '../security.js';
 import { createInvitation, invitationRow } from '../invitations.js';
 import { iso, otherActiveAdmins } from '../users.js';
 import { progressOf, STATS_SQL, statsRow } from '../progress.js';
@@ -57,6 +57,26 @@ export default async function adminRoutes(app) {
   app.get('/users/:id/progress', { schema: { params: idParam } }, async (req) => ({
     items: await progressOf(app.db, req.params.id),
   }));
+
+  /**
+   * Génère un code de réinitialisation du mot de passe (valable 7 jours). Le code n'est renvoyé
+   * qu'ici (seule son empreinte est stockée) : l'admin le transmet à la personne, qui le saisit
+   * dans l'app (« Mot de passe oublié ») pour choisir un nouveau mot de passe.
+   */
+  app.post('/users/:id/reset-password', { schema: { params: idParam } }, async (req) => {
+    const [rows] = await app.db.query('SELECT id, email FROM users WHERE id = ?', [req.params.id]);
+    const u = rows[0];
+    if (!u) throw new HttpError(404, 'not_found', 'Utilisateur introuvable.');
+    const code = newInvitationCode();
+    const expires = new Date(Date.now() + 7 * 86_400_000);
+    await app.db.query('UPDATE users SET reset_code_hash = ?, reset_expires_at = ? WHERE id = ?',
+      [sha256(normalizeCode(code)), expires, u.id]);
+    return {
+      code,
+      expiresAt: iso(expires),
+      message: `Réinitialisation de votre mot de passe Almoyassir (الميسّر). Dans l'app : « Mot de passe oublié », puis saisissez ce code : ${code}`,
+    };
+  });
 
   /** Groupes auxquels appartient un utilisateur (avec son rôle dans chacun). */
   app.get('/users/:id/groups', { schema: { params: idParam } }, async (req) => {

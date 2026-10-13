@@ -72,6 +72,18 @@ class _ReaderScreenState extends State<ReaderScreen> {
     _settings.saveLastRead(s, a);
   }
 
+  /// Navigation « sourate précédente / suivante » : ouvre une autre sourate à son début.
+  void _goToSurah(int n) {
+    if (n < 1 || n > 114 || n == _surahNo) return;
+    setState(() {
+      _surahNo = n;
+      _here = 1;
+      _lastFollowed = null;
+      _mushafKey = UniqueKey();
+    });
+    _settings.saveLastRead(n, 1);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -256,6 +268,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
             },
           ),
         ),
+        if (!_immersive)
+          _SurahNav(
+            surah: surah,
+            onPrev: _surahNo > 1 ? () => _goToSurah(_surahNo - 1) : null,
+            onNext: _surahNo < 114 ? () => _goToSurah(_surahNo + 1) : null,
+          ),
         if (!_immersive) _MiniPlayer(surah: surah.number, startAyah: _surahNo == widget.surah ? widget.initialAyah : 1),
       ]),
         if (_immersive)
@@ -269,6 +287,47 @@ class _ReaderScreenState extends State<ReaderScreen> {
             ),
           ),
       ]),
+    );
+  }
+}
+
+/// Barre de navigation entre sourates (feuilletage « précédente / suivante »), sous le texte.
+class _SurahNav extends StatelessWidget {
+  const _SurahNav({required this.surah, required this.onPrev, required this.onNext});
+  final Surah surah;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: context.colors.surface,
+      child: DecoratedBox(
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: context.tones.line))),
+        child: Row(children: [
+          IconButton(
+            tooltip: tr('Sourate précédente'),
+            visualDensity: VisualDensity.compact,
+            onPressed: onPrev,
+            icon: const Icon(Icons.chevron_left),
+          ),
+          Expanded(
+            child: Center(
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text('${surah.number}', style: TextStyle(fontSize: 12.5, color: context.tones.muted)),
+                const SizedBox(width: 8),
+                ArabicText('سُورَةُ ${surah.name}', size: 17, height: 1.2),
+              ]),
+            ),
+          ),
+          IconButton(
+            tooltip: tr('Sourate suivante'),
+            visualDensity: VisualDensity.compact,
+            onPressed: onNext,
+            icon: const Icon(Icons.chevron_right),
+          ),
+        ]),
+      ),
     );
   }
 }

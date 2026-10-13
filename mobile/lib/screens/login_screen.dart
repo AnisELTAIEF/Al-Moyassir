@@ -85,7 +85,14 @@ class _LoginPanelState extends State<LoginPanel> {
         child: Text(tr('Se connecter avec l’e-mail')),
       ),
       if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: TextStyle(color: context.colors.error))),
-      const SizedBox(height: 8),
+      Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: TextButton(
+          onPressed: _busy ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ResetPasswordScreen())),
+          child: Text(tr('Mot de passe oublié ?')),
+        ),
+      ),
+      const SizedBox(height: 4),
       TextButton.icon(
         onPressed: _busy ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InvitationScreen())),
         icon: const Icon(Icons.mark_email_unread_outlined),
@@ -105,6 +112,81 @@ class _GoogleMark extends StatelessWidget {
         decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
         child: const Text('G', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF4285F4), fontSize: 14)),
       );
+}
+
+/// Réinitialisation du mot de passe : l'admin fournit un code, la personne choisit un nouveau mot de passe.
+class ResetPasswordScreen extends StatefulWidget {
+  const ResetPasswordScreen({super.key});
+  @override
+  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
+}
+
+class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
+  final _code = TextEditingController();
+  final _password = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _code.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  void _submit(AuthService auth) {
+    if (_code.text.trim().length < 6) return setState(() => _error = tr('Indiquez le code reçu.'));
+    if (_password.text.length < 8) return setState(() => _error = tr('Le mot de passe doit faire au moins 8 caractères.'));
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    () async {
+      try {
+        await auth.resetPassword(_code.text, _password.text);
+        if (!mounted) return;
+        Navigator.of(context).popUntil((r) => r.isFirst);
+        snack(context, tr('Mot de passe réinitialisé. Vous êtes connecté.'));
+      } on ApiException catch (e) {
+        if (mounted) setState(() => _error = e.message);
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
+    }();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.read<AuthService>();
+    return Scaffold(
+      appBar: AppBar(title: Text(tr('Réinitialiser le mot de passe'))),
+      body: Constrained(
+        maxWidth: 520,
+        child: ListView(padding: const EdgeInsets.all(20), children: [
+          Text(tr('Saisissez le code de réinitialisation fourni par votre administrateur, puis choisissez un nouveau mot de passe.'),
+              style: TextStyle(color: context.tones.muted)),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _code,
+            textCapitalization: TextCapitalization.characters,
+            autocorrect: false,
+            style: const TextStyle(fontSize: 22, letterSpacing: 3, fontWeight: FontWeight.w600),
+            decoration: const InputDecoration(hintText: 'XXXX-XXXX'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _password,
+            obscureText: true,
+            decoration: InputDecoration(labelText: tr('Nouveau mot de passe (8 caractères minimum)')),
+            onSubmitted: (_) => _submit(auth),
+          ),
+          if (_error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(_error!, style: TextStyle(color: context.colors.error))),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: _busy ? null : () => _submit(auth), child: Text(tr('Réinitialiser le mot de passe'))),
+        ]),
+      ),
+    );
+  }
 }
 
 /// Création de compte en un seul code :

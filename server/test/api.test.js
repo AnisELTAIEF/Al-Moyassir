@@ -291,9 +291,10 @@ test('code de groupe et code d’invitation : un seul champ, e-mail et groupe pr
   const re = await call('POST', `/groups/${g.body.id}/join-code`, { token: t });
   assert.notEqual(re.body.joinCode, g.body.joinCode);
   assert.equal((await call('GET', `/auth/codes/${g.body.joinCode}`)).status, 404);
-  // Sans code : toujours refusé.
-  r = await call('POST', '/auth/register', { body: { email: 'inconnu@x.io', password: 'motdepasse1', displayName: 'Xavier' } });
-  assert.equal(r.status, 403);
+  // Inscription ouverte : un nouvel e-mail crée un compte sans code (rôle utilisateur).
+  r = await call('POST', '/auth/register', { body: { email: 'libre@x.io', password: 'motdepasse1', displayName: 'Libre' } });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.user.role, 'user');
 });
 
 test('refresh : rotation et détection de réutilisation', async () => {
@@ -311,4 +312,19 @@ test('page publique d’invitation', async () => {
   assert.match(res.body, /ABCD-EFGH/);
   const xss = await app.inject({ method: 'GET', url: '/invite/%3Cscript%3E' });
   assert.doesNotMatch(xss.body, /<script>/);
+});
+
+test('réinitialisation du mot de passe par l’admin', async () => {
+  const reg = await call('POST', '/auth/register', { body: { email: 'reset-me@x.io', password: 'ancienMotDePasse1', displayName: 'Reset Me' } });
+  assert.equal(reg.status, 200, JSON.stringify(reg.body));
+  const uid = reg.body.user.id;
+  const gen = await call('POST', `/admin/users/${uid}/reset-password`, { token: S.admin.accessToken });
+  assert.equal(gen.status, 200, JSON.stringify(gen.body));
+  assert.match(gen.body.code, /^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  const done = await call('POST', '/auth/reset-password', { body: { code: gen.body.code, password: 'tfNouveau2024' } });
+  assert.equal(done.status, 200, JSON.stringify(done.body));
+  assert.equal(done.body.user.id, uid);
+  assert.equal((await call('POST', '/auth/login', { body: { email: 'reset-me@x.io', password: 'tfNouveau2024' } })).status, 200);
+  assert.equal((await call('POST', '/auth/login', { body: { email: 'reset-me@x.io', password: 'ancienMotDePasse1' } })).status, 401, 'ancien mot de passe invalidé');
+  assert.equal((await call('POST', '/auth/reset-password', { body: { code: gen.body.code, password: 'encoreAutre1' } })).status, 400, 'code à usage unique');
 });

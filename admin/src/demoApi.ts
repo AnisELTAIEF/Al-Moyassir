@@ -75,6 +75,7 @@ export function createDemoApi(): Api {
     users: async () => users.map((u) => ({ ...u })),
     updateUser: async (id, p) => { const u = users.find((x) => x.id === id)!; Object.assign(u, p); },
     deleteUser: noop,
+    resetUserPassword: async () => ({ code: 'R3ST-2K9P', expiresAt: ago(-7), message: 'Réinitialisation de votre mot de passe Almoyassir. Dans l’app : « Mot de passe oublié », puis saisissez ce code : R3ST-2K9P' }),
     userProgress: async (id) => progress.get(id) ?? [],
     userGroups: async (id) => {
       const i = users.findIndex((u) => u.id === id);

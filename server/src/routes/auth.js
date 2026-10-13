@@ -81,6 +81,30 @@ export default async function authRoutes(app) {
     return issueSession(app, u);
   });
 
+  /** Réinitialisation du mot de passe avec un code fourni par l'admin ; connecte la personne. */
+  app.post('/reset-password', {
+    config: strictLimit,
+    schema: { body: { type: 'object', required: ['code', 'password'], properties: {
+      code: { type: 'string', maxLength: 20 },
+      password: { type: 'string', minLength: 8, maxLength: 200 },
+    } } },
+  }, async (req) => {
+    const hash = sha256(normalizeCode(req.body.code));
+    const passwordHash = await hashPassword(req.body.password);
+    const user = await tx(app.db, async (conn) => {
+      const [rows] = await conn.query(
+        'SELECT * FROM users WHERE reset_code_hash = ? AND reset_expires_at > UTC_TIMESTAMP(3) FOR UPDATE', [hash]);
+      const u = rows[0];
+      if (!u) throw new HttpError(400, 'invalid_reset', 'Code de réinitialisation invalide ou expiré.');
+      if (u.status !== 'active') throw new HttpError(403, 'account_disabled', 'Compte désactivé.');
+      await conn.query('UPDATE users SET password_hash = ?, reset_code_hash = NULL, reset_expires_at = NULL WHERE id = ?',
+        [passwordHash, u.id]);
+      await conn.query('UPDATE refresh_tokens SET revoked_at = UTC_TIMESTAMP(3) WHERE user_id = ? AND revoked_at IS NULL', [u.id]);
+      return u;
+    });
+    return issueSession(app, user);
+  });
+
   /** Échange un refresh token contre une nouvelle session (rotation ; réutilisation = révocation totale). */
   app.post('/refresh', {
     config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
