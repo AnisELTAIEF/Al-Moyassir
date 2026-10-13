@@ -7,24 +7,27 @@ Ce fichier est destiné à **Claude Code exécuté sur le serveur Ubuntu** d'Ani
 installer l'API (Node.js), l'admin web et, si besoin, MariaDB et le serveur web, sans perturber ce
 qui tourne déjà sur la machine.
 
-## Contexte connu (12/10/2026)
+## Contexte connu (13/10/2026)
 
 | Élément | Valeur |
 |---|---|
 | Dépôt sur le serveur | `/home/anis/repo/Al-Moyassir/Al-Moyassir` (clone de `github.com/AnisELTAIEF/Al-Moyassir`) |
-| Domaine | `quran.bestconsultingit.com` — enregistrement A → `197.240.132.72` (DNS géré dans Microsoft 365) |
+| Domaine | `quran.bestconsultingit.com` — enregistrement A → `197.240.124.37` (DNS géré dans Microsoft 365) |
 | Site Best CIT | **ailleurs** (`bestconsultingit.com` et `www` → 46.105.204.20) : a priori **pas** sur ce serveur |
-| Réseau | Serveur derrière une box/routeur (IP locale `192.168.1.37`, IP publique `197.240.132.72`) : la box doit rediriger 80 et 443 vers `192.168.1.37` |
+| Réseau | Serveur derrière une box/routeur (IP locale `192.168.1.37`, IP publique `197.240.124.37`) : la box doit rediriger 80 et 443 vers `192.168.1.37` |
 
 À vérifier à l'étape 0 et à signaler à Anis si c'est différent : `curl -s ifconfig.me` doit donner
-`197.240.132.72` ; `getent hosts quran.bestconsultingit.com` doit donner la même IP ; dire si un
+`197.240.124.37` ; `getent hosts quran.bestconsultingit.com` doit donner la même IP ; dire si un
 serveur web, MariaDB ou d'autres sites existent déjà sur la machine.
 
-> **Incident 12/10/2026 — site injoignable de l'extérieur.** L'IP publique du serveur est passée de
-> `197.240.115.10` (ancienne valeur de l'enregistrement A) à `197.240.132.72`, sans que le DNS soit mis
-> à jour : tout le trafic partait vers une IP morte alors que nginx/vhost/cert/backend étaient sains en
-> local. Correctif : enregistrement A `quran` → `197.240.132.72` dans Microsoft 365. ⚠️ Si l'IP publique
-> est dynamique, prévoir une IP fixe ou un DNS dynamique pour éviter la récidive.
+> **IP publique DYNAMIQUE — récidive.** L'IP publique du serveur change toute seule et casse l'accès
+> à chaque fois, le DNS pointant alors vers une IP morte (nginx/vhost/cert/backend restent sains en
+> local). Historique : `197.240.115.10` → `197.240.132.72` (12/10/2026) → `197.240.124.37` (13/10/2026).
+> **Diagnostic express** : `curl -s ifconfig.me` (IP réelle) vs `getent hosts quran.bestconsultingit.com`
+> (IP dans le DNS) ; si elles diffèrent, c'est ça. **Correctif ponctuel** : mettre l'enregistrement A
+> `quran` à l'IP réelle dans Microsoft 365. ⚠️ **Correctif durable requis** : demander une IP publique
+> fixe au FAI, ou mettre en place un DNS dynamique (ex. client ddclient qui pousse l'IP vers le DNS),
+> sinon le site retombera à chaque changement d'IP.
 
 ## Règles à respecter (non négociables)
 
