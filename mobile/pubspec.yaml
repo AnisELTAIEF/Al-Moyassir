@@ -1,7 +1,7 @@
 name: hifidh_quran
 description: "Hifidh al-Qur’an — lecture du Coran (riwaya de Qalun), audio et suivi de la mémorisation."
 publish_to: 'none'
-version: 0.13.0+15
+version: 0.14.0+16
 
 environment:
   sdk: ^3.13.5
@@ -21,6 +21,8 @@ dependencies:
   scrollable_positioned_list: ^0.3.8
   shared_preferences: ^2.3.0
   wakelock_plus: ^1.2.0
+  adhan: ^2.0.0
+  geolocator: ^13.0.0
 
 dev_dependencies:
   flutter_test:

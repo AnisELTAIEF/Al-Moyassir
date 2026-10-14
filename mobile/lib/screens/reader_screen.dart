@@ -72,6 +72,18 @@ class _ReaderScreenState extends State<ReaderScreen> {
     _settings.saveLastRead(s, a);
   }
 
+  /// Navigation « sourate précédente / suivante » : ouvre une autre sourate à son début.
+  void _goToSurah(int n) {
+    if (n < 1 || n > 114 || n == _surahNo) return;
+    setState(() {
+      _surahNo = n;
+      _here = 1;
+      _lastFollowed = null;
+      _mushafKey = UniqueKey();
+    });
+    _settings.saveLastRead(n, 1);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -201,6 +213,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
               if (m != null) settings.readingMode = m;
               if (v == 'full') _setImmersive(true);
               if (v == 'goto') _goToPage();
+              if (v == 'prevSurah') _goToSurah(_surahNo - 1);
+              if (v == 'nextSurah') _goToSurah(_surahNo + 1);
               if (v == 'hizb') {
                 final h = div.hizbOf(surah.number, _here.clamp(1, surah.ayahCount));
                 final start = div.hizbStart(h);
@@ -225,6 +239,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
             itemBuilder: (_) => [
               if (pageMode) PopupMenuItem(value: ReadingMode.ayah.name, child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(ReadingMode.ayah.icon), title: Text(tr('Passer en Tahfidh')))),
               if (pageMode) PopupMenuItem(value: 'goto', child: Text(tr('Aller à la page…'))),
+              if (pageMode && _surahNo > 1) PopupMenuItem(value: 'prevSurah', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: const Icon(Icons.skip_next), title: Text(tr('Sourate précédente')))),
+              if (pageMode && _surahNo < 114) PopupMenuItem(value: 'nextSurah', child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: const Icon(Icons.skip_previous), title: Text(tr('Sourate suivante')))),
               if (pageMode) PopupMenuItem(value: 'full', child: Text(tr('Plein écran'))),
               PopupMenuItem(value: 'surah', child: Text(tr('Suivi de toute la sourate…'))),
               PopupMenuItem(value: 'hizb', child: Text(tr('Suivi du hizb en cours…'))),
@@ -281,6 +297,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
             },
           ),
         ),
+        // Tahfidh : barre « sourate précédente / suivante ». Qira'a : le mushaf passe d'une sourate à
+        // l'autre en feuilletant ; la navigation par sourate y est dans le menu ⋮ (place laissée au texte).
+        if (!_immersive && !pageMode)
+          _SurahNav(
+            surah: surah,
+            onPrev: _surahNo > 1 ? () => _goToSurah(_surahNo - 1) : null,
+            onNext: _surahNo < 114 ? () => _goToSurah(_surahNo + 1) : null,
+          ),
         if (!_immersive) _MiniPlayer(surah: surah.number, startAyah: _surahNo == widget.surah ? widget.initialAyah : 1, compact: pageMode),
       ]),
         if (_immersive)
@@ -294,6 +318,47 @@ class _ReaderScreenState extends State<ReaderScreen> {
             ),
           ),
       ]),
+    );
+  }
+}
+
+/// Barre de navigation entre sourates (feuilletage « précédente / suivante »), sous le texte.
+class _SurahNav extends StatelessWidget {
+  const _SurahNav({required this.surah, required this.onPrev, required this.onNext});
+  final Surah surah;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: context.colors.surface,
+      child: DecoratedBox(
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: context.tones.line))),
+        child: Row(children: [
+          IconButton(
+            tooltip: tr('Sourate précédente'),
+            visualDensity: VisualDensity.compact,
+            onPressed: onPrev,
+            icon: const Icon(Icons.chevron_left),
+          ),
+          Expanded(
+            child: Center(
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text('${surah.number}', style: TextStyle(fontSize: 12.5, color: context.tones.muted)),
+                const SizedBox(width: 8),
+                ArabicText('سُورَةُ ${surah.name}', size: 17, height: 1.2),
+              ]),
+            ),
+          ),
+          IconButton(
+            tooltip: tr('Sourate suivante'),
+            visualDensity: VisualDensity.compact,
+            onPressed: onNext,
+            icon: const Icon(Icons.chevron_right),
+          ),
+        ]),
+      ),
     );
   }
 }

@@ -137,6 +137,14 @@ class AuthService extends ChangeNotifier {
     }) as Map<String, dynamic>);
   }
 
+  /// Réinitialise le mot de passe avec un code fourni par l'administrateur, puis connecte la personne.
+  Future<void> resetPassword(String code, String password) async {
+    await _applySession(await api!.public('POST', '/auth/reset-password', {
+      'code': code.trim(),
+      'password': password,
+    }) as Map<String, dynamic>);
+  }
+
   /// Connexion Google. Renvoie false si l'utilisateur a annulé.
   Future<bool> signInWithGoogle({String? invitationCode}) async {
     if (!googleEnabled) throw ApiException(0, 'google_not_configured', tr('La connexion Google n’est pas configurée dans cette version.'));

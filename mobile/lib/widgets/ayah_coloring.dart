@@ -337,8 +337,10 @@ class _ColoringSettingsPanelState extends State<ColoringSettingsPanel> {
           AyahColoring.none => tr('Texte sur fond uni'),
           AyahColoring.perAyah => _mode == ReadingMode.ayah
               ? tr('Deux fonds doux en alternance (par défaut)')
-              : tr('Six fonds doux en rotation (par défaut). Touchez un ayah pour changer son niveau.'),
-          AyahColoring.mastery => tr('Non appris, en cours, à revoir, acquis — touchez un ayah pour changer'),
+              : tr('Six fonds doux en rotation. Touchez un ayah pour changer son niveau.'),
+          AyahColoring.mastery => _mode == ReadingMode.mushaf
+              ? tr('Non appris, en cours, à revoir, acquis — touchez un ayah pour changer (par défaut)')
+              : tr('Non appris, en cours, à revoir, acquis — touchez un ayah pour changer'),
         };
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(

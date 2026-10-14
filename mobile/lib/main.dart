@@ -6,6 +6,7 @@ import 'app.dart';
 import 'core/audio_cache.dart';
 import 'core/audio_controller.dart';
 import 'core/auth_service.dart';
+import 'core/prayer_service.dart';
 import 'core/progress_store.dart';
 import 'core/quran_repository.dart';
 import 'core/settings.dart';
@@ -33,6 +34,7 @@ Future<void> main() async {
       ChangeNotifierProvider<AuthService>.value(value: auth),
       ChangeNotifierProvider<ProgressStore>.value(value: progress),
       ChangeNotifierProvider<Settings>.value(value: settings),
+      ChangeNotifierProvider<PrayerService>(create: (_) => PrayerService(prefs)),
       ChangeNotifierProvider<AudioCache>.value(value: audioCache),
       ChangeNotifierProvider<AudioController>(create: (_) => AudioController(repo, prefs, audioCache)),
     ],

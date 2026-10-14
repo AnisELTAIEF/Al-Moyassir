@@ -2,7 +2,7 @@
 import { assignGroupCode } from '../groupCodes.js';
 import { HttpError } from '../errors.js';
 import { tx } from '../db.js';
-import { uuid } from '../security.js';
+import { uuid, sha256, normalizeCode, newInvitationCode } from '../security.js';
 import { createInvitation, invitationRow } from '../invitations.js';
 import { iso, otherActiveAdmins } from '../users.js';
 import { progressOf, STATS_SQL, statsRow } from '../progress.js';
@@ -30,6 +30,24 @@ export default async function adminRoutes(app) {
     };
   });
 
+  /** Ayat appris par jour sur les N derniers jours (tendance du tableau de bord). */
+  app.get('/activity', {
+    schema: { querystring: { type: 'object', properties: { days: { type: 'integer', minimum: 1, maximum: 90 } } } },
+  }, async (req) => {
+    const days = req.query.days ?? 30;
+    const [rows] = await app.db.query(
+      `SELECT DATE(memorized_at) AS d, COUNT(*) AS c FROM memorized_ayahs
+       WHERE status = 'memorized' AND memorized_at IS NOT NULL
+         AND memorized_at >= UTC_TIMESTAMP(3) - INTERVAL ? DAY
+       GROUP BY DATE(memorized_at) ORDER BY d`, [days]);
+    return {
+      items: rows.map((r) => ({
+        day: r.d instanceof Date ? r.d.toISOString().slice(0, 10) : String(r.d).slice(0, 10),
+        memorized: Number(r.c),
+      })),
+    };
+  });
+
   // ── Utilisateurs ──
   app.get('/users', async () => {
     const [rows] = await app.db.query(`${STATS_SQL} GROUP BY u.id ORDER BY u.display_name`);
@@ -39,6 +57,35 @@ export default async function adminRoutes(app) {
   app.get('/users/:id/progress', { schema: { params: idParam } }, async (req) => ({
     items: await progressOf(app.db, req.params.id),
   }));
+
+  /**
+   * Génère un code de réinitialisation du mot de passe (valable 7 jours). Le code n'est renvoyé
+   * qu'ici (seule son empreinte est stockée) : l'admin le transmet à la personne, qui le saisit
+   * dans l'app (« Mot de passe oublié ») pour choisir un nouveau mot de passe.
+   */
+  app.post('/users/:id/reset-password', { schema: { params: idParam } }, async (req) => {
+    const [rows] = await app.db.query('SELECT id, email FROM users WHERE id = ?', [req.params.id]);
+    const u = rows[0];
+    if (!u) throw new HttpError(404, 'not_found', 'Utilisateur introuvable.');
+    const code = newInvitationCode();
+    const expires = new Date(Date.now() + 7 * 86_400_000);
+    await app.db.query('UPDATE users SET reset_code_hash = ?, reset_expires_at = ? WHERE id = ?',
+      [sha256(normalizeCode(code)), expires, u.id]);
+    return {
+      code,
+      expiresAt: iso(expires),
+      message: `Réinitialisation de votre mot de passe Almoyassir (الميسّر). Dans l'app : « Mot de passe oublié », puis saisissez ce code : ${code}`,
+    };
+  });
+
+  /** Groupes auxquels appartient un utilisateur (avec son rôle dans chacun). */
+  app.get('/users/:id/groups', { schema: { params: idParam } }, async (req) => {
+    const [rows] = await app.db.query(
+      `SELECT g.id, g.name, gm.role FROM group_members gm
+       JOIN study_groups g ON g.id = gm.group_id
+       WHERE gm.user_id = ? ORDER BY g.name`, [req.params.id]);
+    return { items: rows.map((r) => ({ id: r.id, name: r.name, role: r.role })) };
+  });
 
   app.patch('/users/:id', {
     schema: { params: idParam, body: { type: 'object', minProperties: 1, properties: {
@@ -115,11 +162,11 @@ export default async function adminRoutes(app) {
   // ── Groupes ──
   app.get('/groups', async () => {
     const [rows] = await app.db.query(
-      `SELECT g.id, g.name, g.join_code, g.created_at, COUNT(gm.user_id) AS members,
+      `SELECT g.id, g.name, g.join_code, g.join_open, g.created_at, COUNT(gm.user_id) AS members,
               SUM(gm.role = 'admin') AS managers
        FROM study_groups g LEFT JOIN group_members gm ON gm.group_id = g.id
        GROUP BY g.id ORDER BY g.name`);
-    return { items: rows.map((r) => ({ id: r.id, name: r.name, joinCode: r.join_code, createdAt: iso(r.created_at), members: Number(r.members), managers: Number(r.managers ?? 0) })) };
+    return { items: rows.map((r) => ({ id: r.id, name: r.name, joinCode: r.join_code, joinOpen: !!r.join_open, createdAt: iso(r.created_at), members: Number(r.members), managers: Number(r.managers ?? 0) })) };
   });
 
   const nameBody = { type: 'object', required: ['name'], properties: { name: { type: 'string', minLength: 2, maxLength: 80 } } };

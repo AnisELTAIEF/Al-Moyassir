@@ -85,7 +85,14 @@ class _LoginPanelState extends State<LoginPanel> {
         child: Text(tr('Se connecter avec l’e-mail')),
       ),
       if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: TextStyle(color: context.colors.error))),
-      const SizedBox(height: 8),
+      Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: TextButton(
+          onPressed: _busy ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ResetPasswordScreen())),
+          child: Text(tr('Mot de passe oublié ?')),
+        ),
+      ),
+      const SizedBox(height: 4),
       TextButton.icon(
         onPressed: _busy ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InvitationScreen())),
         icon: const Icon(Icons.mark_email_unread_outlined),
@@ -107,6 +114,81 @@ class _GoogleMark extends StatelessWidget {
       );
 }
 
+/// Réinitialisation du mot de passe : l'admin fournit un code, la personne choisit un nouveau mot de passe.
+class ResetPasswordScreen extends StatefulWidget {
+  const ResetPasswordScreen({super.key});
+  @override
+  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
+}
+
+class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
+  final _code = TextEditingController();
+  final _password = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _code.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  void _submit(AuthService auth) {
+    if (_code.text.trim().length < 6) return setState(() => _error = tr('Indiquez le code reçu.'));
+    if (_password.text.length < 8) return setState(() => _error = tr('Le mot de passe doit faire au moins 8 caractères.'));
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    () async {
+      try {
+        await auth.resetPassword(_code.text, _password.text);
+        if (!mounted) return;
+        Navigator.of(context).popUntil((r) => r.isFirst);
+        snack(context, tr('Mot de passe réinitialisé. Vous êtes connecté.'));
+      } on ApiException catch (e) {
+        if (mounted) setState(() => _error = e.message);
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
+    }();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.read<AuthService>();
+    return Scaffold(
+      appBar: AppBar(title: Text(tr('Réinitialiser le mot de passe'))),
+      body: Constrained(
+        maxWidth: 520,
+        child: ListView(padding: const EdgeInsets.all(20), children: [
+          Text(tr('Saisissez le code de réinitialisation fourni par votre administrateur, puis choisissez un nouveau mot de passe.'),
+              style: TextStyle(color: context.tones.muted)),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _code,
+            textCapitalization: TextCapitalization.characters,
+            autocorrect: false,
+            style: const TextStyle(fontSize: 22, letterSpacing: 3, fontWeight: FontWeight.w600),
+            decoration: const InputDecoration(hintText: 'XXXX-XXXX'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _password,
+            obscureText: true,
+            decoration: InputDecoration(labelText: tr('Nouveau mot de passe (8 caractères minimum)')),
+            onSubmitted: (_) => _submit(auth),
+          ),
+          if (_error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(_error!, style: TextStyle(color: context.colors.error))),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: _busy ? null : () => _submit(auth), child: Text(tr('Réinitialiser le mot de passe'))),
+        ]),
+      ),
+    );
+  }
+}
+
 /// Création de compte en un seul code :
 /// - code d'invitation (8 caractères, ex. K7XQ-M2PA) : e-mail et groupe pré-remplis, il reste nom + mot de passe ;
 /// - code de groupe (6 caractères, ex. H7KQ2M) : nom du groupe affiché, il reste nom + e-mail + mot de passe.
@@ -122,7 +204,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   Map<String, dynamic>? _found; // aperçu du code (invitation ou groupe)
-  bool _noCode = false; // inscription sans code : réservée à l'adresse administrateur du serveur
+  bool _noCode = false; // inscription ouverte : création de compte par e-mail sans code d'invitation
   bool _busy = false;
   String? _error;
 
@@ -231,9 +313,9 @@ class _InvitationScreenState extends State<InvitationScreen> {
                 padding: const EdgeInsets.all(16),
                 child: _noCode
                     ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(tr('Compte administrateur'), style: context.text.titleLarge),
+                        Text(tr('Nouveau compte'), style: context.text.titleLarge),
                         const SizedBox(height: 6),
-                        Text(tr('Réservé à l’adresse administrateur configurée sur le serveur. Les autres personnes ont besoin d’un code.'),
+                        Text(tr('Créez votre compte avec votre e-mail. Votre progression sera sauvegardée et vous la retrouverez sur tous vos appareils.'),
                             style: TextStyle(color: context.tones.muted)),
                       ])
                     : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -286,10 +368,10 @@ class _InvitationScreenState extends State<InvitationScreen> {
           if (_error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(_error!, style: TextStyle(color: context.colors.error))),
           if (!ready) ...[
             const SizedBox(height: 28),
-            Text(tr('Pas de code ? Demandez-le à l’admin de votre groupe.'), style: TextStyle(color: context.tones.muted)),
+            Text(tr('Pas de code ? Vous pouvez créer un compte directement pour garder votre progression sur tous vos appareils.'), style: TextStyle(color: context.tones.muted)),
             TextButton(
               onPressed: _busy ? null : () => setState(() => _noCode = true),
-              child: Text(tr('Je suis l’administrateur principal (sans code)')),
+              child: Text(tr('Créer un compte sans code')),
             ),
           ],
         ]),

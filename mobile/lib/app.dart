@@ -3,11 +3,13 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/auth_service.dart';
+import 'core/prayer_service.dart';
 import 'core/settings.dart';
 import 'screens/home_screen.dart';
 import 'screens/review_screen.dart';
 import 'screens/supervision_screen.dart';
 import 'screens/surah_list_screen.dart';
+import 'screens/worship_screen.dart';
 import 'theme.dart';
 import 'core/i18n.dart';
 
@@ -48,12 +50,33 @@ class _ShellState extends State<Shell> {
   void go(int i) => setState(() => _index = i);
 
   @override
+  void initState() {
+    super.initState();
+    // Rappel in-app (Phase 1) : une prière arrive alors que l'app est ouverte → bandeau.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<PrayerService>().onDue = _announcePrayer;
+    });
+  }
+
+  void _announcePrayer(Salat s) {
+    final m = ScaffoldMessenger.maybeOf(context);
+    final name = I18n.isAr ? s.ar : s.fr;
+    m?.showSnackBar(SnackBar(
+      duration: const Duration(seconds: 6),
+      content: Text(tr('C’est l’heure de la prière ({name})', {'name': name})),
+      action: SnackBarAction(label: tr('Horaires'), onPressed: () => go(3)),
+    ));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final canSupervise = context.select<AuthService, bool>((a) => a.canSupervise);
     final tabs = <(IconData, IconData, String, Widget)>[
       (Icons.home_outlined, Icons.home, tr('Accueil'), HomeScreen(onOpenTab: go)),
       (Icons.menu_book_outlined, Icons.menu_book, tr('Lire'), const SurahListScreen()),
       (Icons.replay_outlined, Icons.replay, tr('Réviser'), const ReviewScreen()),
+      (Icons.mosque_outlined, Icons.mosque, tr('Prière'), const WorshipScreen()),
       if (canSupervise) (Icons.groups_outlined, Icons.groups, tr('Suivi'), const SupervisionScreen()),
     ];
     final index = _index.clamp(0, tabs.length - 1);

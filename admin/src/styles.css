@@ -76,6 +76,8 @@ button.chip { cursor: pointer; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 8px 0 18px; }
 .stat { display: grid; gap: 2px; } .stat span { color: var(--muted); font-size: 0.85rem; }
 .stat strong { font-size: 2rem; font-weight: 600; line-height: 1.15; } .stat small { color: var(--muted); }
+button.stat { text-align: left; font: inherit; cursor: pointer; transition: border-color 0.15s, transform 0.05s; }
+button.stat:hover { border-color: var(--zellige); } button.stat:active { transform: translateY(1px); }
 .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin-bottom: 18px; }
 .group-card { display: grid; gap: 6px; align-content: start; }
@@ -142,3 +144,21 @@ tbody tr:hover, tbody tr.sel { background: color-mix(in srgb, var(--zellige) 6%,
 .join-code { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .join-code > div:first-child { display: flex; flex-direction: column; gap: .2rem; }
 .join-code .code { font-size: 1.8rem; letter-spacing: .3em; font-family: ui-monospace, monospace; }
+
+/* Fiche utilisateur (panneau) */
+.fiche-meta { display: flex; align-items: center; gap: 10px; margin: 2px 0 12px; flex-wrap: wrap; }
+.user-groups .list.plain li { align-items: center; }
+.user-groups .row-actions { margin-top: 0; }
+.user-groups select { padding: 5px 8px; font-size: 0.85rem; }
+
+/* Petits écrans (téléphone) */
+@media (max-width: 640px) {
+  h1 { font-size: 1.5rem; }
+  .content { padding: 16px 12px 44px; }
+  .stat strong { font-size: 1.6rem; }
+  th, td { padding: 9px 10px; }
+  .prog { min-width: 150px; } .prog .bar { min-width: 60px; }
+  .list li { grid-template-columns: minmax(0, 1fr) 60px auto; gap: 8px; }
+  .list.plain li { grid-template-columns: minmax(0, 1fr) auto; }
+  .join-code .code { font-size: 1.4rem; letter-spacing: .2em; }
+}

@@ -48,6 +48,7 @@ const invitations: Invitation[] = [
   { id: 'i1', email: 'hamza@exemple.tn', role: 'user', groupName: 'Halaqa du vendredi', state: 'pending', createdAt: ago(2), expiresAt: ago(-12) },
   { id: 'i2', email: 'sarra@exemple.tn', role: 'user', groupName: null, state: 'accepted', createdAt: ago(9), expiresAt: ago(-5) },
 ];
+const joinOpen = new Map<string, boolean>();
 const me = { id: 'u0', email: 'anis.eltaief@gmail.com', displayName: 'Anis E.', role: 'admin' as const };
 
 export function createDemoApi(): Api {
@@ -64,10 +65,25 @@ export function createDemoApi(): Api {
     signOut: async () => set(false),
     myGroups: async () => groups.map((g) => ({ id: g.id, name: g.name, role: 'admin' as const, members: g.members })),
     stats: async () => ({ users: users.length, admins: 1, activeUsers: 9, memorizedTotal: users.reduce((a, u) => a + u.memorized, 0), learners: 9, active7Days: 6, pendingInvitations: 1, groups: 2 }),
+    activity: async (days = 30) => {
+      const r = rng(42);
+      return Array.from({ length: days }, (_, i) => ({
+        day: new Date(Date.now() - (days - 1 - i) * DAY).toISOString().slice(0, 10),
+        memorized: Math.round(r() * 18) + (i % 7 === 5 ? 12 : 0),
+      }));
+    },
     users: async () => users.map((u) => ({ ...u })),
     updateUser: async (id, p) => { const u = users.find((x) => x.id === id)!; Object.assign(u, p); },
     deleteUser: noop,
+    resetUserPassword: async () => ({ code: 'R3ST-2K9P', expiresAt: ago(-7), message: 'Réinitialisation de votre mot de passe Almoyassir. Dans l’app : « Mot de passe oublié », puis saisissez ce code : R3ST-2K9P' }),
     userProgress: async (id) => progress.get(id) ?? [],
+    userGroups: async (id) => {
+      const i = users.findIndex((u) => u.id === id);
+      const out: { id: string; name: string; role: 'admin' | 'member' }[] = [];
+      if (i >= 0 && i < 8) out.push({ id: 'g1', name: 'Halaqa du vendredi', role: i === 1 ? 'admin' : 'member' });
+      if (i >= 2 && i < 6) out.push({ id: 'g2', name: 'Jeunes — Monastir', role: 'member' });
+      return out;
+    },
     invitations: async () => [...invitations],
     invite: async (email, role) => {
       invitations.unshift({ id: `i${invitations.length + 1}`, email, role, groupName: null, state: 'pending', createdAt: new Date().toISOString(), expiresAt: ago(-14) });
@@ -87,6 +103,8 @@ export function createDemoApi(): Api {
     revokeGroupInvitation: noop,
     groupJoinCode: async (g) => (g === 'g1' ? 'H7KQ2M' : 'P3XW9R'),
     regenerateJoinCode: async () => 'N4TB8Z',
+    groupJoinOpen: async (g) => (joinOpen.get(g) ?? true),
+    setGroupJoinOpen: async (g, open) => { joinOpen.set(g, open); },
     groupMembers: async (g) => (g === 'g1' ? users.slice(0, 8) : users.slice(2, 6)).map((u) => ({ ...u })),
     memberProgress: async (_g, u) => progress.get(u) ?? [],
   };

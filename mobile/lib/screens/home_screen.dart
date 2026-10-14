@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/auth_service.dart';
 import '../core/models.dart';
+import '../core/prayer_service.dart';
 import '../core/progress_store.dart';
 import '../core/quran_repository.dart';
 import '../core/settings.dart';
@@ -125,6 +126,8 @@ class HomeScreen extends StatelessWidget {
                   label: Text(tr('Commencer la lecture')),
                 ),
               const SizedBox(height: 14),
+              _NextPrayerCard(onTap: () => onOpenTab(3)),
+              const SizedBox(height: 14),
               Row(children: [
                 Expanded(child: _Stat(value: '$toReview', label: tr('à réviser'), icon: Icons.replay, onTap: () => onOpenTab(2))),
                 const SizedBox(width: 12),
@@ -158,6 +161,48 @@ class _Legend extends StatelessWidget {
       dot(Color.lerp(context.tones.line, context.colors.primary, 0.6)!, tr('En partie')),
       dot(context.tones.gold, tr('Sourate complète')),
     ]);
+  }
+}
+
+class _NextPrayerCard extends StatelessWidget {
+  const _NextPrayerCard({required this.onTap});
+  final VoidCallback onTap;
+
+  String _hm(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.watch<PrayerService>();
+    final next = p.next;
+    final left = next?.$2.difference(DateTime.now());
+    final sub = left == null
+        ? p.place
+        : (left.inHours > 0
+            ? tr('dans {h} h {m} min', {'h': left.inHours, 'm': left.inMinutes % 60})
+            : tr('dans {m} min', {'m': left.inMinutes}));
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(children: [
+            Icon(Icons.mosque_outlined, color: context.colors.primary),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(next == null ? tr('Horaires de prière') : tr('{p} à {t}', {'p': I18n.isAr ? next.$1.ar : next.$1.fr, 't': _hm(next.$2)}),
+                    style: context.text.titleMedium),
+                Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.tones.muted)),
+              ]),
+            ),
+            if (next != null) ArabicText(next.$1.ar, size: 24, height: 1.4, color: context.colors.primary),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right),
+          ]),
+        ),
+      ),
+    );
   }
 }
 
