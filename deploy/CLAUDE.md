@@ -12,8 +12,8 @@ qui tourne déjà sur la machine.
 | Élément | Valeur |
 |---|---|
 | Dépôt sur le serveur | `/home/anis/repo/Al-Moyassir/Al-Moyassir` (clone de `github.com/AnisELTAIEF/Al-Moyassir`) |
-| Domaine Quran | `quran.bestconsultingit.com` — **CNAME → `almoyassir.duckdns.org`** (DNS chez Microsoft 365) |
-| Site Best CIT | **sur cette VM** : conteneur Docker `bcitsite-web` (`127.0.0.1:8081`), servi via `www.bestconsultingit.com` (CNAME → `almoyassir.duckdns.org`, vhost nginx `bestcit-www`). L'apex nu `bestconsultingit.com` reste ailleurs (46.105.204.20). |
+| Domaine Quran | `quran.bestconsultingit.com` — **CNAME → `almoyassir.duckdns.org`**. Domaine enregistré chez **OVH**, DNS chez **Cloudflare** (depuis le 14/10/2026) ; e-mail chez Microsoft 365 (enregistrements dupliqués dans Cloudflare, « DNS only ») |
+| Site Best CIT | **sur cette VM** : conteneur Docker `bcitsite-web` (`127.0.0.1:8081`), servi via `www.bestconsultingit.com` (CNAME → `almoyassir.duckdns.org`, vhost nginx `bestcit-www`). L'apex `bestconsultingit.com` → CNAME @ vers DuckDNS, nginx le redirige vers `www` (vhost `bestcit-apex`, certificat propre). |
 | IP publique | **DYNAMIQUE** (change plusieurs fois/jour) → gérée par DuckDNS, voir `docs/IP-DYNAMIQUE-DUCKDNS.md`. Ne plus jamais éditer d'enregistrement A à la main. |
 | Réseau | Serveur derrière une box/routeur (IP locale `192.168.1.37`) : la box doit rediriger 80 et 443 vers `192.168.1.37`. |
 

@@ -15,9 +15,13 @@ www.bestconsultingit.com   ─CNAME─┤
                                         ▲ mis à jour toutes les 2 min par duckdns.timer (systemd)
 ```
 
-- Le DNS du domaine reste chez **Microsoft 365** ; la messagerie (MX, SPF/DKIM/DMARC) n'est pas touchée.
+- Le domaine est **enregistré chez OVH** ; depuis le 14/10/2026 ses serveurs DNS pointent vers **Cloudflare**
+  (zone gratuite). La messagerie reste chez **Microsoft 365** : ses enregistrements (MX, SPF, DKIM,
+  autodiscover, Teams, Intune) sont dupliqués dans Cloudflare, tous en « DNS only » (nuage gris).
 - Bascule automatique après un changement d'IP : ~2–3 min (intervalle de mise à jour + TTL DuckDNS 60 s).
-- Le domaine nu (apex `bestconsultingit.com`) ne peut pas être un CNAME → non géré par cette VM.
+- L'apex `bestconsultingit.com` est un CNAME `@` → `almoyassir.duckdns.org` chez Cloudflare (CNAME flattening),
+  « DNS only », avec son propre certificat ; nginx le redirige vers `https://www.bestconsultingit.com`
+  (`deploy/nginx-bestcit-apex.conf`).
 - **Pré-requis permanent** : la box/routeur doit rediriger les ports TCP **80 et 443** vers la VM.
 
 ## Mise en place (déjà faite — pour mémoire / réinstallation)
@@ -41,13 +45,18 @@ sudo systemctl enable --now duckdns.timer
 dig +short almoyassir.duckdns.org @1.1.1.1            # doit = IP publique de la VM
 ```
 
-### 3. DNS du domaine (Microsoft 365 → admin.microsoft.com → Domaines → bestconsultingit.com)
-Remplacer les enregistrements **A** par des **CNAME** (ne toucher à rien d'autre) :
+### 3. DNS du domaine (Cloudflare ; NS changés chez OVH → Manager OVH → Serveurs DNS)
+Enregistrements du site, tous en **DNS only** (gris) :
 
 | Nom | Type | Valeur |
 |---|---|---|
+| `@` | CNAME | `almoyassir.duckdns.org` |
 | `quran` | CNAME | `almoyassir.duckdns.org` |
 | `www` | CNAME | `almoyassir.duckdns.org` |
+
+La messagerie Microsoft 365 (MX, SPF, 2 DKIM, autodiscover, sip, lyncdiscover, SRV Teams, Intune,
+TXT `MS=`) doit rester présente et en « DNS only » dans la même zone. Pas de DMARC pour l'instant :
+à ajouter (`_dmarc` TXT `v=DMARC1; p=none; rua=mailto:…`).
 
 ### 4. Reverse-proxy www → site Best CIT (Docker :8081) + HTTPS
 ```bash
@@ -56,6 +65,11 @@ sudo ln -sfn /etc/nginx/sites-available/bestcit-www /etc/nginx/sites-enabled/bes
 sudo nginx -t && sudo systemctl reload nginx
 # une fois que www résout vers la VM :
 sudo certbot --nginx -d www.bestconsultingit.com --redirect
+# apex (sans www) : redirection vers www + certificat
+sudo cp $SRC/deploy/nginx-bestcit-apex.conf /etc/nginx/sites-available/bestcit-apex
+sudo ln -sfn /etc/nginx/sites-available/bestcit-apex /etc/nginx/sites-enabled/bestcit-apex
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d bestconsultingit.com --redirect
 ```
 
 ## Vérification / diagnostic
