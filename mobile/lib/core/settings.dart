@@ -104,6 +104,25 @@ class Settings extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Qira'a : zoom du texte des pages du mushaf. 0 = « page entière » (le texte s'ajuste pour que
+  /// toute la page tienne à l'écran, sans défilement) ; chaque niveau agrandit le texte de 20 %,
+  /// et la page défile alors verticalement jusqu'à sa fin.
+  static const mushafZoomMax = 6;
+  int get mushafZoom => (_prefs.getInt('mushaf_zoom') ?? 0).clamp(0, mushafZoomMax);
+  set mushafZoom(int v) {
+    _prefs.setInt('mushaf_zoom', v.clamp(0, mushafZoomMax));
+    notifyListeners();
+  }
+
+  /// Facteur d'agrandissement correspondant à [mushafZoom] (1,0 ; 1,2 ; 1,44 ; …).
+  double get mushafZoomFactor {
+    var f = 1.0;
+    for (var i = 0; i < mushafZoom; i++) {
+      f *= 1.2;
+    }
+    return f;
+  }
+
   /// Dernière position de lecture « sourate:ayah ».
   (int, int)? get lastRead {
     final p = _lastRead?.split(':');

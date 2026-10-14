@@ -1,5 +1,9 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../core/models.dart';
 import '../core/progress_store.dart';
@@ -84,6 +88,7 @@ List<InlineSpan> ayahRunSpans(
   required TapGestureRecognizer Function(int ayah) tap,
   AyahPainter? painter,
   int? playing,
+  Key? playingKey,
 }) {
   final cs = context.colors;
   final tones = context.tones;
@@ -121,6 +126,8 @@ List<InlineSpan> ayahRunSpans(
           onPointerDown: (e) => recognizer.addPointer(e),
           behavior: HitTestBehavior.opaque,
           child: SizedBox.square(
+            // Repère de l'ayah récité : sert à l'amener à l'écran quand la page défile.
+            key: a == playing ? playingKey : null,
             dimension: badge,
             child: Stack(clipBehavior: Clip.none, children: [
               // Le fond de l'ayah se prolonge sous son médaillon, sur toute la hauteur de la ligne.
@@ -157,4 +164,61 @@ class SurahTitleBox extends StatelessWidget {
               maxLines: 1, style: TextStyle(fontFamily: 'ScheherazadeNew', fontSize: height * 0.46, height: 1.3, color: cartoucheInk(context))),
         ),
       );
+}
+
+
+/// Texte d'une suite d'ayat (modes page). Identique à `Text.rich`, sauf sur le web : le moteur web
+/// de Flutter renvoie parfois les emplacements des médaillons (WidgetSpan) d'une ligne arabe dans le
+/// désordre — quand un médaillon tombe en début de ligne, il échange sa place avec le suivant
+/// (« ⑧ … ⑦ » au lieu de « ⑦ … ⑧ »), et le toucher d'un ayah semblait marquer le numéro voisin.
+/// Les emplacements eux-mêmes sont justes : on les remet dans l'ordre de lecture avant de placer
+/// les médaillons.
+class AyahRunText extends RichText {
+  AyahRunText({super.key, required super.text, required super.textScaler}) : super(textAlign: TextAlign.justify);
+
+  @override
+  RenderParagraph createRenderObject(BuildContext context) => _AyahRunParagraph(
+        text,
+        textAlign: textAlign,
+        textDirection: textDirection ?? Directionality.of(context),
+        textScaler: textScaler,
+        locale: locale ?? Localizations.maybeLocaleOf(context),
+        devicePixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0,
+      );
+}
+
+class _AyahRunParagraph extends RenderParagraph {
+  _AyahRunParagraph(
+    super.text, {
+    required super.textAlign,
+    required super.textDirection,
+    required super.textScaler,
+    super.locale,
+    required super.devicePixelRatio,
+  });
+
+  @override
+  void positionInlineChildren(List<ui.TextBox> boxes) =>
+      super.positionInlineChildren(kIsWeb && textDirection == TextDirection.rtl ? rtlReadingOrder(boxes) : boxes);
+}
+
+/// Emplacements de médaillons remis dans l'ordre de lecture d'un texte de droite à gauche :
+/// lignes de haut en bas, puis de droite à gauche dans chaque ligne.
+List<ui.TextBox> rtlReadingOrder(List<ui.TextBox> boxes) {
+  if (boxes.length < 2) return boxes;
+  double mid(ui.TextBox b) => (b.top + b.bottom) / 2;
+  final byY = [...boxes]..sort((a, b) => mid(a).compareTo(mid(b)));
+  final lines = <List<ui.TextBox>>[];
+  for (final b in byY) {
+    final line = lines.isEmpty ? null : lines.last;
+    // Même ligne : centres verticaux à moins d'une demi-hauteur de médaillon.
+    if (line != null && (mid(b) - mid(line.first)).abs() < (b.bottom - b.top) / 2) {
+      line.add(b);
+    } else {
+      lines.add([b]);
+    }
+  }
+  return [
+    for (final line in lines) ...(line..sort((a, b) => b.right.compareTo(a.right))),
+  ];
 }

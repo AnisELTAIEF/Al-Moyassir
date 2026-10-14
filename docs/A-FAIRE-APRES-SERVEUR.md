@@ -34,7 +34,7 @@ Liste validée par Anis le 12/10/2026 : à traiter **dans cet ordre**, une fois 
 ## 5. App iPhone native (plus tard, si besoin)
 - En attendant : version web sur `https://quran.bestconsultingit.com/app/` (0.12.0), à ajouter à
   l'écran d'accueil depuis Safari. Limites : pas d'audio hors ligne, pas de connexion Google,
-  l'écoute s'arrête quand l'écran se verrouille.
+  l'écoute peut s'arrêter quand l'écran se verrouille (à vérifier sur iPhone).
 - Pour une vraie app iPhone : compte Apple Developer (payant, à vérifier sur developer.apple.com),
   compilation sur un Mac (ou service de build macOS), distribution TestFlight puis App Store.
   Le projet `mobile/ios` existe déjà (identifiant `com.bestconsultingit.hifidhQuran`).

@@ -82,6 +82,19 @@ class _ReaderScreenState extends State<ReaderScreen> {
     ScreenWakelock.acquire(this); // écran de lecture ouvert : garder l'écran allumé
   }
 
+  /// Qira'a : zoom du texte (0 = page entière). Message bref pour indiquer le niveau atteint.
+  void _zoom(int delta) {
+    final next = (_settings.mushafZoom + delta).clamp(0, Settings.mushafZoomMax);
+    if (next == _settings.mushafZoom) return;
+    _settings.mushafZoom = next;
+    final msg = next == 0
+        ? tr('Page entière')
+        : tr('Texte agrandi : {p} % — faites défiler la page', {'p': (_settings.mushafZoomFactor * 100).round()});
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(milliseconds: 1400)));
+  }
+
   void _setImmersive(bool v) {
     setState(() => _immersive = v);
     SystemChrome.setEnabledSystemUIMode(v ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge);
@@ -134,9 +147,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
           : AppBar(
         titleSpacing: 0,
         // Qira'a : barre réduite à une ligne pour laisser la place à la page du mushaf.
-        toolbarHeight: pageMode ? 46 : null,
+        toolbarHeight: pageMode ? 42 : null,
         title: pageMode
-            ? Text('سُورَةُ ${surah.name}', style: const TextStyle(fontFamily: 'ScheherazadeNew', fontSize: 20, height: 1.3))
+            ? Text('سُورَةُ ${surah.name}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'ScheherazadeNew', fontSize: 19, height: 1.3))
             : Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                 Text('سُورَةُ ${surah.name}', style: const TextStyle(fontFamily: 'ScheherazadeNew', fontSize: 22, height: 1.35)),
                 Text(tr('Sourate {n} · {m}/{t} appris', {'n': surah.number, 'm': memorized, 't': surah.ayahCount}),
@@ -159,13 +172,22 @@ class _ReaderScreenState extends State<ReaderScreen> {
           ),
         ),
         actions: [
-          ColoringLegendButton(settings: settings),
-          if (pageMode)
+          // Qira'a : agrandir / réduire le texte, toujours à portée de pouce.
+          if (pageMode) ...[
             IconButton(
-              tooltip: tr('Passer en Tahfidh'),
-              onPressed: () => settings.readingMode = ReadingMode.ayah,
-              icon: Icon(ReadingMode.ayah.icon),
+              tooltip: tr('Réduire le texte (jusqu’à la page entière)'),
+              visualDensity: VisualDensity.compact,
+              onPressed: settings.mushafZoom > 0 ? () => _zoom(-1) : null,
+              icon: const Icon(Icons.text_decrease),
             ),
+            IconButton(
+              tooltip: tr('Agrandir le texte'),
+              visualDensity: VisualDensity.compact,
+              onPressed: settings.mushafZoom < Settings.mushafZoomMax ? () => _zoom(1) : null,
+              icon: const Icon(Icons.text_increase),
+            ),
+          ],
+          ColoringLegendButton(settings: settings),
           IconButton(
             tooltip: complete ? tr('Sourate apprise — options') : tr('Marquer toute la sourate comme apprise'),
             onPressed: () => complete ? showSurahMenu(context, surah.number) : setWholeSurah(context, surah.number, AyahStatus.memorized),
@@ -192,13 +214,16 @@ class _ReaderScreenState extends State<ReaderScreen> {
               if (v == 'tajweed') settings.tajweed = !settings.tajweed;
               if (v == 'legend') showTajweedLegend(context);
               if (v == 'coloring') showColoringSettings(context, mode);
-              if (v == 'bigger' || v == 'smaller') {
+              if (pageMode && (v == 'bigger' || v == 'smaller')) {
+                _zoom(v == 'bigger' ? 1 : -1);
+              } else if (v == 'bigger' || v == 'smaller') {
                 // Pas de 2 ; jusqu'à 72 sur tablette, 48 sur téléphone (comme dans Compte).
                 final max = MediaQuery.sizeOf(context).shortestSide >= 600 ? 72.0 : 48.0;
                 settings.fontSize = (settings.fontSize + (v == 'bigger' ? 2 : -2)).clamp(20.0, max);
               }
             },
             itemBuilder: (_) => [
+              if (pageMode) PopupMenuItem(value: ReadingMode.ayah.name, child: ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: Icon(ReadingMode.ayah.icon), title: Text(tr('Passer en Tahfidh')))),
               if (pageMode) PopupMenuItem(value: 'goto', child: Text(tr('Aller à la page…'))),
               if (pageMode) PopupMenuItem(value: 'full', child: Text(tr('Plein écran'))),
               PopupMenuItem(value: 'surah', child: Text(tr('Suivi de toute la sourate…'))),
@@ -256,7 +281,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
             },
           ),
         ),
-        if (!_immersive) _MiniPlayer(surah: surah.number, startAyah: _surahNo == widget.surah ? widget.initialAyah : 1),
+        if (!_immersive) _MiniPlayer(surah: surah.number, startAyah: _surahNo == widget.surah ? widget.initialAyah : 1, compact: pageMode),
       ]),
         if (_immersive)
           PositionedDirectional(
@@ -515,9 +540,12 @@ class _AyahSheet extends StatelessWidget {
 }
 
 class _MiniPlayer extends StatelessWidget {
-  const _MiniPlayer({required this.surah, required this.startAyah});
+  const _MiniPlayer({required this.surah, required this.startAyah, this.compact = false});
   final int surah;
   final int startAyah;
+
+  /// Qira'a : lecteur réduit (environ 48 px au lieu de 68) pour laisser la place au texte.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -534,15 +562,18 @@ class _MiniPlayer extends StatelessWidget {
         top: false,
         child: Constrained(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+            padding: compact ? const EdgeInsets.fromLTRB(8, 2, 4, 2) : const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            child: Theme(
+              data: compact ? Theme.of(context).copyWith(visualDensity: VisualDensity.compact) : Theme.of(context),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (audio.error != null)
                 Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(audio.error!, style: TextStyle(color: cs.error, fontSize: 12.5))),
               Row(children: [
                 audio.loading
-                    ? const SizedBox(width: 52, height: 52, child: Padding(padding: EdgeInsets.all(14), child: CircularProgressIndicator(strokeWidth: 3)))
+                    ? SizedBox.square(dimension: compact ? 44 : 52, child: const Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 3)))
                     : IconButton.filled(
-                        iconSize: 30,
+                        iconSize: compact ? 24 : 30,
+                        visualDensity: compact ? VisualDensity.compact : null,
                         tooltip: here && audio.playing ? tr('Pause') : tr('Écouter'),
                         onPressed: !available ? null : () => here ? audio.toggle() : audio.play(surah, startAyah),
                         icon: Icon(here && audio.playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
@@ -559,7 +590,9 @@ class _MiniPlayer extends StatelessWidget {
                             : here && audio.currentAyah != null
                                 ? (audio.mode == PlayMode.singleAyah ? tr('Ayah {n} · répétition {i}/{t}', {'n': audio.currentAyah, 'i': audio.repeatsDone + 1, 't': audio.repeatTarget == 0 ? '∞' : audio.repeatTarget}) : tr('Ayah {n}', {'n': audio.currentAyah}))
                                 : tr('Riwaya de Qalun · changer de récitateur'),
-                        style: TextStyle(fontSize: 12, color: context.tones.muted),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: compact ? 11.5 : 12, color: context.tones.muted),
                       ),
                     ]),
                   ),
@@ -612,6 +645,7 @@ class _MiniPlayer extends StatelessWidget {
                 ),
               ]),
             ]),
+            ),
           ),
         ),
       ),
