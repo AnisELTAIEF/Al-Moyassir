@@ -7,27 +7,24 @@ Ce fichier est destiné à **Claude Code exécuté sur le serveur Ubuntu** d'Ani
 installer l'API (Node.js), l'admin web et, si besoin, MariaDB et le serveur web, sans perturber ce
 qui tourne déjà sur la machine.
 
-## Contexte connu (13/10/2026)
+## Contexte connu (14/10/2026)
 
 | Élément | Valeur |
 |---|---|
 | Dépôt sur le serveur | `/home/anis/repo/Al-Moyassir/Al-Moyassir` (clone de `github.com/AnisELTAIEF/Al-Moyassir`) |
-| Domaine | `quran.bestconsultingit.com` — enregistrement A → `197.240.124.37` (DNS géré dans Microsoft 365) |
-| Site Best CIT | **ailleurs** (`bestconsultingit.com` et `www` → 46.105.204.20) : a priori **pas** sur ce serveur |
-| Réseau | Serveur derrière une box/routeur (IP locale `192.168.1.37`, IP publique `197.240.124.37`) : la box doit rediriger 80 et 443 vers `192.168.1.37` |
+| Domaine Quran | `quran.bestconsultingit.com` — **CNAME → `almoyassir.duckdns.org`** (DNS chez Microsoft 365) |
+| Site Best CIT | **sur cette VM** : conteneur Docker `bcitsite-web` (`127.0.0.1:8081`), servi via `www.bestconsultingit.com` (CNAME → `almoyassir.duckdns.org`, vhost nginx `bestcit-www`). L'apex nu `bestconsultingit.com` reste ailleurs (46.105.204.20). |
+| IP publique | **DYNAMIQUE** (change plusieurs fois/jour) → gérée par DuckDNS, voir `docs/IP-DYNAMIQUE-DUCKDNS.md`. Ne plus jamais éditer d'enregistrement A à la main. |
+| Réseau | Serveur derrière une box/routeur (IP locale `192.168.1.37`) : la box doit rediriger 80 et 443 vers `192.168.1.37`. |
 
-À vérifier à l'étape 0 et à signaler à Anis si c'est différent : `curl -s ifconfig.me` doit donner
-`197.240.124.37` ; `getent hosts quran.bestconsultingit.com` doit donner la même IP ; dire si un
-serveur web, MariaDB ou d'autres sites existent déjà sur la machine.
-
-> **IP publique DYNAMIQUE — récidive.** L'IP publique du serveur change toute seule et casse l'accès
-> à chaque fois, le DNS pointant alors vers une IP morte (nginx/vhost/cert/backend restent sains en
-> local). Historique : `197.240.115.10` → `197.240.132.72` (12/10/2026) → `197.240.124.37` (13/10/2026).
-> **Diagnostic express** : `curl -s ifconfig.me` (IP réelle) vs `getent hosts quran.bestconsultingit.com`
-> (IP dans le DNS) ; si elles diffèrent, c'est ça. **Correctif ponctuel** : mettre l'enregistrement A
-> `quran` à l'IP réelle dans Microsoft 365. ⚠️ **Correctif durable requis** : demander une IP publique
-> fixe au FAI, ou mettre en place un DNS dynamique (ex. client ddclient qui pousse l'IP vers le DNS),
-> sinon le site retombera à chaque changement d'IP.
+> **IP publique DYNAMIQUE — RÉSOLUE (14/10/2026) via DuckDNS.** `quran` et `www` sont des CNAME vers
+> `almoyassir.duckdns.org`, dont l'enregistrement A est mis à jour toutes les 2 min par `duckdns.timer`
+> (systemd) avec l'IP réelle de la VM. La bascule après un changement d'IP est automatique (~2–3 min).
+> Procédure complète et diagnostic : **`docs/IP-DYNAMIQUE-DUCKDNS.md`**.
+> Diagnostic express : `systemctl status duckdns.timer` ; `tail -n3 /var/log/duckdns.log` (doit finir
+> par `OK <ip> UPDATED/NOCHANGE`) ; `curl -s https://api.ipify.org` vs `dig +short quran.bestconsultingit.com`
+> (doivent être égaux). Si le DNS est bon mais le site injoignable de l'extérieur : vérifier la
+> redirection des ports 80/443 sur la box (saute parfois après un redémarrage du routeur).
 
 ## Règles à respecter (non négociables)
 

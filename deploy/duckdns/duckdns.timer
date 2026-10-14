@@ -1,0 +1,10 @@
+[Unit]
+Description=Declenche la mise a jour DuckDNS toutes les 2 minutes
+
+[Timer]
+OnBootSec=30
+OnUnitActiveSec=120
+AccuracySec=15
+
+[Install]
+WantedBy=timers.target
