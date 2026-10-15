@@ -46,8 +46,19 @@ class City {
   String get label => (fr.isEmpty || fr == ar) ? ar : '$ar · $fr';
 }
 
-/// Villes libyennes principales d'abord, puis quelques repères.
+/// Villes tunisiennes d'abord (Tunis = lieu par défaut), puis libyennes, puis quelques repères.
+/// Coordonnées du centre-ville (précision de la ville, suffisante pour les horaires).
 const kCities = <City>[
+  City('تونس', 'Tunis', 36.8065, 10.1815),
+  City('صفاقس', 'Sfax', 34.7406, 10.7603),
+  City('سوسة', 'Sousse', 35.8256, 10.6084),
+  City('المنستير', 'Monastir', 35.7643, 10.8113),
+  City('القيروان', 'Kairouan', 35.6781, 10.0963),
+  City('بنزرت', 'Bizerte', 37.2744, 9.8739),
+  City('قابس', 'Gabès', 33.8815, 10.0982),
+  City('نابل', 'Nabeul', 36.4561, 10.7376),
+  City('المهدية', 'Mahdia', 35.5047, 11.0622),
+  City('جربة', 'Djerba', 33.8756, 10.8576),
   City('طرابلس', 'Tripoli', 32.8872, 13.1913),
   City('بنغازي', 'Benghazi', 32.1167, 20.0686),
   City('مصراتة', 'Misrata', 32.3754, 15.0925),
@@ -62,7 +73,6 @@ const kCities = <City>[
   City('مكة المكرمة', 'La Mecque', 21.4225, 39.8262),
   City('المدينة المنورة', 'Médine', 24.4686, 39.6142),
   City('القاهرة', 'Le Caire', 30.0444, 31.2357),
-  City('تونس', 'Tunis', 36.8065, 10.1815),
   City('الجزائر', 'Alger', 36.7538, 3.0588),
   City('إسطنبول', 'Istanbul', 41.0082, 28.9784),
   City('باريس', 'Paris', 48.8566, 2.3522),
@@ -95,7 +105,8 @@ class PrayerService extends ChangeNotifier {
         _place = _prefs.getString('pr_place') ?? kCities.first.label,
         _method = _prefs.getString('pr_method') ?? 'muslim_world_league',
         _hanafi = _prefs.getBool('pr_hanafi') ?? false,
-        _remind = _prefs.getBool('pr_remind') ?? true {
+        _remind = _prefs.getBool('pr_remind') ?? true,
+        _source = _prefs.getString('pr_src') ?? (_prefs.containsKey('pr_lat') ? 'manual' : 'default') {
     _recompute();
     _ticker = Timer.periodic(const Duration(seconds: 20), (_) => _recompute());
   }
@@ -104,7 +115,18 @@ class PrayerService extends ChangeNotifier {
   double _lat, _lng;
   String _place, _method;
   bool _hanafi, _remind;
+  String _source; // 'default' (Tunis), 'gps' (position de l'appareil) ou 'manual' (ville choisie)
   Timer? _ticker;
+
+  /// Lieu par défaut (Tunis), jamais confirmé par l'utilisateur : on propose de le localiser.
+  bool get isDefaultPlace => _source == 'default';
+
+  /// Position détectée par l'appareil (et non choisie dans une liste).
+  bool get fromDevice => _source == 'gps';
+
+  /// La demande d'autorisation de localisation a déjà été faite une fois (au premier accès).
+  bool get askedOnce => _prefs.getBool('pr_asked') ?? false;
+  Future<void> markAsked() => _prefs.setBool('pr_asked', true);
 
   Map<Salat, DateTime> _times = const {};
   String? _lastAnnounced; // clé « yyyy-mm-dd:salat » déjà signalée (rappel in-app une seule fois)
@@ -199,7 +221,7 @@ class PrayerService extends ChangeNotifier {
   }
 
   Future<void> setCity(City c) async {
-    await _setLocation(c.lat, c.lng, c.label);
+    await _setLocation(c.lat, c.lng, c.label, source: 'manual');
   }
 
   /// Recherche une ville/commune par son nom (via le proxy de géocodage de l'API).
@@ -230,40 +252,79 @@ class PrayerService extends ChangeNotifier {
   /// Garde les premiers éléments du nom complet (ville, région) pour l'affichage.
   static String _shortName(String full) => full.split(',').take(3).map((s) => s.trim()).join(', ');
 
-  Future<void> _setLocation(double lat, double lng, String place) async {
+  Future<void> _setLocation(double lat, double lng, String place, {required String source}) async {
     _lat = lat;
     _lng = lng;
     _place = place;
+    _source = source;
     await _prefs.setDouble('pr_lat', lat);
     await _prefs.setDouble('pr_lng', lng);
     await _prefs.setString('pr_place', place);
+    await _prefs.setString('pr_src', source);
     _lastAnnounced = null;
     _recompute();
   }
 
-  /// Détecte la position via l'appareil (navigateur ou téléphone). Renvoie un message d'erreur
-  /// traduisible (clé) en cas d'échec, sinon null.
-  Future<String?> detectLocation() async {
+  /// Détecte la position via l'appareil (navigateur ou téléphone). Renvoie null si c'est réussi,
+  /// sinon une erreur ([LocationProblem]) dont le message est traduisible.
+  ///
+  /// Ordre, du plus rapide au plus lent : dernière position connue du téléphone (si récente),
+  /// position « réseau » (Wi-Fi / antennes : quelques secondes, précise à quelques centaines de
+  /// mètres, largement suffisant pour des horaires de prière), puis GPS.
+  Future<LocationProblem?> detectLocation() async {
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        return 'Activez la localisation de votre appareil, puis réessayez.';
-      }
+      if (!await Geolocator.isLocationServiceEnabled()) return LocationProblem.serviceOff;
       var perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
-      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-        return 'Localisation refusée. Choisissez votre ville dans la liste.';
+      if (perm == LocationPermission.deniedForever) return LocationProblem.blocked;
+      if (perm == LocationPermission.denied) return LocationProblem.denied;
+
+      Position? pos;
+      if (!kIsWeb) {
+        final last = await Geolocator.getLastKnownPosition();
+        if (last != null && DateTime.now().difference(last.timestamp) < const Duration(hours: 6)) pos = last;
       }
-      // Haute précision : GPS de l'appareil (sinon le navigateur renvoie une position
-      // approximative basée sur l'IP, qui tombe souvent sur la capitale de l'opérateur).
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 20)),
-      );
-      await _setLocation(pos.latitude, pos.longitude, _labelFor(pos.latitude, pos.longitude));
+      pos ??= await _current(LocationAccuracy.medium, const Duration(seconds: 12));
+      pos ??= await _current(LocationAccuracy.high, const Duration(seconds: 20));
+      if (pos == null && !kIsWeb) pos = await Geolocator.getLastKnownPosition(); // même ancienne
+      if (pos == null) return LocationProblem.timeout;
+
+      final name = await reverseName(pos.latitude, pos.longitude) ?? _labelFor(pos.latitude, pos.longitude);
+      await _setLocation(pos.latitude, pos.longitude, name, source: 'gps');
       return null;
-    } on TimeoutException {
-      return 'La localisation a pris trop de temps. Réessayez à ciel ouvert, ou choisissez votre ville.';
     } catch (_) {
-      return 'Localisation indisponible. Choisissez votre ville dans la liste.';
+      return LocationProblem.unavailable;
+    }
+  }
+
+  Future<Position?> _current(LocationAccuracy accuracy, Duration limit) async {
+    try {
+      return await Geolocator.getCurrentPosition(locationSettings: LocationSettings(accuracy: accuracy, timeLimit: limit));
+    } catch (_) {
+      return null; // délai dépassé ou position indisponible : on essaie la méthode suivante
+    }
+  }
+
+  /// Ouvre les réglages adaptés au problème (localisation coupée ou autorisation bloquée).
+  Future<void> openSettingsFor(LocationProblem p) async {
+    if (kIsWeb) return; // navigateur : l'utilisateur autorise dans la barre d'adresse
+    if (p == LocationProblem.serviceOff) {
+      await Geolocator.openLocationSettings();
+    } else if (p == LocationProblem.blocked) {
+      await Geolocator.openAppSettings();
+    }
+  }
+
+  /// Nom de lieu d'une position (« Monastir, Tunisie ») via le géocodage inverse de l'API.
+  Future<String?> reverseName(double lat, double lng) async {
+    if (Env.apiUrl.isEmpty) return null;
+    try {
+      final lang = I18n.isAr ? 'ar' : 'fr';
+      final r = await ApiClient(Env.apiUrl).public('GET', '/geocode/reverse?lang=$lang&lat=$lat&lng=$lng');
+      final name = r is Map ? r['name'] : null;
+      return name is String && name.trim().isNotEmpty ? name.trim() : null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -279,7 +340,7 @@ class PrayerService extends ChangeNotifier {
         best = c;
       }
     }
-    return (best != null && bestKm < 25) ? best.label : 'Ma position';
+    return (best != null && bestKm < 30) ? best.label : tr('Ma position');
   }
 
   /// Distance en km (formule de haversine).
@@ -297,4 +358,19 @@ class PrayerService extends ChangeNotifier {
     _ticker?.cancel();
     super.dispose();
   }
+}
+
+/// Raisons d'échec de la localisation (message traduisible + action proposée).
+enum LocationProblem {
+  serviceOff('La localisation est désactivée sur l’appareil. Activez-la, puis réessayez.'),
+  denied('Autorisation de localisation refusée. Vous pouvez aussi choisir votre ville.'),
+  blocked('La localisation est bloquée pour l’app. Autorisez-la dans les réglages, ou choisissez votre ville.'),
+  timeout('Position introuvable pour l’instant (intérieur ?). Réessayez près d’une fenêtre, ou choisissez votre ville.'),
+  unavailable('Localisation indisponible. Choisissez votre ville dans la liste.');
+
+  const LocationProblem(this.message);
+  final String message;
+
+  /// Un réglage de l'appareil peut régler le problème (bouton « Ouvrir les réglages »).
+  bool get hasSettings => this == serviceOff || this == blocked;
 }

@@ -94,7 +94,8 @@ class _MushafReaderState extends State<MushafReader> {
           child: IconButton.filledTonal(
             tooltip: tooltip,
             onPressed: onPressed,
-            icon: Icon(icon),
+            // Sens fixe : sans cela, Flutter retourne les chevrons en RTL et ils pointaient à l'envers.
+            icon: Icon(icon, textDirection: TextDirection.ltr),
             style: IconButton.styleFrom(backgroundColor: context.colors.surface.withValues(alpha: 0.72)),
           ),
         ),

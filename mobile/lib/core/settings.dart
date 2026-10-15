@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -126,6 +128,25 @@ class Settings extends ChangeNotifier {
     return f;
   }
 
+  /// Dernière activité de l'utilisateur (par compte) : sert à « Prochaine étape » sur l'accueil.
+  LastActivity? get lastActivity {
+    final raw = _prefs.getString('last_act_$_owner')?.split('|');
+    if (raw == null || raw.length != 4) return null;
+    final kind = Activity.values.asNameMap()[raw[0]];
+    final s = int.tryParse(raw[1]), a = int.tryParse(raw[2]), t = int.tryParse(raw[3]);
+    if (kind == null || s == null || a == null || t == null) return null;
+    return LastActivity(kind, s, a, DateTime.fromMillisecondsSinceEpoch(t));
+  }
+
+  /// Enregistre l'activité en cours. Ne prévient les écrans que si l'activité ou la sourate change
+  /// (la position change à chaque défilement : inutile de tout reconstruire).
+  void saveActivity(Activity kind, int surah, int ayah) {
+    final prev = lastActivity;
+    _prefs.setString('last_act_$_owner', '${kind.name}|$surah|$ayah|${DateTime.now().millisecondsSinceEpoch}');
+    // Différé : cet appel peut venir d'une construction ou d'une mise en page en cours.
+    if (prev == null || prev.kind != kind || prev.surah != surah) scheduleMicrotask(notifyListeners);
+  }
+
   /// Dernière position de lecture « sourate:ayah ».
   (int, int)? get lastRead {
     final p = _lastRead?.split(':');
@@ -178,4 +199,14 @@ enum AyahColoring {
         perAyah => tr('Par ayah'),
         mastery => tr('Par niveau de maîtrise'),
       };
+}
+
+/// Type d'activité, pour reprendre là où l'on s'est arrêté.
+enum Activity { qiraa, tahfidh, review }
+
+class LastActivity {
+  const LastActivity(this.kind, this.surah, this.ayah, this.at);
+  final Activity kind;
+  final int surah, ayah;
+  final DateTime at;
 }

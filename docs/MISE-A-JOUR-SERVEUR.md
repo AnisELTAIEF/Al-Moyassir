@@ -83,6 +83,8 @@ et `https://quran.bestconsultingit.com/app/` (version web de l'app).
 | 0.10.0 | Migration 005 : **code de groupe** (6 caractères), inscription avec un seul code, « Rejoindre un groupe » |
 | 0.11.0 | Rien côté serveur (app Android uniquement) |
 | 0.12.0 | **Version web pour iPhone** sur `/app/` (une fois : `deploy/enable-webapp.sh`) ; lien iPhone dans les invitations |
+| 0.14.0 | Migrations 006 et 007 (groupe ouvert, réinitialisation du mot de passe) ; prière, géocodage |
+| 0.15.0 | Géocodage inverse `/geocode/reverse` (nom du lieu détecté, ex. « Monastir, Tunisie ») — pas de migration |
 
 ## Mettre à jour la version web (côté développement)
 

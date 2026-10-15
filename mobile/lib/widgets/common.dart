@@ -28,12 +28,12 @@ class ArabicText extends StatelessWidget {
 String fmtDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
 String since(DateTime? d) {
-  if (d == null) return 'jamais';
+  if (d == null) return tr('jamais');
   final diff = DateTime.now().difference(d);
   if (diff.inMinutes < 1) return tr('à l’instant');
   if (diff.inHours < 1) return tr('il y a {n} min', {'n': diff.inMinutes});
   if (diff.inDays < 1) return tr('il y a {n} h', {'n': diff.inHours});
-  if (diff.inDays == 1) return 'hier';
+  if (diff.inDays == 1) return tr('hier');
   if (diff.inDays < 30) return tr('il y a {n} j', {'n': diff.inDays});
   return tr('le {d}', {'d': fmtDate(d)});
 }

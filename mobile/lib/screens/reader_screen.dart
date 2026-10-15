@@ -92,6 +92,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
     _audio.addListener(_follow);
     _positions.itemPositions.addListener(_rememberPosition);
     ScreenWakelock.acquire(this); // écran de lecture ouvert : garder l'écran allumé
+    // Activité en cours (pour « Prochaine étape » sur l'accueil), dès l'ouverture.
+    _settings.saveActivity(_settings.readingMode == ReadingMode.mushaf ? Activity.qiraa : Activity.tahfidh, _surahNo, _here);
   }
 
   /// Qira'a : zoom du texte (0 = page entière). Message bref pour indiquer le niveau atteint.
@@ -128,6 +130,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     final first = visible.map((p) => p.index).reduce((a, b) => a < b ? a : b);
     _here = first;
     _settings.saveLastRead(_surahNo, first);
+    _settings.saveActivity(Activity.tahfidh, _surahNo, first);
   }
 
   void _follow() {
@@ -266,6 +269,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                   onShown: (s, a) {
                     _here = a;
                     _settings.saveLastRead(s, a);
+                    _settings.saveActivity(Activity.qiraa, s, a);
                     if (s != _surahNo) setState(() => _surahNo = s);
                   },
                 )
@@ -418,13 +422,7 @@ class _AyahBlock extends StatelessWidget {
     final markerFill = status == AyahStatus.memorized ? cs.primary : null;
     final markerStroke = status == null ? tones.muted.withValues(alpha: 0.6) : cs.primary;
     final mastery = painter.mastery ? painter.masteryOf(surah, ayah) : null;
-    final label = mastery != null
-        ? masteryLabel(mastery)
-        : status == AyahStatus.memorized
-            ? tr('appris')
-            : status == AyahStatus.learning
-                ? tr('en cours')
-                : tr('non suivi');
+    final label = masteryLabel(mastery ?? painter.masteryOf(surah, ayah)); // lecture d'écran
     final bg = painter.background(surah, ayah, isPlaying: playing);
     void sheet() => showAyahSheet(context, surah, ayah, text);
 
@@ -503,12 +501,14 @@ class _AyahSheet extends StatelessWidget {
     final p = store.get(surah, ayah);
     final tajweed = context.watch<Settings>().tajweed;
 
-    Widget statusChip(AyahStatus? value, String label, IconData icon) => ChoiceChip(
+    // Mêmes 4 niveaux que la colorisation « par maîtrise » et l'écran Révision.
+    final level = store.storedMasteryOf(surah, ayah);
+    Widget levelChip(Mastery value, IconData icon) => ChoiceChip(
           avatar: Icon(icon, size: 18),
-          label: Text(label),
-          selected: status == value,
+          label: Text(masteryLabel(value)),
+          selected: level == value,
           showCheckmark: false,
-          onSelected: (_) => store.setStatus(surah, ayah, value),
+          onSelected: (_) => store.setMastery(surah, ayah, value),
         );
 
     return SafeArea(
@@ -562,9 +562,10 @@ class _AyahSheet extends StatelessWidget {
           Text(tr('Mémorisation'), style: context.text.labelLarge?.copyWith(color: context.tones.muted)),
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: [
-            statusChip(AyahStatus.memorized, tr('Appris'), Icons.check_circle_outline),
-            statusChip(AyahStatus.learning, tr('En cours'), Icons.timelapse),
-            statusChip(null, tr('Non suivi'), Icons.radio_button_unchecked),
+            levelChip(Mastery.none, Icons.radio_button_unchecked),
+            levelChip(Mastery.learning, Icons.timelapse),
+            levelChip(Mastery.acquired, Icons.check_circle_outline),
+            levelChip(Mastery.review, Icons.replay),
           ]),
           if (ayah > 1) ...[
             const SizedBox(height: 10),
@@ -591,6 +592,7 @@ class _AyahSheet extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () {
                 store.markReviewed(surah, ayah);
+                context.read<Settings>().saveActivity(Activity.review, surah, ayah);
                 Navigator.pop(context);
                 snack(context, tr('Révision enregistrée'));
               },

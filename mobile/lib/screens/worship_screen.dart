@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -84,8 +85,50 @@ class _AdhkarTab extends StatelessWidget {
       );
 }
 
-class _PrayerTimesTab extends StatelessWidget {
+/// Localise l'appareil et informe l'utilisateur (avec accès aux réglages si besoin).
+Future<bool> detectAndReport(BuildContext context) async {
+  final p = context.read<PrayerService>();
+  final err = await p.detectLocation();
+  if (!context.mounted) return false;
+  if (err == null) {
+    snack(context, tr('Position trouvée : {p}', {'p': p.place}));
+    return true;
+  }
+  snack(context, tr(err.message),
+      action: err.hasSettings && !kIsWeb ? SnackBarAction(label: tr('Réglages'), onPressed: () => p.openSettingsFor(err)) : null);
+  return false;
+}
+
+class _PrayerTimesTab extends StatefulWidget {
   const _PrayerTimesTab();
+
+  @override
+  State<_PrayerTimesTab> createState() => _PrayerTimesTabState();
+}
+
+class _PrayerTimesTabState extends State<_PrayerTimesTab> {
+  bool _locating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Premier accès avec le lieu par défaut (Tunis) : on demande tout de suite l'autorisation de
+    // localisation, pour des horaires exacts. Une seule fois ; ensuite, le bandeau reste proposé.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final p = context.read<PrayerService>();
+      if (p.isDefaultPlace && !p.askedOnce) {
+        p.markAsked();
+        _locate();
+      }
+    });
+  }
+
+  Future<void> _locate() async {
+    if (_locating) return;
+    setState(() => _locating = true);
+    await detectAndReport(context);
+    if (mounted) setState(() => _locating = false);
+  }
 
   String _hm(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
@@ -103,11 +146,49 @@ class _PrayerTimesTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
+        // Lieu par défaut, jamais confirmé : proposer la position exacte.
+        if (p.isDefaultPlace)
+          Card(
+            color: context.tones.gold.withValues(alpha: 0.12),
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Text(tr('Horaires calculés pour Tunis (lieu par défaut).'), style: context.text.titleSmall),
+                const SizedBox(height: 4),
+                Text(tr('Pour des horaires exacts, autorisez la localisation ou choisissez votre ville.'),
+                    style: TextStyle(color: context.tones.muted, fontSize: 13)),
+                const SizedBox(height: 8),
+                Wrap(spacing: 8, runSpacing: 4, children: [
+                  FilledButton.icon(
+                    onPressed: _locating ? null : _locate,
+                    icon: _locating
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.my_location, size: 18),
+                    label: Text(tr('Utiliser ma position')),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _openSettings(context),
+                    icon: const Icon(Icons.search, size: 18),
+                    label: Text(tr('Choisir ma ville')),
+                  ),
+                ]),
+              ]),
+            ),
+          ),
         // Lieu + réglages.
         Row(children: [
-          Icon(Icons.place_outlined, size: 18, color: context.tones.muted),
+          Icon(p.fromDevice ? Icons.my_location : Icons.place_outlined, size: 18, color: context.tones.muted),
           const SizedBox(width: 6),
           Expanded(child: Text(p.place, style: TextStyle(color: context.tones.muted))),
+          if (!p.isDefaultPlace)
+            IconButton(
+              tooltip: tr('Me localiser à nouveau'),
+              onPressed: _locating ? null : _locate,
+              icon: _locating
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.my_location, size: 20),
+            ),
           TextButton.icon(
             onPressed: () => _openSettings(context),
             icon: const Icon(Icons.tune, size: 18),
@@ -252,7 +333,7 @@ class _PrayerSettingsSheetState extends State<_PrayerSettingsSheet> {
           TextField(
             decoration: InputDecoration(
               labelText: tr('Chercher ma ville'),
-              hintText: tr('Ex. : Zliten, Sabratha, Nalout…'),
+              hintText: tr('Ex. : Monastir, Sfax, Tripoli…'),
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _searching
                   ? const Padding(
@@ -320,9 +401,9 @@ class _PrayerSettingsSheetState extends State<_PrayerSettingsSheet> {
 
   Future<void> _detect(BuildContext context) async {
     setState(() => _locating = true);
-    final err = await context.read<PrayerService>().detectLocation();
+    final ok = await detectAndReport(context);
     if (!context.mounted) return;
     setState(() => _locating = false);
-    if (err != null) snack(context, tr(err));
+    if (ok) Navigator.pop(context);
   }
 }

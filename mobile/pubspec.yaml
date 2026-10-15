@@ -1,7 +1,7 @@
 name: hifidh_quran
 description: "Hifidh al-Qur’an — lecture du Coran (riwaya de Qalun), audio et suivi de la mémorisation."
 publish_to: 'none'
-version: 0.14.0+16
+version: 0.15.0+17
 
 environment:
   sdk: ^3.13.5

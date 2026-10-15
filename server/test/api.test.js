@@ -6,6 +6,7 @@ import { migrate } from '../src/migrate.js';
 import { createPool } from '../src/db.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
+import { placeName } from '../src/routes/geocode.js';
 
 const env = {
   DB_HOST: process.env.TEST_DB_HOST ?? '127.0.0.1',
@@ -331,4 +332,17 @@ test('réinitialisation du mot de passe par l’admin', async () => {
   assert.equal((await call('POST', '/auth/login', { body: { email: 'reset-me@x.io', password: 'tfNouveau2024' } })).status, 200);
   assert.equal((await call('POST', '/auth/login', { body: { email: 'reset-me@x.io', password: 'ancienMotDePasse1' } })).status, 401, 'ancien mot de passe invalidé');
   assert.equal((await call('POST', '/auth/reset-password', { body: { code: gen.body.code, password: 'encoreAutre1' } })).status, 400, 'code à usage unique');
+});
+
+test('géocodage inverse : nom court du lieu et validation des coordonnées', async () => {
+  assert.equal(placeName({ address: { city: 'Monastir', state: 'Gouvernorat de Monastir', country: 'Tunisie' } }), 'Monastir, Tunisie');
+  assert.equal(placeName({ address: { village: 'Ksibet el-Médiouni', country: 'Tunisie' } }), 'Ksibet el-Médiouni, Tunisie');
+  assert.equal(placeName({ address: { state: 'Tripoli', country: 'Libye' } }), 'Tripoli, Libye');
+  // Tunisie : secteur < délégation < gouvernorat ; on affiche la délégation, sans son préfixe.
+  assert.equal(placeName({ address: { county: 'El Halia 2', state_district: 'Délégation Monastir', state: 'Gouvernorat Monastir', country: 'Tunisie' } }), 'Monastir, Tunisie');
+  assert.equal(placeName({ address: { state_district: 'معتمدية المنستير', country: 'تونس' } }), 'المنستير, تونس');
+  assert.equal(placeName({}), null);
+  // Coordonnées manquantes ou hors limites : refusées avant tout appel externe.
+  assert.equal((await call('GET', '/geocode/reverse?lat=36.8')).status, 400);
+  assert.equal((await call('GET', '/geocode/reverse?lat=95&lng=10')).status, 400);
 });
