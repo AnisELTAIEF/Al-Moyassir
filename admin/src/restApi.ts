@@ -106,6 +106,8 @@ export function createRestApi(baseUrl: string, googleClientId: string | null): A
       const r = await call<Record<string, unknown>>('POST', `/groups/${g}/members`, { email, role });
       return r.added ? { added: true, email: (r.user as { email: string }).email } : (r as never);
     },
+    importUsers: (text, dryRun) => call('POST', '/admin/import', { text, dryRun }),
+    importToGroup: (g, text, dryRun) => call('POST', `/groups/${g}/import`, { text, dryRun }),
     groupInvitations: async (g) => items(await call('GET', `/groups/${g}/invitations`)),
     revokeGroupInvitation: async (g, i) => { await call('DELETE', `/groups/${g}/invitations/${i}`); },
     groupMembers: async (g) => (await call<{ members: never[] }>('GET', `/groups/${g}/overview`)).members,

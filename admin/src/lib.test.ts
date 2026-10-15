@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SURAHS, TOTAL_AYAHS } from './data/surahs';
-import { daysSince, fmtPct, inactiveMembers, membersCsv, sinceLabel, surahRatios } from './lib';
+import { daysSince, fmtPct, importResultCsv, inactiveMembers, membersCsv, readTextFile, sinceLabel, surahRatios } from './lib';
 import type { AyahProgress, UserStats } from './types';
 
 const now = new Date('2026-10-10T12:00:00Z');
@@ -51,5 +51,24 @@ describe('lib', () => {
     const csv = membersCsv([member({ displayName: 'Ali, "le" jeune', memorized: 10 })]);
     expect(csv.startsWith('﻿Nom,')).toBe(true);
     expect(csv).toContain('"Ali, ""le"" jeune"');
+  });
+});
+
+describe('import', () => {
+  it('résultat CSV : en-tête, codes, cellules protégées', () => {
+    const csv = importResultCsv([
+      { line: 2, email: 'a@b.tn', name: 'Ben Ali; Ahmed', group: 'G', role: 'admin', action: 'invited', message: 'Invité(e).', code: 'K7XQ-M2PA', link: 'https://x/invite/K7XQ-M2PA' },
+      { line: 3, email: null, name: null, group: null, role: null, action: 'error', message: 'Adresse e-mail manquante.' },
+    ]);
+    const lines = csv.replace(/^\uFEFF/, '').split('\n');
+    expect(lines[0]).toBe('Ligne;Nom;E-mail;Groupe;Rôle;Résultat;Détail;Code;Lien');
+    expect(lines[1]).toContain('"Ben Ali; Ahmed"');
+    expect(lines[1]).toContain('K7XQ-M2PA');
+    expect(lines[2]).toContain('erreur');
+  });
+  it('fichier en Windows-1252 (ancien Excel) relu correctement', async () => {
+    const bytes = new Uint8Array([0x45, 0x6c, 0xe8, 0x76, 0x65, 0x3b, 0x61, 0x40, 0x62, 0x2e, 0x74, 0x6e]); // « Elève;a@b.tn »
+    expect(await readTextFile(new Blob([bytes]))).toBe('Elève;a@b.tn');
+    expect(await readTextFile(new Blob(['Élève;a@b.tn']))).toBe('Élève;a@b.tn');
   });
 });

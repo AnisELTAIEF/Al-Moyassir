@@ -1,5 +1,5 @@
 import { SURAHS } from './data/surahs';
-import type { Api, AyahProgress, GroupSummary, Invitation, UserStats } from './types';
+import type { Api, AyahProgress, GroupSummary, ImportItem, ImportResult, Invitation, UserStats } from './types';
 
 /** Données fictives pour prévisualiser l'interface sans serveur (VITE_DEMO=1). */
 const DAY = 86_400_000;
@@ -99,6 +99,8 @@ export function createDemoApi(): Api {
     setGroupRole: noop,
     removeMember: noop,
     addMemberByEmail: async (_g, email) => ({ invited: true as const, email, code: 'K7XQ-M2PA', link: null, expiresAt: ago(-14), message: `Code : K7XQ-M2PA` }),
+    importUsers: async (text, dryRun) => demoImport(text, dryRun, true),
+    importToGroup: async (_g, text, dryRun) => demoImport(text, dryRun, false),
     groupInvitations: async () => invitations.filter((i) => i.state === 'pending' && i.groupName),
     revokeGroupInvitation: noop,
     groupJoinCode: async (g) => (g === 'g1' ? 'H7KQ2M' : 'P3XW9R'),
@@ -108,4 +110,24 @@ export function createDemoApi(): Api {
     groupMembers: async (g) => (g === 'g1' ? users.slice(0, 8) : users.slice(2, 6)).map((u) => ({ ...u })),
     memberProgress: async (_g, u) => progress.get(u) ?? [],
   };
+}
+
+/** Démo : simulation simplifiée de l'import (aucune donnée réelle). */
+function demoImport(text: string, dryRun: boolean, withGroup: boolean): ImportResult {
+  const items: ImportItem[] = [];
+  text.split(/\r?\n/).forEach((raw, i) => {
+    const line = raw.trim();
+    if (!line || line.startsWith('#') || (!line.includes('@') && i === 0)) return;
+    const f = line.split(line.includes(';') ? ';' : ',').map((x) => x.trim());
+    const at = f.findIndex((x) => x.includes('@'));
+    if (at < 0) { items.push({ line: i + 1, email: null, name: null, group: null, role: null, action: 'error', message: 'Adresse e-mail manquante.', text: line }); return; }
+    const group = withGroup ? f[0] || null : 'Groupe de démonstration';
+    const name = (withGroup ? f.slice(1, at) : f.slice(0, at)).join(' ') || null;
+    const role = withGroup && /admin/i.test(f[at + 1] ?? '') ? 'admin' : 'member';
+    items.push({ line: i + 1, email: f[at].toLowerCase(), name, group, role, action: 'invited',
+      message: dryRun ? 'Sera invité(e).' : 'Invité(e).', ...(dryRun ? {} : { code: 'K7XQ-M2PA', link: null }) });
+  });
+  const n = (a: ImportItem['action']) => items.filter((x) => x.action === a).length;
+  return { dryRun, emailing: 0, mailConfigured: false, items,
+    summary: { added: 0, updated: 0, invited: n('invited'), unchanged: 0, errors: n('error'), groupsCreated: [] } };
 }

@@ -8,6 +8,7 @@ import groupRoutes from './routes/groups.js';
 import adminRoutes from './routes/admin.js';
 import inviteRoutes from './routes/invite.js';
 import geocodeRoutes from './routes/geocode.js';
+import downloadRoutes from './routes/download.js';
 import { ensureGroupCodes } from './groupCodes.js';
 
 import { HttpError } from './errors.js';
@@ -90,5 +91,6 @@ export async function buildApp(cfg, deps) {
   await app.register(adminRoutes, { prefix: '/admin' });
   await app.register(inviteRoutes);
   await app.register(geocodeRoutes);
+  await app.register(downloadRoutes);
   return app;
 }

@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { useAsync, useFlash } from '../components';
+import { InvitationResult, useAsync, useFlash } from '../components';
 import { fmtDate } from '../lib';
 import type { Api, CreatedInvitation, Role } from '../types';
 
@@ -15,7 +15,6 @@ export default function Invitations({ api }: { api: Api }) {
   const [groupAdmin, setGroupAdmin] = useState(false);
   const [created, setCreated] = useState<CreatedInvitation | null>(null);
   const [msg, setMsg] = useFlash();
-  const [copied, setCopied] = useState(false);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('pending');
 
@@ -23,7 +22,7 @@ export default function Invitations({ api }: { api: Api }) {
     const s = q.trim().toLowerCase();
     return (list.data ?? [])
       .filter((i) => filter === 'all' || i.state === filter)
-      .filter((i) => !s || i.email.toLowerCase().includes(s) || (i.groupName ?? '').toLowerCase().includes(s));
+      .filter((i) => !s || i.email.toLowerCase().includes(s) || (i.groupName ?? '').toLowerCase().includes(s) || (i.displayName ?? '').toLowerCase().includes(s));
   }, [list.data, q, filter]);
 
   async function submit(e: FormEvent) {
@@ -32,7 +31,6 @@ export default function Invitations({ api }: { api: Api }) {
     try {
       setCreated(await api.invite(email.trim(), role, groupId || null, groupId && groupAdmin ? 'admin' : 'member'));
       setEmail('');
-      setCopied(false);
       list.reload();
     } catch (err) { setMsg((err as Error).message); }
   }
@@ -53,16 +51,7 @@ export default function Invitations({ api }: { api: Api }) {
         <button className="btn">Créer l’invitation</button>
       </form>
       {msg && <p className="error" role="alert">{msg}</p>}
-      {created && (
-        <div className="card created" role="status">
-          <div>
-            <p>Invitation créée pour <strong>{created.email}</strong>. Le code ne sera plus affiché ensuite :</p>
-            <div className="code">{created.code}</div>
-            {created.link && <p className="muted small">Lien : {created.link}</p>}
-          </div>
-          <button className="btn" onClick={() => { navigator.clipboard?.writeText(created.message); setCopied(true); }}>{copied ? 'Message copié' : 'Copier le message à envoyer'}</button>
-        </div>
-      )}
+      {created && <InvitationResult key={created.code} created={created} />}
 
       <div className="toolbar">
         <input placeholder="Rechercher un e-mail ou un groupe" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher une invitation" />
@@ -81,7 +70,8 @@ export default function Invitations({ api }: { api: Api }) {
           <tbody>
             {rows.map((i) => (
               <tr key={i.id}>
-                <td>{i.email}</td>
+                <td>{i.displayName && <>{i.displayName}<br /></>}<span className={i.displayName ? 'muted small' : ''}>{i.email}</span>
+                  {i.emailedAt && <span className="muted small" title={`E-mail envoyé le ${fmtDate(i.emailedAt)}`}> · ✉ envoyé</span>}</td>
                 <td><span className={`chip ${i.state === 'accepted' ? 'ok' : i.state === 'pending' ? 'wait' : 'off'}`}>{STATE[i.state]}</span></td>
                 <td>{i.role === 'admin' ? 'Admin global' : 'Utilisateur'}</td>
                 <td>{i.groupName ? `${i.groupName}${i.groupRole === 'admin' ? ' (admin)' : ''}` : '—'}</td>

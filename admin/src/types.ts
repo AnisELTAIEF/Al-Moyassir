@@ -28,8 +28,35 @@ export interface AyahProgress {
 export interface Invitation {
   id: string; email: string; role: Role; groupName: string | null; groupRole?: 'admin' | 'member';
   state: 'pending' | 'accepted' | 'revoked' | 'expired'; createdAt: string; expiresAt: string;
+  /** Nom indiqué à l'invitation (import). */
+  displayName?: string | null;
+  /** Date d'envoi réussi de l'e-mail d'invitation. */
+  emailedAt?: string | null;
 }
-export interface CreatedInvitation { email: string; code: string; link: string | null; message: string; expiresAt: string }
+
+/** Une ligne du résultat d'import. */
+export interface ImportItem {
+  line: number; email: string | null; name: string | null; group: string | null; role: 'admin' | 'member' | null;
+  action: 'added' | 'updated' | 'invited' | 'unchanged' | 'error';
+  message: string; text?: string; code?: string; link?: string | null;
+}
+export interface ImportResult {
+  dryRun: boolean;
+  summary: { added: number; updated: number; invited: number; unchanged: number; errors: number; groupsCreated: string[] };
+  /** E-mails d'invitation en cours d'envoi (arrière-plan). */
+  emailing: number;
+  mailConfigured: boolean;
+  items: ImportItem[];
+}
+export interface CreatedInvitation {
+  email: string; code: string; link: string | null; message: string; expiresAt: string;
+  /** Sujet de l'e-mail (adapté au rôle invité). */
+  subject?: string;
+  /** L'e-mail est parti automatiquement (envoi SMTP configuré sur le serveur). */
+  emailed?: boolean;
+  /** L'envoi automatique est configuré sur le serveur. */
+  mailConfigured?: boolean;
+}
 export interface PasswordReset { code: string; message: string; expiresAt: string }
 
 export interface GroupSummary { id: string; name: string; members: number; managers: number; joinCode?: string | null; joinOpen?: boolean }
@@ -84,4 +111,8 @@ export interface Api {
   groupJoinOpen(groupId: string): Promise<boolean>;
   setGroupJoinOpen(groupId: string, open: boolean): Promise<void>;
   memberProgress(groupId: string, userId: string): Promise<AyahProgress[]>;
+  /** Import général (admins globaux) : « Groupe ; Nom ; e-mail ; rôle ». dryRun = simulation. */
+  importUsers(text: string, dryRun: boolean): Promise<ImportResult>;
+  /** Import dans un groupe : « Nom ; e-mail ». */
+  importToGroup(groupId: string, text: string, dryRun: boolean): Promise<ImportResult>;
 }

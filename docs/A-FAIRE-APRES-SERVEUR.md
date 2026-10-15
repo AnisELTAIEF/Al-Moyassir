@@ -40,6 +40,6 @@ Liste validée par Anis le 12/10/2026 : à traiter **dans cet ordre**, une fois 
   Le projet `mobile/ios` existe déjà (identifiant `com.bestconsultingit.hifidhQuran`).
 
 ## Rappel
-- Dernière version de l'app livrée : 0.12.0 (version web iPhone ; Android : cycle 4 touchers en Qira'a, « لا » dans l'interface).
+- Dernière version de l'app livrée : 0.17.0 (import de listes d'utilisateurs TXT/CSV, APK téléchargeable sur le serveur).
 - Les noms techniques restent inchangés (paquet Android `com.bestconsultingit.hifidh_quran`,
   service `hifidh-api`, base `hifidh`) pour ne rien casser.

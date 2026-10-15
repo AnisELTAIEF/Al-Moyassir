@@ -1,5 +1,5 @@
 import { SURAHS, TOTAL_AYAHS } from './data/surahs';
-import type { AyahProgress, UserStats } from './types';
+import type { ImportItem, AyahProgress, UserStats } from './types';
 
 export const pct = (part: number, total = TOTAL_AYAHS) => (total === 0 ? 0 : (part * 100) / total);
 
@@ -60,4 +60,27 @@ export function downloadCsv(name: string, content: string) {
   a.download = `${name.replace(/[^\p{L}\p{N}]+/gu, '_')}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+/** Résultat d'un import en CSV (avec les codes d'invitation, à transmettre si l'e-mail n'est pas parti). */
+export function importResultCsv(items: ImportItem[]): string {
+  const ACTION: Record<ImportItem['action'], string> = {
+    added: 'ajouté', updated: 'mis à jour', invited: 'invité', unchanged: 'inchangé', error: 'erreur',
+  };
+  const head = ['Ligne', 'Nom', 'E-mail', 'Groupe', 'Rôle', 'Résultat', 'Détail', 'Code', 'Lien'];
+  const rows = items.map((i) => [
+    i.line, i.name ?? '', i.email ?? '', i.group ?? '', i.role === 'admin' ? 'admin' : i.role ? 'membre' : '',
+    ACTION[i.action], i.message, i.code ?? '', i.link ?? '',
+  ]);
+  return '\uFEFF' + [head, ...rows].map((r) => r.map(csvCell).join(';')).join('\n');
+}
+
+/**
+ * Lit un fichier texte importé : UTF-8 par défaut, sinon Windows-1252 (CSV enregistré par
+ * une ancienne version d'Excel), repéré aux caractères de remplacement.
+ */
+export async function readTextFile(file: Blob): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const utf8 = new TextDecoder('utf-8').decode(buf);
+  return utf8.includes('\uFFFD') ? new TextDecoder('windows-1252').decode(buf) : utf8;
 }

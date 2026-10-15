@@ -161,7 +161,7 @@ export default async function authRoutes(app) {
     if (!inv) throw new HttpError(404, 'invalid_code', 'Code invalide ou expiré. Vérifiez-le auprès de l’admin du groupe.');
     const [gr] = inv.group_id ? await app.db.query('SELECT name FROM study_groups WHERE id = ?', [inv.group_id]) : [[]];
     const [by] = inv.invited_by ? await app.db.query('SELECT display_name FROM users WHERE id = ?', [inv.invited_by]) : [[]];
-    return { type: 'invitation', email: inv.email, role: inv.role, groupName: gr[0]?.name ?? null, invitedBy: by[0]?.display_name ?? null, expiresAt: iso(inv.expires_at) };
+    return { type: 'invitation', email: inv.email, displayName: inv.display_name ?? null, role: inv.role, groupName: gr[0]?.name ?? null, invitedBy: by[0]?.display_name ?? null, expiresAt: iso(inv.expires_at) };
   });
 
   /** Aperçu public d'une invitation (pour l'écran « J'ai un code »). */
@@ -170,7 +170,7 @@ export default async function authRoutes(app) {
     if (!inv) throw new HttpError(404, 'invalid_invitation', 'Code d’invitation invalide ou expiré.');
     const [g] = inv.group_id ? await app.db.query('SELECT name FROM study_groups WHERE id = ?', [inv.group_id]) : [[]];
     const [by] = inv.invited_by ? await app.db.query('SELECT display_name FROM users WHERE id = ?', [inv.invited_by]) : [[]];
-    return { email: inv.email, role: inv.role, groupName: g[0]?.name ?? null, invitedBy: by[0]?.display_name ?? null, expiresAt: iso(inv.expires_at) };
+    return { email: inv.email, displayName: inv.display_name ?? null, role: inv.role, groupName: g[0]?.name ?? null, invitedBy: by[0]?.display_name ?? null, expiresAt: iso(inv.expires_at) };
   });
 }
 

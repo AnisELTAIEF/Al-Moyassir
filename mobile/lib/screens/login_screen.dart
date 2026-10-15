@@ -245,7 +245,12 @@ class _InvitationScreenState extends State<InvitationScreen> {
         if (!mounted || _code.text != asked) return; // code modifié entre-temps : réponse périmée
         setState(() {
           _found = r;
-          if (r['type'] == 'invitation') _email.text = r['email'] as String;
+          if (r['type'] == 'invitation') {
+            _email.text = r['email'] as String;
+            // Nom indiqué par l'admin à l'import : pré-rempli, modifiable.
+            final name = r['displayName'] as String?;
+            if (name != null && _name.text.trim().isEmpty) _name.text = name;
+          }
         });
       });
 

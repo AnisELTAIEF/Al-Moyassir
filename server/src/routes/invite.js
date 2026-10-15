@@ -1,5 +1,6 @@
 // Page publique « /invite/<code> » : affiche le code et les étapes, sans rien révéler d'autre.
 import { normalizeCode } from '../security.js';
+import { androidApkLink } from './download.js';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -15,8 +16,9 @@ export default async function inviteRoutes(app) {
 .ar{font-size:28px;color:#d9b45a}ol{text-align:left;line-height:1.7}.ios{line-height:1.6}a{color:#d9b45a}</style></head><body><div class="c">
 <div class="ar">الميسّر</div><h1>Vous êtes invité(e)</h1>
 ${valid ? `<p>Votre code d’invitation :</p><div class="code">${esc(code)}</div>
-<ol><li>Installez l’application <b>Almoyassir (الميسّر)</b>.</li><li>Touchez <b>« Créer un compte avec un code »</b>.</li><li>Saisissez ce code, puis connectez-vous avec Google ou créez un mot de passe.</li></ol>
-<p class="ios">Sur iPhone ou iPad : <a href="/app/">ouvrez la version web</a> dans Safari, puis Partager → « Sur l’écran d’accueil ».</p>`
+<ol><li>Installez l’application <b>Almoyassir (الميسّر)</b>${androidApkLink(app.cfg) ? ` (<a href="${esc(androidApkLink(app.cfg))}">Android : télécharger</a>)` : ''}.</li><li>Touchez <b>« Créer un compte avec un code »</b>.</li><li>Saisissez ce code, puis connectez-vous avec Google ou créez un mot de passe.</li></ol>
+<p class="ios">Sur iPhone ou iPad : <a href="/app/">ouvrez la version web</a> dans Safari, puis Partager → « Sur l’écran d’accueil ».</p>
+<p class="ios"><a href="/guide/">Guide d’utilisation détaillé</a></p>`
       : '<p>Ce lien d’invitation n’est pas valide.</p>'}
 </div></body></html>`;
   });

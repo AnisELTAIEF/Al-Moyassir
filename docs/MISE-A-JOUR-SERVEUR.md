@@ -85,6 +85,8 @@ et `https://quran.bestconsultingit.com/app/` (version web de l'app).
 | 0.12.0 | **Version web pour iPhone** sur `/app/` (une fois : `deploy/enable-webapp.sh`) ; lien iPhone dans les invitations |
 | 0.14.0 | Migrations 006 et 007 (groupe ouvert, réinitialisation du mot de passe) ; prière, géocodage |
 | 0.15.0 | Géocodage inverse `/geocode/reverse` (nom du lieu détecté, ex. « Monastir, Tunisie ») — pas de migration |
+| 0.16.0 | E-mails d’invitation détaillés selon le rôle ; envoi automatique **optionnel** (SMTP, voir ci-dessous) ; guide `/guide/` publié avec l’admin web. Nouvelle dépendance `nodemailer` (installée par `install.sh`) |
+| 0.17.0 | Import de listes d’utilisateurs (TXT/CSV, par groupe ou général) ; APK Android hébergé sur le serveur (`/api/download/android`). **Migration 008** (appliquée par `install.sh`) ; `install.sh` crée `/var/lib/hifidh/download` |
 
 ## Mettre à jour la version web (côté développement)
 
@@ -92,3 +94,52 @@ La version web est compilée hors du serveur (le serveur n'a pas besoin de Flutt
 `bash tools/build-webapp.sh` régénère `webapp/`, à pousser sur GitHub avec le reste.
 Sur le serveur, `git pull` + `install.sh` la publient. Les utilisateurs iPhone reçoivent la nouvelle
 version à la prochaine ouverture de l'app (pas de mise à jour à installer).
+
+## Envoi automatique des e-mails d’invitation (optionnel, 0.16.0)
+
+Par défaut, l’admin copie le message d’invitation (ou l’ouvre dans sa messagerie). Pour que
+l’invité **reçoive l’e-mail automatiquement**, ajouter dans `/etc/hifidh/api.env` (jamais dans
+le dépôt) :
+
+```bash
+sudo cp /etc/hifidh/api.env /etc/hifidh/api.env.bak.$(date +%F)
+sudo nano /etc/hifidh/api.env      # ajouter SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, MAIL_FROM
+sudo systemctl restart hifidh-api   # service de l'app uniquement (pas nginx)
+```
+
+Voir `deploy/api.env.example` pour le détail. Avec Microsoft 365 (`smtp.office365.com`, port 587),
+la boîte d’envoi doit avoir l’« envoi SMTP authentifié » autorisé ; Microsoft fait évoluer la
+prise en charge de l’authentification de base pour SMTP AUTH : **vérifier la situation actuelle
+de votre tenant** avant de choisir cette option (sinon : un service d’e-mail transactionnel, ou
+une boîte dédiée avec mot de passe d’application).
+
+Test : créer une invitation pour sa propre adresse ; l’admin web affiche « ✓ E-mail d’invitation
+envoyé ». En cas d’échec : `journalctl -u hifidh-api -n 30 --no-pager` (ligne « envoi de l’e-mail
+impossible », sans mot de passe).
+
+`ANDROID_APK_URL` (optionnel) : lien de téléchargement de l’APK, ajouté aux e-mails.
+
+## Publier l’APK Android sur le serveur (0.17.0)
+
+L’APK est servi par l’API à l’adresse `https://quran.bestconsultingit.com/api/download/android`
+(aucune modification nginx : `/api/` est déjà relayé). Dès que le fichier est présent, ce lien
+apparaît automatiquement dans les e-mails d’invitation, sur la page `/invite/CODE` et dans le guide.
+
+Depuis le PC (PowerShell), copier l’APK sur le serveur :
+
+```powershell
+scp .\Almoyassir-0.17.0-arm64.apk anis@SERVEUR:/tmp/
+```
+
+Puis sur le serveur (remplace la version précédente ; pas de redémarrage nécessaire) :
+
+```bash
+sudo install -d -m 755 -o root -g hifidh /var/lib/hifidh/download   # déjà fait par install.sh
+sudo install -m 644 /tmp/Almoyassir-0.17.0-arm64.apk /var/lib/hifidh/download/Almoyassir.apk
+rm /tmp/Almoyassir-0.17.0-arm64.apk
+curl -sI https://quran.bestconsultingit.com/api/download/android | head -n 5   # 200 + application/vnd.android.package-archive
+```
+
+À chaque nouvelle version : refaire ces deux commandes (le lien ne change pas).
+Pour utiliser un autre lien à la place (Google Drive…), renseigner `ANDROID_APK_URL` dans
+`/etc/hifidh/api.env` puis `sudo systemctl restart hifidh-api`.

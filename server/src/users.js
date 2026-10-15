@@ -66,6 +66,16 @@ export async function createAccount(conn, cfg, { email, displayName, passwordHas
         [invitation.group_id, id, invitation.group_role ?? 'member']);
     }
   }
+  // Autres invitations en cours pour la même adresse (ex. import dans plusieurs groupes) :
+  // la personne rejoint aussi ces groupes. Seulement si l'adresse est prouvée (code d'invitation
+  // reçu à cette adresse, ou compte Google), jamais sur une simple inscription sans code.
+  const [others] = !invitation ? [[]] : await conn.query(
+    `SELECT id, group_id, group_role FROM invitations WHERE email = ? AND accepted_at IS NULL AND revoked_at IS NULL
+       AND expires_at > UTC_TIMESTAMP(3) AND group_id IS NOT NULL`, [email]);
+  for (const o of others) {
+    await conn.query('INSERT IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)', [o.group_id, id, o.group_role ?? 'member']);
+    await conn.query('UPDATE invitations SET accepted_at = UTC_TIMESTAMP(3), accepted_by = ? WHERE id = ?', [id, o.id]);
+  }
   if (group) {
     // Code de groupe : membre simple du groupe.
     await conn.query("INSERT IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')", [group.id, id]);

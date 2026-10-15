@@ -7,6 +7,9 @@ import { createPool } from '../src/db.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { placeName } from '../src/routes/geocode.js';
+import { buildInvitationMail, invitationKind } from '../src/inviteMail.js';
+import net from 'node:net';
+import * as bulk from '../src/bulkImport.js';
 
 const env = {
   DB_HOST: process.env.TEST_DB_HOST ?? '127.0.0.1',
@@ -345,4 +348,216 @@ test('géocodage inverse : nom court du lieu et validation des coordonnées', as
   // Coordonnées manquantes ou hors limites : refusées avant tout appel externe.
   assert.equal((await call('GET', '/geocode/reverse?lat=36.8')).status, 400);
   assert.equal((await call('GET', '/geocode/reverse?lat=95&lng=10')).status, 400);
+});
+
+test('e-mail d’invitation : liens en tête, en bref, en détail, guide — adapté au rôle', () => {
+  const cfg = { publicUrl: 'https://quran.exemple.tn', androidApkUrl: 'https://exemple.tn/almoyassir.apk' };
+  const base = { email: 'x@exemple.tn', code: 'K7XQ-M2PA', groupName: 'Halaqa', inviterName: 'Anis', expiresAt: new Date('2026-10-29T12:00:00Z') };
+  const member = buildInvitationMail(cfg, { ...base, role: 'user', groupId: 'g1', groupRole: 'member' });
+  const gadmin = buildInvitationMail(cfg, { ...base, role: 'user', groupId: 'g1', groupRole: 'admin' });
+  const admin = buildInvitationMail(cfg, { ...base, role: 'admin', groupId: null, groupRole: 'member' });
+  assert.equal(invitationKind({ role: 'user', groupId: 'g1', groupRole: 'admin' }), 'groupAdmin');
+  for (const m of [member, gadmin, admin]) {
+    const t = m.text;
+    // Ordre demandé : liens, puis « en bref », puis « en détail », puis le guide.
+    assert.ok(t.indexOf('LIENS UTILES') < t.indexOf('EN BREF') && t.indexOf('EN BREF') < t.indexOf('EN DÉTAIL'));
+    assert.ok(t.indexOf('EN DÉTAIL') < t.indexOf('guide détaillé'));
+    assert.match(t, /K7XQ-M2PA/);
+    assert.match(t, /https:\/\/quran\.exemple\.tn\/app\//);
+    assert.match(t, /almoyassir\.apk/);
+    assert.match(m.html, /<html/);
+  }
+  assert.doesNotMatch(member.text, /Admin web/, 'pas d’admin web pour un membre');
+  assert.match(member.text, /guide\/#membre/);
+  assert.match(gadmin.subject, /admin du groupe « Halaqa »/);
+  assert.match(gadmin.text, /Gérer votre groupe/);
+  assert.match(gadmin.text, /guide\/#admin-groupe/);
+  assert.match(admin.text, /Administrer Almoyassir/);
+  assert.match(admin.text, /guide\/#admin-general/);
+  assert.ok(admin.text.length > member.text.length, 'plus détaillé pour les admins');
+  assert.doesNotMatch(member.html, /<script/i);
+});
+
+test('invitation : envoi automatique par SMTP quand il est configuré, sinon message à copier', async () => {
+  const t = S.admin.accessToken;
+  let r = await call('POST', '/admin/invitations', { token: t, body: { email: 'smtp-off@exemple.tn' } });
+  assert.equal(r.body.emailed, false);
+  assert.equal(r.body.mailConfigured, false);
+  assert.match(r.body.message, /EN DÉTAIL/);
+  assert.match(r.body.subject, /Almoyassir/);
+
+  // Petit serveur SMTP local : vérifie que l'e-mail part vraiment (destinataire, sujet, HTML).
+  const received = [];
+  const smtp = net.createServer((sock) => {
+    let data = false; let buf = '';
+    sock.write('220 test ESMTP\r\n');
+    sock.on('data', (chunk) => {
+      buf += chunk.toString();
+      let i;
+      while ((i = buf.indexOf('\r\n')) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 2);
+        if (data) {
+          if (line === '.') { data = false; sock.write('250 OK\r\n'); } else received.push(line);
+          continue;
+        }
+        const cmd = line.slice(0, 4).toUpperCase();
+        if (cmd === 'EHLO' || cmd === 'HELO') sock.write('250-test\r\n250 OK\r\n');
+        else if (cmd === 'DATA') { data = true; sock.write('354 go\r\n'); }
+        else if (cmd === 'QUIT') { sock.write('221 bye\r\n'); sock.end(); }
+        else sock.write('250 OK\r\n');
+      }
+    });
+  });
+  await new Promise((res) => smtp.listen(0, '127.0.0.1', res));
+  const saved = { ...app.cfg.smtp };
+  Object.assign(app.cfg.smtp, { host: '127.0.0.1', port: smtp.address().port, user: '', pass: '', from: 'noreply@exemple.tn', requireTls: false });
+  try {
+    r = await call('POST', '/admin/invitations', { token: t, body: { email: 'smtp-on@exemple.tn', role: 'admin' } });
+    assert.equal(r.body.emailed, true);
+    const mail = received.join('\n');
+    assert.match(mail, /To: smtp-on@exemple\.tn/);
+    assert.match(mail, /text\/html/);
+    assert.match(mail, /Subject: /);
+  } finally {
+    Object.assign(app.cfg.smtp, saved);
+    smtp.close();
+  }
+});
+
+/** Petit serveur SMTP local qui garde les messages reçus. */
+async function fakeSmtp() {
+  const received = [];
+  let current = [];
+  const server = net.createServer((sock) => {
+    let data = false; let buf = '';
+    sock.write('220 test ESMTP\r\n');
+    sock.on('data', (chunk) => {
+      buf += chunk.toString();
+      let i;
+      while ((i = buf.indexOf('\r\n')) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 2);
+        if (data) {
+          if (line === '.') { data = false; received.push(current.join('\n')); current = []; sock.write('250 OK\r\n'); } else current.push(line);
+          continue;
+        }
+        const cmd = line.slice(0, 4).toUpperCase();
+        if (cmd === 'EHLO' || cmd === 'HELO') sock.write('250-test\r\n250 OK\r\n');
+        else if (cmd === 'DATA') { data = true; sock.write('354 go\r\n'); }
+        else if (cmd === 'QUIT') { sock.write('221 bye\r\n'); sock.end(); }
+        else sock.write('250 OK\r\n');
+      }
+    });
+  });
+  await new Promise((res) => server.listen(0, '127.0.0.1', res));
+  return { received, port: server.address().port, close: () => server.close() };
+}
+
+test('import dans un groupe (admin de groupe) : simulation puis import, comptes existants et invitations', async () => {
+  const r0 = await call('PUT', `/admin/groups/${S.groupId}/members/${S.dina.user.id}`, { token: S.carol.accessToken, body: { role: 'admin' } });
+  assert.equal(r0.status, 200, JSON.stringify(r0.body));
+  const t = S.dina.accessToken; // admin du groupe « Halaqa » (et pas admin général)
+  const text = 'Nom complet ; Adresse e-mail\n'
+    + 'Inconnu Deux ; inconnu2@x.io\n'      // compte existant, pas dans le groupe → ajouté
+    + 'Carol ; carol@x.io\n'                // déjà admin du groupe → inchangé
+    + 'Hamza Trabelsi ; hamza@x.io\n'       // nouveau → invité
+    + 'Lina Ben Salah, lina@x.io\n'         // séparateur « , » accepté
+    + 'Juste un nom\n'                      // erreur
+    + 'Hamza encore ; HAMZA@x.io\n';        // doublon → erreur
+  const dry = await call('POST', `/groups/${S.groupId}/import`, { token: t, body: { text } });
+  assert.equal(dry.status, 200, JSON.stringify(dry.body));
+  assert.equal(dry.body.dryRun, true);
+  assert.deepEqual(
+    [dry.body.summary.added, dry.body.summary.unchanged, dry.body.summary.invited, dry.body.summary.errors], [1, 1, 2, 2]);
+  const [[before]] = await pool.query("SELECT COUNT(*) c FROM invitations WHERE email IN ('hamza@x.io','lina@x.io')");
+  assert.equal(Number(before.c), 0, 'la simulation ne crée rien');
+
+  const run = await call('POST', `/groups/${S.groupId}/import`, { token: t, body: { text, dryRun: false } });
+  assert.equal(run.status, 200, JSON.stringify(run.body));
+  const hamza = run.body.items.find((x) => x.email === 'hamza@x.io');
+  assert.equal(hamza.action, 'invited');
+  assert.match(hamza.code, /^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  const ov = await call('GET', `/groups/${S.groupId}/overview`, { token: t });
+  assert.ok(ov.body.members.some((m) => m.email === 'inconnu2@x.io'));
+  // Le nom importé est pré-rempli à l'inscription.
+  const pv = await call('GET', `/auth/codes/${hamza.code}`);
+  assert.equal(pv.body.displayName, 'Hamza Trabelsi');
+  // Relancer le même import ne réinvite personne.
+  const again = await call('POST', `/groups/${S.groupId}/import`, { token: t, body: { text, dryRun: false } });
+  assert.equal(again.body.summary.invited, 0);
+  // Pas d'import dans un autre groupe, ni d'import général pour un admin de groupe.
+  assert.equal((await call('POST', `/groups/${S.otherGroup}/import`, { token: t, body: { text } })).status, 403);
+  assert.equal((await call('POST', '/admin/import', { token: t, body: { text: 'G;N;a@b.cc' } })).status, 403);
+});
+
+test('import général : crée les groupes, admins de groupe, une seule invitation par personne, e-mails envoyés', async () => {
+  const t = S.admin.accessToken;
+  const smtp = await fakeSmtp();
+  const saved = { ...app.cfg.smtp };
+  Object.assign(app.cfg.smtp, { host: '127.0.0.1', port: smtp.port, user: '', pass: '', from: 'noreply@exemple.tn', requireTls: false });
+  try {
+    const [[halaqa]] = await pool.query('SELECT name FROM study_groups WHERE id = ?', [S.groupId]);
+    const text = 'Groupe;Nom complet;E-mail;Rôle\n'
+      + 'Halaqa Nour;Youssef Admin;youssef@x.io;admin\n'
+      + 'Halaqa Nour;Mariem;mariem@x.io;membre\n'
+      + 'Halaqa Fajr;Mariem;mariem@x.io\n'          // même personne, 2e groupe
+      + `${halaqa.name};Inconnu;inconnu@x.io;admin\n`  // compte existant → ajouté comme admin   // compte existant → nommé admin
+      + ';Sans Groupe;libre-import@x.io\n'
+      + 'Halaqa Nour;X;x@x.io;chef\n';             // rôle inconnu
+    const dry = await call('POST', '/admin/import', { token: t, body: { text } });
+    assert.equal(dry.status, 200, JSON.stringify(dry.body));
+    assert.deepEqual(dry.body.summary.groupsCreated.sort(), ['Halaqa Fajr', 'Halaqa Nour']);
+    const [[g0]] = await pool.query("SELECT COUNT(*) c FROM study_groups WHERE name LIKE 'Halaqa N%'");
+    assert.equal(Number(g0.c), 0, 'la simulation ne crée pas de groupe');
+
+    const run = await call('POST', '/admin/import', { token: t, body: { text, dryRun: false } });
+    assert.equal(run.status, 200, JSON.stringify(run.body));
+    const s = run.body.summary;
+    assert.deepEqual([s.invited, s.added + s.updated, s.errors], [4, 1, 1]);
+    const [[inc]] = await pool.query(
+      "SELECT gm.role FROM group_members gm JOIN users u ON u.id = gm.user_id WHERE gm.group_id = ? AND u.email = 'inconnu@x.io'", [S.groupId]);
+    assert.equal(inc.role, 'admin');
+    assert.equal(run.body.emailing, 3, 'Mariem ne reçoit qu’un seul e-mail');
+    await bulk.lastImportMailing;
+    assert.equal(smtp.received.length, 3);
+    assert.ok(smtp.received.some((m) => /To: youssef@x\.io/.test(m)));
+    const [[sent]] = await pool.query("SELECT COUNT(*) c FROM invitations WHERE emailed_at IS NOT NULL AND email IN ('youssef@x.io','mariem@x.io','libre-import@x.io')");
+    assert.equal(Number(sent.c), 3);
+
+    const [[nour]] = await pool.query("SELECT id, join_code FROM study_groups WHERE name = 'Halaqa Nour'");
+    assert.match(nour.join_code, /^[A-Z2-9]{6}$/);
+    // Mariem crée son compte avec le code reçu : elle rejoint ses DEUX groupes.
+    const code = run.body.items.find((x) => x.email === 'mariem@x.io' && x.group === 'Halaqa Nour').code;
+    const reg = await call('POST', '/auth/register', { body: { password: 'motdepasse1', displayName: 'Mariem', invitationCode: code } });
+    assert.equal(reg.status, 200, JSON.stringify(reg.body));
+    const mine = await call('GET', '/me/groups', { token: reg.body.accessToken });
+    assert.deepEqual(mine.body.items.map((g) => g.name).sort(), ['Halaqa Fajr', 'Halaqa Nour']);
+    // Youssef est invité comme admin du groupe.
+    const [[y]] = await pool.query("SELECT group_role FROM invitations WHERE email = 'youssef@x.io'");
+    assert.equal(y.group_role, 'admin');
+  } finally {
+    Object.assign(app.cfg.smtp, saved);
+    smtp.close();
+  }
+});
+
+test('APK Android hébergé sur le serveur : /download/android et lien dans l’e-mail', async () => {
+  const { mkdtemp, writeFile } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const savedFile = app.cfg.apkFile;
+  app.cfg.apkFile = '/nonexistent/Almoyassir.apk';
+  try {
+    assert.equal((await app.inject({ method: 'GET', url: '/download/android' })).statusCode, 404);
+    const dir = await mkdtemp(`${tmpdir()}/apk-`);
+    app.cfg.apkFile = `${dir}/Almoyassir.apk`;
+    await writeFile(app.cfg.apkFile, Buffer.from('PK fake apk'));
+    const res = await app.inject({ method: 'GET', url: '/download/android' });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers['content-type'], 'application/vnd.android.package-archive');
+    assert.match(res.headers['content-disposition'], /Almoyassir\.apk/);
+    assert.equal(res.body, 'PK fake apk');
+    const r = await call('POST', '/admin/invitations', { token: S.admin.accessToken, body: { email: 'apk@x.io' } });
+    assert.match(r.body.message, /https:\/\/quran\.example\.com\/api\/download\/android/);
+  } finally {
+    app.cfg.apkFile = savedFile;
+  }
 });

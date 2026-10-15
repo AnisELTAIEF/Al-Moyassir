@@ -4,6 +4,7 @@ import { HttpError } from '../errors.js';
 import { tx } from '../db.js';
 import { uuid, sha256, normalizeCode, newInvitationCode } from '../security.js';
 import { createInvitation, invitationRow } from '../invitations.js';
+import { runImport } from '../bulkImport.js';
 import { iso, otherActiveAdmins } from '../users.js';
 import { progressOf, STATS_SQL, statsRow } from '../progress.js';
 
@@ -150,6 +151,20 @@ export default async function adminRoutes(app) {
   }, async (req) => createInvitation(app, {
     email: req.body.email, role: req.body.role ?? 'user', groupId: req.body.groupId ?? null,
     groupRole: req.body.groupRole ?? 'member', invitedBy: req.user.id,
+  }));
+
+  /**
+   * Import général : « Groupe ; Nom complet ; e-mail ; rôle » par ligne. Crée les groupes absents,
+   * ajoute les comptes existants, invite les autres. dryRun (par défaut) : simulation sans rien modifier.
+   */
+  app.post('/import', {
+    bodyLimit: 1_048_576,
+    schema: { body: { type: 'object', required: ['text'], properties: {
+      text: { type: 'string', maxLength: 500_000 },
+      dryRun: { type: 'boolean' },
+    } } },
+  }, async (req) => runImport(app, {
+    text: req.body.text, withGroup: true, createGroups: true, dryRun: req.body.dryRun !== false, invitedBy: req.user.id,
   }));
 
   app.delete('/invitations/:id', { schema: { params: idParam } }, async (req) => {

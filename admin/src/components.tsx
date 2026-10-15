@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SURAHS, TOTAL_AYAHS } from './data/surahs';
-import { fmtPct, memorizedPerSurah, pct, sinceLabel } from './lib';
-import type { AyahProgress } from './types';
+import { downloadCsv, fmtPct, importResultCsv, memorizedPerSurah, pct, readTextFile, sinceLabel } from './lib';
+import type { AyahProgress, CreatedInvitation, ImportItem, ImportResult } from './types';
 
 export const Bar = ({ value, label }: { value: number; label?: string }) => (
   <div className="bar" role="progressbar" aria-label={label} aria-valuenow={Math.round(value * 100)} aria-valuemin={0} aria-valuemax={100}>
@@ -102,3 +102,120 @@ export function ProgressPanel({ title, subtitle, load, onClose, children }: {
 }
 
 export const TOTAL = TOTAL_AYAHS;
+
+/** Résultat d'une invitation : e-mail parti automatiquement, ou message à copier / ouvrir dans sa messagerie. */
+export function InvitationResult({ created }: { created: CreatedInvitation }) {
+  const [copied, setCopied] = useState(false);
+  const subject = created.subject ?? 'Invitation Almoyassir (الميسّر)';
+  const mailto = `mailto:${encodeURIComponent(created.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(created.message)}`;
+  return (
+    <div className="card created" role="status">
+      <div>
+        {created.emailed
+          ? <p>✓ E-mail d’invitation envoyé à <strong>{created.email}</strong>. Code (affiché une seule fois) :</p>
+          : <p>Invitation créée pour <strong>{created.email}</strong>. Envoyez-lui le message ci-contre ; le code ne sera plus affiché ensuite :</p>}
+        <div className="code">{created.code}</div>
+        {created.link && <p className="muted small">Lien : {created.link}</p>}
+        {!created.emailed && created.mailConfigured && <p className="warn small">L’envoi automatique a échoué : envoyez le message vous-même.</p>}
+      </div>
+      <div className="row-actions">
+        <button className="btn" onClick={() => { navigator.clipboard?.writeText(created.message); setCopied(true); }}>{copied ? 'Message copié ✓' : 'Copier le message'}</button>
+        {!created.emailed && <a className="btn ghost" href={mailto}>Ouvrir dans ma messagerie</a>}
+      </div>
+    </div>
+  );
+}
+
+const ACTION_LABEL: Record<ImportItem['action'], [string, string]> = {
+  added: ['Ajouté(e)', 'ok'], updated: ['Mis à jour', 'ok'], invited: ['Invité(e)', 'wait'],
+  unchanged: ['Inchangé', ''], error: ['Erreur', 'off'],
+};
+
+/**
+ * Import d'une liste d'utilisateurs (fichier TXT / CSV ou texte collé) : « Vérifier » simule
+ * l'import et affiche le résultat ligne par ligne ; « Importer » l'exécute pour de bon.
+ */
+export function ImportPanel({ format, example, templateName, run, onDone }: {
+  format: ReactNode; example: string; templateName: string;
+  run: (text: string, dryRun: boolean) => Promise<ImportResult>; onDone?: () => void;
+}) {
+  const [text, setText] = useState('');
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [checked, setChecked] = useState<string | null>(null); // texte vérifié (simulation)
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function go(dryRun: boolean) {
+    setBusy(true); setErr(null);
+    try {
+      const r = await run(text, dryRun);
+      setResult(r);
+      setChecked(dryRun ? text : null);
+      if (!dryRun) onDone?.();
+    } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  }
+  async function pick(f: File | undefined) {
+    if (!f) return;
+    setText(await readTextFile(f));
+    setResult(null); setChecked(null);
+  }
+  const s = result?.summary;
+  const todo = s ? s.added + s.updated + s.invited : 0;
+
+  return (
+    <div className="card import">
+      <div className="import-help">{format}</div>
+      <div className="row-actions">
+        <label className="btn ghost small file">Choisir un fichier (.txt, .csv)
+          <input type="file" accept=".txt,.csv,text/plain,text/csv" onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
+        </label>
+        <button type="button" className="btn ghost small" onClick={() => downloadCsv(templateName, '﻿' + example)}>Télécharger un modèle</button>
+      </div>
+      <textarea rows={8} value={text} placeholder={example} spellCheck={false} aria-label="Liste à importer"
+        onChange={(e) => { setText(e.target.value); setChecked(null); }} />
+      <div className="row-actions">
+        <button className="btn ghost" disabled={busy || !text.trim()} onClick={() => go(true)}>1. Vérifier</button>
+        <button className="btn" disabled={busy || checked !== text || todo === 0}
+          onClick={() => window.confirm(`Importer : ${todo} personne(s) seront ajoutées ou invitées. Continuer ?`) && go(false)}>
+          2. Importer{checked === text && todo ? ` (${todo})` : ''}
+        </button>
+        {busy && <span className="muted small">Traitement…</span>}
+      </div>
+      {err && <p className="error" role="alert">{err}</p>}
+      {result && s && (
+        <div role="status">
+          <p>
+            <strong>{result.dryRun ? 'Simulation (rien n’est encore modifié) :' : '✓ Import terminé :'}</strong>{' '}
+            {s.invited} invitation(s), {s.added} ajout(s) de comptes existants{s.updated ? `, ${s.updated} mise(s) à jour` : ''},
+            {' '}{s.unchanged} inchangé(s), {s.errors} erreur(s).
+            {s.groupsCreated.length > 0 && <> Groupes {result.dryRun ? 'à créer' : 'créés'} : {s.groupsCreated.join(', ')}.</>}
+          </p>
+          {!result.dryRun && (result.emailing > 0
+            ? <p className="muted small">{result.emailing} e-mail(s) d’invitation en cours d’envoi. La page Invitations indique ceux qui sont partis.</p>
+            : s.invited > 0 && <p className="warn small">Envoi automatique non configuré : téléchargez le résultat (codes et liens) pour transmettre les invitations.</p>)}
+          {!result.dryRun && <button className="btn ghost small" onClick={() => downloadCsv(`import-${new Date().toISOString().slice(0, 10)}`, importResultCsv(result.items))}>
+            Télécharger le résultat (CSV, avec les codes)</button>}
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Ligne</th><th>Nom</th><th>E-mail</th><th>Groupe</th><th>Rôle</th><th>Résultat</th><th>Détail</th>{!result.dryRun && <th>Code</th>}</tr></thead>
+              <tbody>
+                {result.items.map((i) => (
+                  <tr key={`${i.line}-${i.group ?? ''}`}>
+                    <td>{i.line}</td>
+                    <td>{i.name ?? '—'}</td>
+                    <td>{i.email ?? <span className="muted small">{i.text}</span>}</td>
+                    <td>{i.group ?? '—'}</td>
+                    <td>{i.role === 'admin' ? 'Admin' : i.role ? 'Membre' : '—'}</td>
+                    <td><span className={`chip ${ACTION_LABEL[i.action][1]}`}>{ACTION_LABEL[i.action][0]}</span></td>
+                    <td className="small">{i.message}</td>
+                    {!result.dryRun && <td className="mono">{i.code ?? ''}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

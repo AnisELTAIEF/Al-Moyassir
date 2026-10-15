@@ -22,6 +22,19 @@ export function loadConfig(env = process.env) {
     corsOrigins: list(env.CORS_ORIGINS),
     publicUrl: (env.PUBLIC_URL ?? '').replace(/\/$/, ''),
     trustProxy: env.TRUST_PROXY !== 'false',
+    // Lien de téléchargement de l'app Android (APK), repris dans les e-mails d'invitation (optionnel).
+    androidApkUrl: (env.ANDROID_APK_URL ?? '').trim(),
+    apkFile: (env.APK_FILE ?? '/var/lib/hifidh/download/Almoyassir.apk').trim(),
+    // Envoi automatique des e-mails d'invitation (optionnel). Sans SMTP_HOST : rien n'est envoyé,
+    // l'admin copie le message comme avant.
+    smtp: {
+      host: (env.SMTP_HOST ?? '').trim(),
+      port: Number(env.SMTP_PORT ?? 587),
+      user: env.SMTP_USER ?? '',
+      pass: env.SMTP_PASSWORD ?? '',
+      from: (env.MAIL_FROM ?? env.SMTP_USER ?? '').trim(),
+      requireTls: env.SMTP_REQUIRE_TLS !== 'false', // chiffrement obligatoire (sauf tests locaux)
+    },
   };
   if (cfg.jwtSecret.length < 32) throw new Error('JWT_SECRET doit contenir au moins 32 caractères.');
   return cfg;

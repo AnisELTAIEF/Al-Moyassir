@@ -215,7 +215,13 @@ class CreatedInvitation {
   final String code;
   final String? link;
   final String message;
-  const CreatedInvitation(this.email, this.code, this.link, this.message);
+
+  /// Sujet de l'e-mail (adapté au rôle invité).
+  final String? subject;
+
+  /// L'e-mail est parti automatiquement depuis le serveur.
+  final bool emailed;
+  const CreatedInvitation(this.email, this.code, this.link, this.message, {this.subject, this.emailed = false});
 }
 
 class GroupSummary {
@@ -243,7 +249,9 @@ class AddMemberResult {
   final String email;
   final String? code;
   final String? message;
-  const AddMemberResult({required this.added, required this.email, this.code, this.message});
+  final String? subject;
+  final bool emailed;
+  const AddMemberResult({required this.added, required this.email, this.code, this.message, this.subject, this.emailed = false});
 }
 
 /// Niveau de maîtrise d'un ayah, pour la colorisation « par niveau de maîtrise ».

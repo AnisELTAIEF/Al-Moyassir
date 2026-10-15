@@ -153,6 +153,7 @@ class _InvitationsTabState extends State<InvitationsTab> with AutomaticKeepAlive
     );
     if (created == null || !mounted) return;
     _refresh();
-    await showInvitationSheet(context, email: created.email, code: created.code, message: created.message);
+    await showInvitationSheet(context,
+        email: created.email, code: created.code, message: created.message, subject: created.subject, emailed: created.emailed);
   }
 }

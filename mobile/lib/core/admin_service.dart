@@ -19,7 +19,8 @@ class AdminService {
   Future<List<Invitation>> invitations() async => _items(await api.get('/admin/invitations'), Invitation.fromJson);
   Future<CreatedInvitation> invite(String email, {String role = 'user', String? groupId, String groupRole = 'member'}) async {
     final r = await api.post('/admin/invitations', {'email': email, 'role': role, 'groupId': ?groupId, 'groupRole': groupRole}) as Map<String, dynamic>;
-    return CreatedInvitation(r['email'] as String, r['code'] as String, r['link'] as String?, r['message'] as String);
+    return CreatedInvitation(r['email'] as String, r['code'] as String, r['link'] as String?, r['message'] as String,
+        subject: r['subject'] as String?, emailed: r['emailed'] == true);
   }
   Future<void> revokeInvitation(String id) => api.delete('/admin/invitations/$id');
 
@@ -40,6 +41,8 @@ class AdminService {
       email: (r['email'] ?? (r['user'] as Map?)?['email'] ?? email) as String,
       code: r['code'] as String?,
       message: r['message'] as String?,
+      subject: r['subject'] as String?,
+      emailed: r['emailed'] == true,
     );
   }
   /// Code permanent du groupe (6 caractères) : à partager pour rejoindre le groupe sans invitation par e-mail.

@@ -278,7 +278,8 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
     if (result.added) {
       snack(context, tr('{email} ajouté(e) au groupe', {'email': result.email}));
     } else if (result.code != null) {
-      await showInvitationSheet(context, email: result.email, code: result.code!, message: result.message ?? result.code!);
+      await showInvitationSheet(context,
+          email: result.email, code: result.code!, message: result.message ?? result.code!, subject: result.subject, emailed: result.emailed);
     }
   }
 

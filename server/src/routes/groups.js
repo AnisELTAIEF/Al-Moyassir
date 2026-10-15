@@ -4,6 +4,7 @@ import { tx } from '../db.js';
 import { progressOf, statsRow } from '../progress.js';
 import { createInvitation, invitationRow } from '../invitations.js';
 import { assignGroupCode } from '../groupCodes.js';
+import { runImport } from '../bulkImport.js';
 
 const idParam = { type: 'object', properties: { id: { type: 'string', minLength: 36, maxLength: 36 } } };
 
@@ -103,6 +104,21 @@ export default async function groupRoutes(app) {
     }
     const inv = await createInvitation(app, { email, role: 'user', groupId: g.id, groupRole: role, invitedBy: req.user.id });
     return { invited: true, ...inv };
+  });
+
+  /**
+   * Import d'une liste dans ce groupe : « Nom complet ; e-mail » par ligne (membres simples).
+   * dryRun (par défaut) : simulation sans rien modifier.
+   */
+  app.post('/:id/import', {
+    bodyLimit: 1_048_576,
+    schema: { params: idParam, body: { type: 'object', required: ['text'], properties: {
+      text: { type: 'string', maxLength: 500_000 },
+      dryRun: { type: 'boolean' },
+    } } },
+  }, async (req) => {
+    const g = await guard(req);
+    return runImport(app, { text: req.body.text, withGroup: false, groupId: g.id, dryRun: req.body.dryRun !== false, invitedBy: req.user.id });
   });
 
   app.put('/:id/members/:uid', {

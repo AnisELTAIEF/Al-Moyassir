@@ -7,9 +7,10 @@ import Users from './pages/Users';
 import Invitations from './pages/Invitations';
 import GroupsPage from './pages/GroupsPage';
 import GroupView from './pages/GroupView';
+import Import from './pages/Import';
 import { ThemeToggle } from './theme';
 
-type Page = 'overview' | 'users' | 'invitations' | 'groups';
+type Page = 'overview' | 'users' | 'invitations' | 'groups' | 'import';
 
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
@@ -56,7 +57,7 @@ export default function App() {
   }
 
   const nav: [Page, string][] = isAdmin
-    ? [['overview', 'Aperçu'], ['users', 'Utilisateurs'], ['invitations', 'Invitations'], ['groups', 'Groupes']]
+    ? [['overview', 'Aperçu'], ['users', 'Utilisateurs'], ['invitations', 'Invitations'], ['groups', 'Groupes'], ['import', 'Import']]
     : [['groups', 'Mes groupes']];
   const current = isAdmin ? page : 'groups';
 
@@ -73,6 +74,7 @@ export default function App() {
           {api.demo && <span className="badge">Démo</span>}
           <strong>{user.displayName}</strong>
           <span className="muted small">{user.email} · {isAdmin ? 'admin global' : 'admin de groupe'}</span>
+          <a className="btn ghost small" href="/guide/" target="_blank" rel="noopener">Guide d’utilisation</a>
           <button className="btn ghost small" onClick={() => api!.signOut().then(() => setUser(null))}>Se déconnecter</button>
         </div>
       </aside>
@@ -85,6 +87,8 @@ export default function App() {
           <Users api={api} me={user} />
         ) : current === 'invitations' ? (
           <Invitations api={api} />
+        ) : current === 'import' ? (
+          <Import api={api} />
         ) : (
           <GroupsPage api={api} isAdmin={isAdmin}
             managed={managed.map((g): GroupSummary => ({ id: g.id, name: g.name, members: g.members, managers: 1 }))}

@@ -11,6 +11,8 @@ node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 20 ? 0 : 1)
 chmod 600 /etc/hifidh/api.env
 
 id hifidh >/dev/null 2>&1 || useradd --system --home /opt/hifidh --shell /usr/sbin/nologin hifidh
+# Dossier de l'APK Android téléchargeable (/api/download/android) — voir docs/MISE-A-JOUR-SERVEUR.md
+install -d -m 755 -o root -g hifidh /var/lib/hifidh/download
 
 # API
 mkdir -p /opt/hifidh/server

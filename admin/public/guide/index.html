@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guide Almoyassir (الميسّر)</title>
+<meta name="description" content="Guide d'utilisation et d'administration d'Almoyassir : app mobile, version web, admin web, groupes, invitations et codes.">
+<style>
+  :root {
+    --green: #0D5C4B; --green-soft: #E3EFEB; --gold: #C9A227; --gold-soft: #FBF6E6;
+    --ink: #1E2A26; --muted: #5B6B66; --line: #E3E8E5; --bg: #F5F6F2; --card: #FFFFFF;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --green: #6FC3A9; --green-soft: #18302A; --gold: #D9B45A; --gold-soft: #2B2616;
+      --ink: #E7ECEA; --muted: #A3B1AC; --line: #2A3532; --bg: #0F1615; --card: #16201E; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 "Segoe UI", Roboto, Arial, sans-serif; }
+  header { background: #0D5C4B; color: #fff; padding: 28px 16px 22px; }
+  header .wrap { display: flex; align-items: center; gap: 16px; }
+  header .ar { font-family: "Traditional Arabic", "Scheherazade New", serif; font-size: 40px; line-height: 1; }
+  header h1 { margin: 0; font-size: 22px; }
+  header p { margin: 4px 0 0; opacity: .85; font-size: 14px; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 16px; }
+  main.wrap { padding-top: 20px; padding-bottom: 60px; }
+  nav.toc { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; }
+  nav.toc strong { display: block; margin-bottom: 6px; }
+  nav.toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 28px; }
+  nav.toc a { color: var(--green); text-decoration: none; }
+  @media (max-width: 640px) { nav.toc ol { columns: 1; } }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 6px 22px 18px; margin-top: 18px; }
+  h2 { color: var(--green); font-size: 21px; margin: 18px 0 8px; scroll-margin-top: 12px; }
+  h3 { font-size: 17px; margin: 18px 0 6px; }
+  a { color: var(--green); }
+  .tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 99px; background: var(--green-soft); color: var(--green); vertical-align: middle; }
+  .tip { background: var(--gold-soft); border-left: 4px solid var(--gold); padding: 10px 14px; border-radius: 8px; margin: 12px 0; }
+  .note { background: var(--green-soft); padding: 10px 14px; border-radius: 8px; margin: 12px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 15px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; }
+  .scroll { overflow-x: auto; }
+  code, kbd { font-family: Consolas, "Courier New", monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: 14px; }
+  ol.steps > li { margin: 6px 0; }
+  .ar-inline { font-family: "Traditional Arabic", "Scheherazade New", serif; font-size: 1.15em; }
+  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 20px 16px 40px; }
+  @media print { header { background: none; color: #000; } section, nav.toc { break-inside: avoid; border: none; } }
+  pre { background: var(--card, #f5f6f2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-x: auto; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="ar">الميسّر</div>
+    <div>
+      <h1>Guide d’Almoyassir</h1>
+      <p>Utilisation, groupes, invitations et administration</p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="toc" aria-label="Sommaire">
+    <strong>Sommaire</strong>
+    <ol>
+      <li><a href="#liens">Liens et versions de l’application</a></li>
+      <li><a href="#presentation">Présentation</a></li>
+      <li><a href="#membre">Pour les membres</a></li>
+      <li><a href="#admin-groupe">Pour les admins de groupe</a></li>
+      <li><a href="#admin-general">Pour l’administrateur général</a></li>
+      <li><a href="#invitations">Invitations et codes, en détail</a> — <a href="#import">importer une liste</a></li>
+      <li><a href="#mot-de-passe">Mot de passe oublié</a></li>
+      <li><a href="#faq">Questions fréquentes</a></li>
+    </ol>
+  </nav>
+
+  <section>
+    <h2 id="liens">1. Liens et versions de l’application</h2>
+    <p>Almoyassir existe sous trois formes. <strong>Le compte est le même partout</strong> : on se connecte avec la même adresse e-mail et on retrouve sa progression.</p>
+    <div class="scroll"><table>
+      <tr><th>Version</th><th>Pour qui, sur quel appareil</th><th>Adresse</th><th>Particularités</th></tr>
+      <tr><td><strong>App mobile</strong></td><td>Tous, sur téléphone ou tablette <strong>Android</strong></td><td><a href="/api/download/android" id="url-apk">/api/download/android</a> (lien aussi dans l’e-mail d’invitation)</td><td>L’expérience complète, avec l’<strong>écoute hors ligne</strong> (sourates téléchargées).</td></tr>
+      <tr><td><strong>Version web</strong></td><td>Tous, sur <strong>iPhone, iPad</strong> ou <strong>ordinateur</strong></td><td><a href="/app/" id="url-app">/app/</a></td><td>La même application dans le navigateur, rien à installer. Sur iPhone : Safari → Partager → « Sur l’écran d’accueil ». Pas d’écoute hors ligne ; connexion par e-mail et mot de passe.</td></tr>
+      <tr><td><strong>Admin web</strong></td><td>Admins uniquement, sur <strong>ordinateur</strong></td><td><a href="/" id="url-admin">/</a></td><td>L’espace de gestion : utilisateurs, groupes, invitations, statistiques, export CSV.</td></tr>
+    </table></div>
+    <p class="note">Adresse complète du service : <strong id="url-base">https://quran.bestconsultingit.com</strong>. Ce guide : <a href="/guide/">/guide/</a>.</p>
+  </section>
+
+  <section>
+    <h2 id="presentation">2. Présentation</h2>
+    <p>Almoyassir (<span class="ar-inline">الميسّر</span>) aide à <strong>lire</strong>, <strong>mémoriser</strong> et <strong>réviser</strong> le Coran, dans la riwaya de Qalun (mushaf libyen, 6214 ayat).</p>
+    <ul>
+      <li><strong>Qira’a</strong> (<span class="ar-inline">قراءة</span>) : les 604 pages du mushaf. Boutons A− / A+ pour agrandir le texte ; la page défile alors jusqu’à sa fin.</li>
+      <li><strong>Tahfidh</strong> (<span class="ar-inline">تحفيظ</span>) : ayah par ayah, pour écouter, répéter (×3, ×5, ×10…) et mémoriser.</li>
+      <li><strong>Révision</strong> (<span class="ar-inline">المراجعة</span>) : ce que vous avez appris revient au bon moment pour ne pas l’oublier.</li>
+      <li><strong>Prière</strong> : horaires de prière selon votre position, adhkâr et du‘â’.</li>
+    </ul>
+    <h3>Les 4 niveaux d’un ayah</h3>
+    <div class="scroll"><table>
+      <tr><th>Niveau</th><th>Signification</th></tr>
+      <tr><td>Non appris</td><td>Pas encore travaillé.</td></tr>
+      <tr><td>En cours</td><td>En cours de mémorisation.</td></tr>
+      <tr><td>Acquis</td><td>Su par cœur. Il reviendra en révision.</td></tr>
+      <tr><td>À revoir</td><td>Su, mais à retravailler (marqué par vous, ou révision en retard).</td></tr>
+    </table></div>
+    <p>En Qira’a, <strong>un toucher sur un ayah</strong> le fait passer au niveau suivant ; un <strong>appui long</strong> ouvre sa fiche (écoute, tafsir, niveau).</p>
+  </section>
+
+  <section>
+    <h2 id="membre">3. Pour les membres</h2>
+    <h3>Créer son compte</h3>
+    <ol class="steps">
+      <li>Installez l’app (Android) ou ouvrez la version web (iPhone, ordinateur) — voir <a href="#liens">§ 1</a>.</li>
+      <li>Accueil → « Créer un compte ou se connecter » → <strong>« Créer un compte avec un code »</strong>.</li>
+      <li>Saisissez votre code :
+        <ul>
+          <li><strong>code d’invitation</strong> (8 caractères, ex. <code>K7XQ-M2PA</code>) reçu par e-mail : votre adresse et votre groupe s’affichent tout seuls ;</li>
+          <li>ou <strong>code du groupe</strong> (6 caractères) donné par votre responsable : indiquez alors votre adresse e-mail.</li>
+        </ul>
+      </li>
+      <li>Choisissez le nom affiché et un mot de passe (8 caractères au moins).</li>
+    </ol>
+    <p>Déjà inscrit et invité dans un autre groupe ? Compte → <strong>« Rejoindre un groupe avec un code »</strong>.</p>
+    <h3>Au quotidien</h3>
+    <ul>
+      <li>L’accueil propose de <strong>reprendre</strong> là où vous vous êtes arrêté, avec une suggestion (réviser, continuer la mémorisation).</li>
+      <li>Onglet <strong>Réviser</strong> : passages à réviser aujourd’hui ; récitez de mémoire puis touchez « J’ai révisé ». Rythme : 3 jours après l’avoir appris, puis tous les 7 jours.</li>
+      <li>Votre progression est enregistrée dans votre compte (sur tous vos appareils) et visible par les admins de votre groupe.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 id="admin-groupe">4. Pour les admins de groupe <span class="tag">admin du groupe</span></h2>
+    <p>L’admin d’un groupe suit la progression de <strong>son</strong> groupe et y fait entrer des membres. Il n’a pas accès aux autres groupes ni à l’administration générale.</p>
+    <h3>Où gérer son groupe</h3>
+    <ul>
+      <li><strong>Dans l’app</strong> : onglet <strong>« Suivi »</strong> → « Mes groupes » → votre groupe.</li>
+      <li><strong>Sur ordinateur</strong> : l’<a href="/">admin web</a>, rubrique « Mes groupes » (mêmes outils, grand écran, export CSV).</li>
+    </ul>
+    <h3>Le tableau de bord du groupe</h3>
+    <ul>
+      <li>Nombre de membres et d’admins, ayat appris au total, moyenne par membre, <strong>membres inactifs</strong> (7 jours et plus).</li>
+      <li>Liste des membres triable (nom, ayat appris, dernière activité), filtre « Inactifs seulement ».</li>
+      <li>Touchez un membre pour voir le détail de sa progression, sourate par sourate.</li>
+      <li><strong>Exporter en CSV</strong> (admin web) pour un tableur.</li>
+    </ul>
+    <h3>Faire entrer quelqu’un</h3>
+    <ol class="steps">
+      <li><strong>Avec le code du groupe</strong> (le plus simple pour une classe) : copiez le code (6 caractères) et donnez-le. La personne choisit « Créer un compte avec un code ».
+        <ul>
+          <li>« Autoriser l’adhésion avec ce code » : décochez pour fermer temporairement le groupe.</li>
+          <li>« Nouveau code » : l’ancien ne marche plus (les membres actuels restent).</li>
+        </ul>
+      </li>
+      <li><strong>Par e-mail</strong> : « Ajouter une personne » + son adresse (cochez « Admin du groupe » si besoin).
+        <ul>
+          <li>Si la personne a déjà un compte : elle est ajoutée tout de suite.</li>
+          <li>Sinon : une <strong>invitation</strong> est créée avec un code personnel ; l’e-mail est envoyé automatiquement si l’envoi est configuré, sinon copiez le message proposé et envoyez-le (e-mail, WhatsApp…).</li>
+        </ul>
+      </li>
+      <li><strong>Par une liste</strong> (admin web, sur ordinateur) : dans le groupe, « Importer une liste » avec un fichier TXT ou CSV <code>Nom complet ; E-mail</code> — voir <a href="#import">l’import</a>.</li>
+    </ol>
+    <h3>Rôles, départs, invitations</h3>
+    <ul>
+      <li>Changer le rôle d’un membre : <strong>Membre</strong> ↔ <strong>Admin du groupe</strong>. Le groupe garde toujours au moins un admin.</li>
+      <li>Retirer un membre du groupe (son compte et sa progression sont conservés).</li>
+      <li>« Invitations en attente » : voir et <strong>révoquer</strong> une invitation non utilisée.</li>
+      <li>Renommer le groupe.</li>
+    </ul>
+    <p class="tip">Conseil : une fois par semaine, filtrez les <strong>inactifs</strong> et prenez de leurs nouvelles. Un mot d’encouragement fait souvent repartir.</p>
+  </section>
+
+  <section>
+    <h2 id="admin-general">5. Pour l’administrateur général <span class="tag">admin général</span></h2>
+    <p>L’admin général gère tout le service. Il utilise surtout l’<a href="/">admin web</a> sur ordinateur ; l’app propose aussi un onglet « Suivi et administration » (Aperçu, Utilisateurs, Invitations, Groupes).</p>
+    <h3>Aperçu</h3>
+    <p>Activité des 30 derniers jours, progression moyenne, les plus avancés, les personnes sans activité depuis 7 jours, invitations en attente.</p>
+    <h3>Utilisateurs</h3>
+    <ul>
+      <li>Rechercher par nom ou e-mail ; exporter en CSV.</li>
+      <li><strong>Rôle global</strong> : Utilisateur ou Admin général (le dernier admin ne peut pas être rétrogradé).</li>
+      <li><strong>Désactiver</strong> un compte (bloqué immédiatement, réversible) ou le <strong>supprimer</strong> définitivement avec sa progression.</li>
+      <li><strong>Mot de passe</strong> : générer un code de réinitialisation (voir <a href="#mot-de-passe">§ 7</a>).</li>
+      <li><strong>Groupes</strong> de la personne : l’ajouter à un groupe, changer son rôle dans chaque groupe.</li>
+    </ul>
+    <h3>Groupes</h3>
+    <ul>
+      <li>Créer un groupe (un code de groupe est créé automatiquement), le renommer.</li>
+      <li>Ouvrir un groupe : mêmes outils que l’admin du groupe (<a href="#admin-groupe">§ 4</a>) — membres, code, invitations, rôles, CSV.</li>
+      <li>Désigner les <strong>admins de groupe</strong> : ce sont eux qui suivent leurs membres au quotidien.</li>
+    </ul>
+    <h3>Invitations</h3>
+    <ol class="steps">
+      <li>Invitations → saisir l’<strong>e-mail</strong>.</li>
+      <li>Choisir le <strong>rôle</strong> : Utilisateur, ou Admin général.</li>
+      <li>Choisir un <strong>groupe</strong> (facultatif) et cocher <strong>« Admin du groupe »</strong> pour nommer un responsable.</li>
+      <li>« Créer l’invitation » : l’e-mail adapté au rôle part automatiquement si l’envoi est configuré ; sinon « Copier le message » ou « Ouvrir dans ma messagerie ».</li>
+    </ol>
+    <p>Suivi des invitations : en attente, acceptées, révoquées, expirées ; « ✉ envoyé » quand l’e-mail est parti ; révoquer une invitation en attente.</p>
+    <h3>Import (plusieurs groupes d’un coup)</h3>
+    <p>Menu <strong>Import</strong> : un fichier <code>Groupe ; Nom complet ; E-mail ; Rôle</code>. Les groupes absents sont créés, les admins de groupe nommés, les comptes existants ajoutés, les autres invités. Détails : <a href="#import">import d’une liste</a>.</p>
+    <div class="scroll"><table>
+      <tr><th>Profil invité</th><th>Ce qu’il reçoit</th></tr>
+      <tr><td>Utilisateur (membre)</td><td>Liens, code, étapes pour créer son compte et commencer.</td></tr>
+      <tr><td>Admin de groupe</td><td>Idem + comment gérer son groupe (suivi, code, invitations, rôles) et le lien vers l’admin web.</td></tr>
+      <tr><td>Admin général</td><td>Idem + la présentation de l’administration (aperçu, utilisateurs, groupes, invitations).</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2 id="invitations">6. Invitations et codes, en détail</h2>
+    <div class="scroll"><table>
+      <tr><th></th><th>Code d’invitation</th><th>Code du groupe</th></tr>
+      <tr><td>Format</td><td>8 caractères, ex. <code>K7XQ-M2PA</code></td><td>6 caractères, ex. <code>KZ9MB3</code></td></tr>
+      <tr><td>Pour qui</td><td>Une personne précise (son adresse e-mail)</td><td>Toute personne à qui on le donne</td></tr>
+      <tr><td>Rôle donné</td><td>Celui choisi à l’invitation (membre, admin du groupe, admin général)</td><td>Toujours membre</td></tr>
+      <tr><td>Durée</td><td>Expire (14 jours par défaut) ; une seule utilisation</td><td>Valable jusqu’à son remplacement ; adhésion activable/désactivable</td></tr>
+      <tr><td>À l’inscription</td><td>E-mail et groupe pré-remplis</td><td>Groupe pré-rempli ; la personne saisit son e-mail</td></tr>
+    </table></div>
+    <ul>
+      <li>Une nouvelle invitation pour la même adresse et le même groupe <strong>remplace</strong> la précédente.</li>
+      <li>Le code d’invitation n’est affiché qu’une fois à sa création : copiez le message à ce moment-là (ou laissez l’envoi automatique s’en charger).</li>
+      <li>Le lien <code>/invite/CODE</code> de l’e-mail ouvre une page rappelant le code et les étapes.</li>
+    </ul>
+
+    <h3 id="import">Importer une liste d’utilisateurs</h3>
+    <p>Pour inscrire beaucoup de personnes à la fois, depuis l’<a href="/">admin web</a> (sur ordinateur). Un simple fichier texte (.txt) ou CSV (Excel : « Enregistrer sous → CSV »), <strong>une personne par ligne</strong>. Séparateur : point-virgule, tabulation ou virgule. Une ligne d’en-tête est acceptée ; les lignes vides ou commençant par <code>#</code> sont ignorées.</p>
+    <div class="scroll"><table>
+      <tr><th></th><th>Import dans un groupe</th><th>Import général</th></tr>
+      <tr><td>Qui</td><td>Admin du groupe ou admin général</td><td>Admin général</td></tr>
+      <tr><td>Où</td><td>Groupes → le groupe → « Importer une liste »</td><td>Menu « Import »</td></tr>
+      <tr><td>Format</td><td><code>Nom complet ; E-mail</code></td><td><code>Groupe ; Nom complet ; E-mail ; Rôle</code></td></tr>
+      <tr><td>Rôle</td><td>Toujours membre</td><td><code>membre</code> (par défaut) ou <code>admin</code> (admin du groupe)</td></tr>
+      <tr><td>Groupes absents</td><td>—</td><td>Créés automatiquement (avec leur code de groupe)</td></tr>
+    </table></div>
+    <p>Exemple (import général) :</p>
+    <pre>Groupe;Nom complet;E-mail;Rôle
+Halaqa Al Fajr;Ahmed Ben Ali;ahmed.benali@exemple.tn;admin
+Halaqa Al Fajr;Sara Trabelsi;sara.trabelsi@exemple.tn;membre
+Halaqa Nour;Youssef Gharbi;youssef.gharbi@exemple.tn;</pre>
+    <ol class="steps">
+      <li>Choisissez le fichier (ou collez la liste), puis <strong>1. Vérifier</strong> : une simulation affiche ce qui va se passer pour chaque ligne, <strong>sans rien modifier</strong>. Corrigez les lignes en erreur si besoin.</li>
+      <li><strong>2. Importer</strong> : pour chaque ligne,
+        <ul>
+          <li>la personne a déjà un compte → elle est <strong>ajoutée au groupe</strong> (ou nommée admin du groupe) ;</li>
+          <li>sinon → elle est <strong>invitée</strong> : code personnel, son nom est pré-rempli à l’inscription, et l’e-mail d’invitation part automatiquement si l’envoi est configuré ;</li>
+          <li>déjà membre ou déjà invitée → rien n’est fait (relancer le même fichier ne crée pas de doublon).</li>
+        </ul>
+      </li>
+      <li><strong>Télécharger le résultat (CSV)</strong> : la liste avec les codes et liens d’invitation, utile si l’envoi automatique n’est pas configuré (à transmettre par WhatsApp, e-mail…). Les codes ne sont plus affichés ensuite.</li>
+    </ol>
+    <p class="tip">Une même personne peut apparaître dans plusieurs groupes : elle ne reçoit qu’un e-mail, et rejoint tous ses groupes en créant son compte. Limite : 1 000 lignes par fichier.</p>
+  </section>
+
+  <section>
+    <h2 id="mot-de-passe">7. Mot de passe oublié</h2>
+    <ol class="steps">
+      <li>La personne prévient un admin.</li>
+      <li>L’admin (admin web → Utilisateurs → la personne → Mot de passe) génère un <strong>code de réinitialisation</strong> et copie le message.</li>
+      <li>Dans l’app : écran de connexion → <strong>« Mot de passe oublié ? »</strong> → saisir le code et un nouveau mot de passe.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2 id="faq">8. Questions fréquentes</h2>
+    <h3>« Appli non installée » sur Android</h3>
+    <p>Installez le fichier <strong>arm64</strong> (téléphones actuels). Si une ancienne version est présente dans un autre profil (dossier sécurisé, double appli), désinstallez-la d’abord.</p>
+    <h3>Le code est refusé</h3>
+    <p>Vérifiez qu’il n’a pas expiré ni été déjà utilisé, et que l’adresse saisie est bien celle de l’invitation. Sinon, demandez une nouvelle invitation.</p>
+    <h3>Je ne vois pas l’onglet « Suivi »</h3>
+    <p>Il n’apparaît que pour les admins (de groupe ou général). Demandez à l’admin général de vous nommer admin de votre groupe.</p>
+    <h3>Ma progression sur iPhone et sur Android</h3>
+    <p>Connectez-vous avec le même compte : la progression est synchronisée.</p>
+    <h3>Les horaires de prière ne correspondent pas à ma ville</h3>
+    <p>Prière → Réglages → « Me localiser », ou cherchez votre ville. Autorisez la localisation si le téléphone le demande.</p>
+  </section>
+</main>
+<footer>Almoyassir (الميسّر) · Guide — à jour pour la version 0.17</footer>
+<script>
+  // Adresses complètes selon le serveur qui sert ce guide.
+  (function () {
+    var base = location.origin;
+    var el = document.getElementById('url-base'); if (el) el.textContent = base;
+    var a = document.getElementById('url-app'); if (a) a.textContent = base + '/app/';
+    var b = document.getElementById('url-admin'); if (b) b.textContent = base + '/';
+    var k = document.getElementById('url-apk'); if (k) k.textContent = base + '/api/download/android';
+  })();
+</script>
+</body>
+</html>

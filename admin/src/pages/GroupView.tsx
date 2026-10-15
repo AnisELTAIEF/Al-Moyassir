@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { Bar, ProgressPanel, TOTAL, useAsync, useFlash } from '../components';
+import { Bar, ImportPanel, InvitationResult, ProgressPanel, TOTAL, useAsync, useFlash } from '../components';
 import { daysSince, downloadCsv, fmtDate, fmtPct, inactiveMembers, membersCsv, sinceLabel } from '../lib';
 import type { Api, CreatedInvitation, UserStats } from '../types';
 
@@ -21,7 +21,6 @@ export default function GroupView({ api, group, isGlobalAdmin, meId, onBack }: {
   const [email, setEmail] = useState('');
   const [asAdmin, setAsAdmin] = useState(false);
   const [created, setCreated] = useState<CreatedInvitation | null>(null);
-  const [copied, setCopied] = useState(false);
   const [msg, setMsg] = useFlash();
 
   const list = members ?? [];
@@ -53,7 +52,7 @@ export default function GroupView({ api, group, isGlobalAdmin, meId, onBack }: {
     try {
       const r = await api.addMemberByEmail(group.id, email.trim(), asAdmin ? 'admin' : 'member');
       if ('added' in r) setMsg(`${r.email} a été ajouté(e) au groupe.`);
-      else { setCreated(r); setCopied(false); }
+      else { setCreated(r); }
       setEmail('');
       reload();
       pending.reload();
@@ -114,15 +113,22 @@ export default function GroupView({ api, group, isGlobalAdmin, meId, onBack }: {
           <button className="btn">Ajouter</button>
           <p className="muted small span-all">Compte existant : ajout immédiat. Sinon, un code d’invitation est créé pour ce groupe.</p>
         </form>
-        {created && (
-          <div className="card created" role="status">
-            <div>
-              <p>Invitation créée pour <strong>{created.email}</strong>. Le code ne sera plus affiché ensuite :</p>
-              <div className="code">{created.code}</div>
-            </div>
-            <button className="btn" onClick={() => { navigator.clipboard?.writeText(created.message); setCopied(true); }}>{copied ? 'Message copié' : 'Copier le message à envoyer'}</button>
-          </div>
-        )}
+        {created && <InvitationResult key={created.code} created={created} />}
+        <details className="import-details">
+          <summary>Importer une liste (fichier TXT ou CSV)</summary>
+          <ImportPanel
+            run={(text, dryRun) => api.importToGroup(group.id, text, dryRun)}
+            onDone={() => { reload(); pending.reload(); }}
+            example={'Nom complet;E-mail\nAhmed Ben Ali;ahmed.benali@exemple.tn\nSara Trabelsi;sara.trabelsi@exemple.tn\n'}
+            templateName="modele-import-groupe"
+            format={<>
+              <p><strong>Format :</strong> une personne par ligne : <code>Nom complet ; E-mail</code> (point-virgule, tabulation ou virgule).
+                Elles sont ajoutées comme <strong>membres</strong> de « {group.name} ».</p>
+              <p className="muted small">Comptes existants : ajoutés au groupe tout de suite. Autres : invités (e-mail automatique si l’envoi est configuré).
+                Cliquez d’abord sur <strong>Vérifier</strong> : rien n’est modifié avant <strong>Importer</strong>.</p>
+            </>}
+          />
+        </details>
         {msg && <p className="note" role="status">{msg}</p>}
 
         <div className="toolbar">

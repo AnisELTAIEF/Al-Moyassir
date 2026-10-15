@@ -7,16 +7,22 @@ import 'common.dart';
 import '../core/i18n.dart';
 
 /// Affiche le code d'une invitation (visible une seule fois) avec partage et copie.
-Future<void> showInvitationSheet(BuildContext context, {required String email, required String code, required String message}) {
+Future<void> showInvitationSheet(BuildContext context,
+    {required String email, required String code, required String message, String? subject, bool emailed = false}) {
   return showModalBottomSheet(
     context: context,
     builder: (c) => SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text(tr('Invitation créée pour {email}', {'email': email}), style: c.text.titleMedium),
+          Text(emailed ? tr('E-mail d’invitation envoyé à {email}', {'email': email}) : tr('Invitation créée pour {email}', {'email': email}),
+              style: c.text.titleMedium),
           const SizedBox(height: 4),
-          Text(tr('Envoyez-lui ce code. Il ne sera plus affiché ensuite.'), style: TextStyle(color: c.tones.muted)),
+          Text(
+              emailed
+                  ? tr('Le message détaillé (liens, étapes, guide) est parti. Vous pouvez aussi le partager vous-même.')
+                  : tr('Envoyez-lui ce message : il contient le code, les liens et les étapes. Le code ne sera plus affiché ensuite.'),
+              style: TextStyle(color: c.tones.muted)),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(vertical: 18),
@@ -27,7 +33,7 @@ Future<void> showInvitationSheet(BuildContext context, {required String email, r
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: () => SharePlus.instance.share(ShareParams(text: message, subject: tr('Invitation Almoyassir (الميسّر)'))),
+            onPressed: () => SharePlus.instance.share(ShareParams(text: message, subject: subject ?? tr('Invitation Almoyassir (الميسّر)'))),
             icon: const Icon(Icons.share),
             label: Text(tr('Partager (WhatsApp, e-mail…)')),
           ),
