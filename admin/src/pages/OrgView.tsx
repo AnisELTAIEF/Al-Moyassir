@@ -169,6 +169,7 @@ function StudentFiche({ api, org, student: s, classes, canEdit, isGlobalAdmin, o
   const [typed, setTyped] = useState('');
   const [link, setLink] = useState<{ code: string; expiresAt: string } | null>(null);
   const run = (fn: () => Promise<unknown>, ok?: string) => fn().then(() => { if (ok) setMsg(ok); onChange(); }, (e: Error) => setMsg(e.message));
+  const summary = useAsync(() => api.studentSummary(org.id, s.id), [org.id, s.id]);
   const retainOver = s.status === 'left' && !!s.retainUntil && s.retainUntil <= today();
 
   async function save(e: FormEvent) {
@@ -202,6 +203,23 @@ function StudentFiche({ api, org, student: s, classes, canEdit, isGlobalAdmin, o
           <li><span>Adhésion</span><span>{fmtDay(s.joinedAt)}</span></li>
           <li><span>Début du hifdh</span><span>{fmtDay(s.hifdhStartedAt)}</span></li>
         </ul>
+      )}
+
+      <h3>Mémorisation validée</h3>
+      {summary.error && <p className="error">{summary.error}</p>}
+      {summary.data && (
+        <>
+          <ul className="list plain">
+            <li><span>Ahzab entiers</span><span><strong>{summary.data.stats.ahzab.complete}</strong> · suite continue max <strong>{summary.data.stats.ahzab.longestRun}</strong></span></li>
+            <li><span>Sourates entières</span><span><strong>{summary.data.stats.surahs.complete}</strong> · suite continue max <strong>{summary.data.stats.surahs.longestRun}</strong></span></li>
+            <li><span>Ayat comptés</span><span><strong>{summary.data.stats.ayat}</strong> / 6214</span></li>
+          </ul>
+          <p className="muted small">Seules les validations de l’enseignant comptent (حفظ إجمالي / مسترسل). {summary.data.validatedAyat === 0 ? 'Aucune validation pour l’instant.' : ''}</p>
+          {summary.data.retakePages.length > 0 && (
+            <p><span className="chip wait">Pages à reprendre</span> {summary.data.retakePages.join(', ')}
+              <span className="muted small"> (seuil : {summary.data.threshold} ayat avec erreur par page)</span></p>
+          )}
+        </>
       )}
 
       <h3>Téléphone</h3>

@@ -31,9 +31,20 @@ export function buildReference(ayahCounts, hizbStarts, pageStarts = []) {
     return offset[surah] + ayah - 1;
   };
   const startsToRanges = (list) => ranges(list.map((r) => indexOf(r.surah, r.ayah)), total);
+  /** Inverse de indexOf : indice global → [sourate, ayah]. */
+  const refAt = (index) => {
+    if (!Number.isInteger(index) || index < 0 || index >= total) throw new RangeError(`Indice hors du Coran : ${index}`);
+    let lo = 1, hi = 114;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (offset[mid] <= index) lo = mid; else hi = mid - 1;
+    }
+    return [lo, index - offset[lo] + 1];
+  };
   return {
     total,
     indexOf,
+    refAt,
     surahRanges: ranges(Array.from({ length: 114 }, (_, i) => offset[i + 1]), total),
     hizbRanges: startsToRanges(hizbStarts),
     pageRanges: startsToRanges(pageStarts),
@@ -82,4 +93,50 @@ export function memorizationStats(ref, flags) {
     surahs: unitStats(ref.surahRanges, prefix),
     ahzab: unitStats(ref.hizbRanges, prefix),
   };
+}
+
+// ───────────────────────── Validation par l'enseignant (lot C) ─────────────────────────
+//
+// Chaque ayah porte, au plus, un résultat posé par l'enseignant :
+//   1 = acquis · 2 = acquis avec erreur · 3 = à revoir · 0 = rien.
+// Règle de page (D4) : à partir de `threshold` ayat « acquis avec erreur » sur la MÊME page, toute la page est
+// « à reprendre » ; aucun de ses ayat n'est alors compté comme acquis (il faut la refaire entièrement).
+
+export const RESULT_CODE = { acquired: 1, acquired_error: 2, review: 3 };
+export const CODE_RESULT = [null, 'acquired', 'acquired_error', 'review'];
+
+/** Pages (1..604) « à reprendre » : au moins `threshold` ayat acquis avec erreur sur la page. */
+export function retakePages(ref, codes, threshold) {
+  const out = [];
+  ref.pageRanges.forEach(({ from, to }, i) => {
+    let errors = 0;
+    for (let k = from; k < to; k++) if (codes[k] === 2) errors++;
+    if (errors >= threshold) out.push(i + 1);
+  });
+  return out;
+}
+
+/** 'retake' (à reprendre) · 'complete' (tous acquis) · 'partial' (validation en cours, ou ayat à revoir) · 'none'. */
+export function pageStatus(ref, codes, page, threshold) {
+  const { from, to } = ref.pageRanges[page - 1];
+  let errors = 0, acquired = 0, any = 0;
+  for (let k = from; k < to; k++) {
+    if (codes[k] === 2) errors++;
+    if (codes[k] === 1 || codes[k] === 2) acquired++;
+    if (codes[k] !== 0) any++;
+  }
+  if (errors >= threshold) return 'retake';
+  if (acquired === to - from) return 'complete';
+  return any ? 'partial' : 'none';
+}
+
+/** Ayat comptés comme acquis dans les rapports : acquis ou acquis avec erreur, hors pages à reprendre. */
+export function acquiredFlags(ref, codes, threshold) {
+  const flags = new Uint8Array(ref.total);
+  const retake = new Set(retakePages(ref, codes, threshold));
+  ref.pageRanges.forEach(({ from, to }, i) => {
+    if (retake.has(i + 1)) return;
+    for (let k = from; k < to; k++) if (codes[k] === 1 || codes[k] === 2) flags[k] = 1;
+  });
+  return flags;
 }

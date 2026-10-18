@@ -19,12 +19,13 @@ Path khatamPath(Rect r) {
 }
 
 class _KhatamPainter extends CustomPainter {
-  _KhatamPainter({required this.fill, required this.stroke, required this.strokeWidth, this.doubleLine = false, this.dot});
+  _KhatamPainter({required this.fill, required this.stroke, required this.strokeWidth, this.doubleLine = false, this.dot, this.ring});
   final Color? fill;
   final Color stroke;
   final double strokeWidth;
   final bool doubleLine;
   final Color? dot;
+  final Color? ring;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -43,6 +44,13 @@ class _KhatamPainter extends CustomPainter {
         ..strokeWidth = strokeWidth * 0.8
         ..strokeJoin = StrokeJoin.round);
     }
+    if (ring != null) {
+      // Anneau autour de l'étoile : marque personnelle de l'élève (visible sur n'importe quel fond).
+      canvas.drawCircle(size.center(Offset.zero), size.shortestSide / 2 - strokeWidth, Paint()
+        ..color = ring!
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth * 1.8);
+    }
     if (dot != null) {
       // Pastille sur la branche haute de l'étoile.
       final r = size.shortestSide * 0.13;
@@ -54,12 +62,12 @@ class _KhatamPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_KhatamPainter o) =>
-      o.fill != fill || o.stroke != stroke || o.strokeWidth != strokeWidth || o.doubleLine != doubleLine || o.dot != dot;
+      o.fill != fill || o.stroke != stroke || o.strokeWidth != strokeWidth || o.doubleLine != doubleLine || o.dot != dot || o.ring != ring;
 }
 
 /// Pastille numérotée en forme d'étoile (numéro de sourate ou fin d'ayah).
 class KhatamBadge extends StatelessWidget {
-  const KhatamBadge({super.key, required this.label, this.size = 40, this.fill, this.stroke, this.textColor, this.semanticLabel, this.doubleLine = false, this.dot});
+  const KhatamBadge({super.key, required this.label, this.size = 40, this.fill, this.stroke, this.textColor, this.semanticLabel, this.doubleLine = false, this.dot, this.ring});
   final String label;
 
   /// Double filet (niveau « en cours »).
@@ -67,6 +75,9 @@ class KhatamBadge extends StatelessWidget {
 
   /// Pastille en haut de l'étoile (niveau « à revoir »).
   final Color? dot;
+
+  /// Anneau autour de l'étoile (marque personnelle « à réviser » de l'élève, en mode validation).
+  final Color? ring;
   final double size;
   final Color? fill;
   final Color? stroke;
@@ -82,7 +93,7 @@ class KhatamBadge extends StatelessWidget {
       child: SizedBox.square(
         dimension: size,
         child: CustomPaint(
-          painter: _KhatamPainter(fill: fill, stroke: stroke ?? cs.primary, strokeWidth: size / 22, doubleLine: doubleLine, dot: dot),
+          painter: _KhatamPainter(fill: fill, stroke: stroke ?? cs.primary, strokeWidth: size / 22, doubleLine: doubleLine, dot: dot, ring: ring),
           child: Center(
             child: Text(label,
                 textScaler: TextScaler.noScaling,

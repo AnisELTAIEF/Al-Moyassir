@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'core/auth_service.dart';
 import 'core/prayer_service.dart';
 import 'core/settings.dart';
+import 'core/validation_store.dart';
 import 'screens/home_screen.dart';
 import 'screens/review_screen.dart';
 import 'screens/supervision_screen.dart';
@@ -44,7 +45,7 @@ class Shell extends StatefulWidget {
   State<Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<Shell> {
+class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int _index = 0;
 
   void go(int i) => setState(() => _index = i);
@@ -52,11 +53,41 @@ class _ShellState extends State<Shell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    context.read<ValidationStore>().addListener(_onValidations);
     // Rappel in-app (Phase 1) : une prière arrive alors que l'app est ouverte → bandeau.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<PrayerService>().onDue = _announcePrayer;
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    context.read<ValidationStore>().removeListener(_onValidations);
+    super.dispose();
+  }
+
+  /// Première validation reçue : on active, une seule fois, les couleurs de l'enseignant dans le mushaf
+  /// (sauf si l'élève avait déjà choisi lui-même une colorisation), et on le lui dit.
+  void _onValidations() {
+    final v = context.read<ValidationStore>();
+    final s = context.read<Settings>();
+    if (!v.hasAny || s.validationIntroduced) return;
+    s.validationIntroduced = true;
+    if (s.hasColoringChoice(ReadingMode.mushaf)) return;
+    s.setColoringIn(ReadingMode.mushaf, AyahColoring.validation);
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+      duration: const Duration(seconds: 8),
+      content: Text(tr('Votre enseignant a validé une partie de votre mémorisation : ses couleurs sont activées dans le mushaf (modifiable dans la colorisation).')),
+    ));
+  }
+
+  /// Au retour dans l'app : nouvelles validations et notifications de l'enseignant.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) context.read<ValidationStore>().refresh();
   }
 
   void _announcePrayer(Salat s) {

@@ -32,4 +32,20 @@ void main() {
     expect((await _settings({'flutter.language': 'fr'})).language, 'fr');
     expect((await _settings({'flutter.language': 'system'})).language, 'system');
   });
+
+  test('validation de l’enseignant : choix explicite de l’élève détecté, activation unique par compte', () async {
+    final s = await _settings({});
+    expect(s.hasColoringChoice(ReadingMode.mushaf), isFalse, reason: 'rien choisi : la valeur par défaut s’applique');
+    expect(s.validationIntroduced, isFalse);
+
+    s.setColoringIn(ReadingMode.mushaf, AyahColoring.perAyah);
+    expect(s.hasColoringChoice(ReadingMode.mushaf), isTrue, reason: 'son choix ne doit pas être écrasé');
+    expect(s.hasColoringChoice(ReadingMode.ayah), isFalse, reason: 'réglage propre à chaque mode');
+
+    s.validationIntroduced = true;
+    expect(s.validationIntroduced, isTrue);
+    s.owner = 'autre-compte';
+    expect(s.validationIntroduced, isFalse, reason: 'l’information est propre à chaque compte');
+    expect(s.hasColoringChoice(ReadingMode.mushaf), isFalse, reason: 'choix de colorisation propre à chaque compte');
+  });
 }

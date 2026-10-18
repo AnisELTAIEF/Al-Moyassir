@@ -91,6 +91,13 @@ class Settings extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// L'élève a-t-il lui-même choisi une colorisation pour ce mode ? (sinon : celle par défaut)
+  bool hasColoringChoice(ReadingMode m) => _prefs.containsKey('coloring_${_owner}_${m.name}');
+
+  /// Les couleurs de la validation de l'enseignant ont-elles déjà été activées (une seule fois par compte) ?
+  bool get validationIntroduced => _prefs.getBool('validation_intro_$_owner') ?? false;
+  set validationIntroduced(bool v) => _prefs.setBool('validation_intro_$_owner', v);
+
   /// Palette adaptée au daltonisme (bleu / orange / vermillon, d'après Okabe et Ito).
   bool get colorBlind => _prefs.getBool('coloring_cb_$_owner') ?? false;
   set colorBlind(bool v) {
@@ -202,12 +209,17 @@ enum AyahColoring {
   perAyah,
 
   /// Fond selon le niveau de maîtrise (non appris, en cours, à revoir, acquis).
-  mastery;
+  mastery,
+
+  /// Fond selon la validation de l'enseignant (acquis, acquis avec erreur, à revoir) : la référence des rapports.
+  /// Les marques personnelles de l'élève restent visibles sur le médaillon de fin d'ayah.
+  validation;
 
   String get label => switch (this) {
         none => tr('Aucune'),
         perAyah => tr('Par ayah'),
         mastery => tr('Par niveau de maîtrise'),
+        validation => tr('Validation de l’enseignant'),
       };
 }
 

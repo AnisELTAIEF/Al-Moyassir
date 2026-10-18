@@ -241,6 +241,13 @@ CREATE TABLE IF NOT EXISTS notifications (             -- centre de notification
 - Centre de notifications (cloche + pastille, liste, marquer lu). *Alerte app fermée → lot G.*
 - Tests : `ayah_coloring_test.dart` étendu (lisibilité, teintes distinctes entre elles et du papier), tests des deux couches indépendantes.
 
+> **État (18/10/2026)** : lot C livré en **0.20.0** (migration 011, `routes/validations.js`, `ValidationStore`/`ValidationSession`, mode « Validation » du mushaf,
+> écran enseignant, notifications). Tests : serveur 72/72, app 99/99, BO 8/8.
+> Écarts avec le brouillon : (1) le **journal `validations`** sert d'historique des rapports et du rythme ; la table `memorization_events` de l'auto-marquage devient inutile pour les
+> établissements (D2) et reste facultative pour le rythme des comptes isolés ; (2) la **synthèse global/successif** de l'élève (reportée du lot B) est livrée (`GET …/summary`) ;
+> (3) les notifications sont **dans l'app** (centre + cloche) ; l'alerte app fermée reste au lot G.
+> **Hypothèses à confirmer** (voir `EVOLUTIONS-REUNION-1.md` §4, questions 18-20).
+
 **Livrable C** : version **0.20.0**.
 
 ---

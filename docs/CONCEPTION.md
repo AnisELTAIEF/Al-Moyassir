@@ -107,6 +107,8 @@ Analyse complète, état de chaque demande, questions ouvertes et ordre de réal
   (repli « تحفيظ قالون ») ; profil élève sans e-mail obligatoire, rattaché au compte créé par le parent via un code de liaison.
 - **Élèves d'élite et conservation** : récompenses = message d'encouragement + certificat + cadeau (suivi de remise) ; classements jamais visibles
   des élèves ; données d'un élève sorti **conservées 5 ans au moins** (archivage, purge manuelle) avec **sauvegardes longue durée** et copie hors site.
+- **Réalisé (0.20.0)** : la validation de l'enseignant est stockée à part de l'auto-marquage (`validations` = journal, `validation_state` = dernier état par ayah ;
+  `notifications`). Rendu : le **fond** montre la validation de l'enseignant, l'**anneau** du médaillon la marque personnelle de l'élève (jamais exposée à l'équipe).
 - **Journal d'événements de mémorisation** (append-only) : indispensable aux rapports par mois/trimestre/semestre/année,
   au rythme de hifdh et aux classements (l'actuel `memorized_ayahs` ne garde que la dernière date).
 - **Résultats** (`assessments`) : examens/concours, date, note, certificat.

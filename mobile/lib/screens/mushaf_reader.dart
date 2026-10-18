@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../core/audio_controller.dart';
@@ -10,8 +11,10 @@ import '../core/models.dart';
 import '../core/progress_store.dart';
 import '../core/quran_repository.dart';
 import '../core/settings.dart';
+import '../core/validation_store.dart';
 import '../theme.dart';
 import '../widgets/ayah_coloring.dart';
+import '../widgets/common.dart';
 import '../widgets/islamic_frame.dart';
 import '../widgets/khatam.dart';
 import '../widgets/quran_text.dart';
@@ -22,8 +25,12 @@ import 'reader_screen.dart';
 /// Chaque page contient les mêmes ayat que la page imprimée (débuts de page alignés sur le texte
 /// libyen) ; la taille du texte est réduite si nécessaire pour que la page tienne à l'écran.
 class MushafReader extends StatefulWidget {
-  const MushafReader({super.key, required this.surah, required this.ayah, required this.onShown});
+  const MushafReader({super.key, required this.surah, required this.ayah, required this.onShown, this.session});
   final int surah, ayah;
+
+  /// Séance de validation d'un élève par son enseignant : toucher un ayah change SON résultat (jamais une marque
+  /// personnelle), et seules les validations sont affichées. Sans séance : lecture normale.
+  final ValidationSession? session;
 
   /// Premier ayah de la page affichée.
   final void Function(int surah, int ayah) onShown;
@@ -69,6 +76,15 @@ class _MushafReaderState extends State<MushafReader> {
   /// Toucher : niveau de maîtrise suivant (colorisation par maîtrise ou par ayah), sinon feuille de l'ayah ;
   /// appui long : toujours la feuille de l'ayah.
   TapGestureRecognizer _tap(int surah, int ayah) => _taps.putIfAbsent('$surah:$ayah', () {
+        final session = widget.session;
+        if (session != null) {
+          Future<void> cycle() async {
+            HapticFeedback.selectionClick();
+            final err = await session.cycle(surah, ayah);
+            if (err != null && mounted) snack(context, err);
+          }
+          return ayahRecognizer(onTap: cycle, onLongPress: () {});
+        }
         void sheet() => showAyahSheet(context, surah, ayah, _repo.surah(surah).ayahs[ayah - 1]);
         return ayahRecognizer(
           onTap: () => tapCyclesMastery(context.read<Settings>()) ? cycleAyahMastery(context, surah, ayah) : sheet(),
@@ -190,6 +206,11 @@ class _MushafReaderState extends State<MushafReader> {
 
   @override
   Widget build(BuildContext context) {
+    final session = widget.session;
+    return session == null ? _content(context) : ListenableBuilder(listenable: session, builder: (context, _) => _content(context));
+  }
+
+  Widget _content(BuildContext context) {
     final settings = context.watch<Settings>();
     final scaler = MediaQuery.textScalerOf(context);
     return LayoutBuilder(builder: (context, c) {
@@ -235,7 +256,10 @@ class _MushafReaderState extends State<MushafReader> {
     if (scroll && playingHere) _ensurePlayingVisible('${audio.surah}:${audio.currentAyah}');
     final (s0, a0) = _repo.mushafPages[page - 1];
     final hizb = _repo.divisions.hizbOf(s0, a0);
-    final painter = AyahPainter(context, settings: settings, store: store);
+    final session = widget.session;
+    final ValidationView validations = session ?? context.watch<ValidationStore>();
+    final painter = AyahPainter(context, settings: settings, store: store, validations: validations, teacherView: session != null);
+    final retake = painter.validationMode && validations.isRetake(page);
 
     return Padding(
       padding: _outer,
@@ -249,6 +273,7 @@ class _MushafReaderState extends State<MushafReader> {
               // Défile quand le texte est agrandi (zoom, paysage) ou si la page ne tient pas.
               physics: const ClampingScrollPhysics(),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                if (retake) const _RetakeBanner(),
                 for (final (surah, ayahs) in segs) ...[
                   if (ayahs.first == 1) ...[
                     SurahTitleBox(name: surah.name, height: _titleH - 8),
@@ -326,6 +351,30 @@ class _PageNav extends StatelessWidget {
             ),
           ),
         ]),
+      ]),
+    );
+  }
+}
+
+/// Bandeau en tête d'une page « à reprendre » : trop d'ayat y sont acquis avec erreur (seuil de l'association).
+class _RetakeBanner extends StatelessWidget {
+  const _RetakeBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final red = context.tones.red;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: red.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: red),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.replay, size: 18, color: red),
+        const SizedBox(width: 8),
+        Flexible(child: Text(tr('Page à reprendre'), style: TextStyle(color: red, fontWeight: FontWeight.w600))),
       ]),
     );
   }

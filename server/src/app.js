@@ -7,6 +7,8 @@ import meRoutes from './routes/me.js';
 import groupRoutes from './routes/groups.js';
 import adminRoutes from './routes/admin.js';
 import orgRoutes from './routes/orgs.js';
+import validationRoutes, { myValidationRoutes } from './routes/validations.js';
+import { loadReference } from './reports.js';
 import inviteRoutes from './routes/invite.js';
 import geocodeRoutes from './routes/geocode.js';
 import downloadRoutes from './routes/download.js';
@@ -38,6 +40,8 @@ export async function buildApp(cfg, deps) {
   app.decorate('tokens', tokens);
   app.decorate('verifyGoogle', deps.verifyGoogle ?? googleVerifier(cfg.googleClientIds));
   app.decorate('ayahCounts', ayahCounts);
+  // Repères du mushaf (pages, ahzab) pour les calculs de validation et de rapports.
+  app.decorate('reference', await loadReference(deps.pool));
 
   await app.register(cors, {
     origin: cfg.corsOrigins.length ? cfg.corsOrigins : false,
@@ -91,6 +95,8 @@ export async function buildApp(cfg, deps) {
   await app.register(groupRoutes, { prefix: '/groups' });
   await app.register(adminRoutes, { prefix: '/admin' });
   await app.register(orgRoutes, { prefix: '/orgs' });
+  await app.register(validationRoutes, { prefix: '/orgs' });
+  await app.register(myValidationRoutes, { prefix: '/me' });
   await app.register(inviteRoutes);
   await app.register(geocodeRoutes);
   await app.register(downloadRoutes);

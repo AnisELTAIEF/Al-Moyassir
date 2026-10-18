@@ -8,11 +8,13 @@ import '../core/prayer_service.dart';
 import '../core/progress_store.dart';
 import '../core/quran_repository.dart';
 import '../core/settings.dart';
+import '../core/validation_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/mosaic.dart';
 import 'account_screen.dart';
 import 'khatma_planner_screen.dart';
+import 'notifications_screen.dart';
 import 'reader_screen.dart';
 import '../core/i18n.dart';
 
@@ -49,6 +51,7 @@ class HomeScreen extends StatelessWidget {
                   onPressed: () => toggleTheme(context),
                   icon: Icon(Theme.of(context).brightness == Brightness.dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
                 ),
+                if (auth.signedIn) ...[const SizedBox(width: 4), const _NotificationsBell()],
                 const SizedBox(width: 4),
                 IconButton.filledTonal(
                   tooltip: tr('Compte et réglages'),
@@ -144,6 +147,22 @@ class _Legend extends StatelessWidget {
       dot(Color.lerp(context.tones.line, context.colors.primary, 0.6)!, tr('En partie')),
       dot(context.tones.gold, tr('Sourate complète')),
     ]);
+  }
+}
+
+/// Cloche des notifications de l'enseignant, avec le nombre de non lues.
+class _NotificationsBell extends StatelessWidget {
+  const _NotificationsBell();
+
+  @override
+  Widget build(BuildContext context) {
+    final unread = context.select<ValidationStore, int>((v) => v.unread);
+    return IconButton(
+      tooltip: tr('Notifications'),
+      iconSize: 26,
+      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+      icon: Badge(isLabelVisible: unread > 0, label: Text('$unread'), child: const Icon(Icons.notifications_outlined)),
+    );
   }
 }
 

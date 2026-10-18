@@ -9,6 +9,7 @@ import '../core/i18n.dart';
 import '../core/models.dart';
 import '../core/progress_store.dart';
 import '../core/settings.dart';
+import '../core/validation_store.dart';
 import '../theme.dart';
 import 'common.dart';
 import 'islamic_frame.dart';
@@ -70,6 +71,21 @@ Color? masteryBackground(Mastery m, {required Color paper, required Brightness b
   return hue == null ? null : tint(paper, hue, brightness);
 }
 
+/// Fond « validation de l'enseignant » (`null` : rien de validé). Mêmes teintes que la maîtrise : vert acquis,
+/// orange acquis avec erreur (vermillon en palette daltonisme), rouge à revoir. Ce mode REMPLACE la colorisation
+/// personnelle (il n'y a jamais deux séries de couleurs superposées) : la marque de l'élève passe sur le médaillon.
+Color? validationBackground(ValResult? r, {required Color paper, required Brightness brightness, required bool colorBlind}) {
+  if (r == null) return null;
+  final m = switch (r) { ValResult.acquired => Mastery.acquired, ValResult.acquiredError => Mastery.learning, ValResult.review => Mastery.review };
+  return masteryBackground(m, paper: paper, brightness: brightness, colorBlind: colorBlind);
+}
+
+String validationLabel(ValResult r) => switch (r) {
+      ValResult.acquired => tr('Acquis'),
+      ValResult.acquiredError => tr('Acquis avec erreur'),
+      ValResult.review => tr('À revoir'),
+    };
+
 /// Surlignage de l'ayah en cours de récitation : prioritaire sur toute colorisation.
 Color playingBackground(BuildContext context) => context.tones.gold.withValues(alpha: 0.30);
 
@@ -82,8 +98,8 @@ String masteryLabel(Mastery m) => switch (m) {
 
 /// Calcule la colorisation de chaque ayah pour un écran (réglages + suivi).
 class AyahPainter {
-  AyahPainter(BuildContext context, {required this.settings, required this.store, Color? paper})
-      : coloring = settings.coloring,
+  AyahPainter(BuildContext context, {required this.settings, required this.store, this.validations, this.teacherView = false, Color? paper})
+      : coloring = teacherView ? AyahColoring.validation : settings.coloring,
         perAyahColors = perAyahColorCount(settings.readingMode),
         brightness = Theme.of(context).brightness,
         paper = paper ?? pagePaper(context),
@@ -92,6 +108,12 @@ class AyahPainter {
 
   final Settings settings;
   final ProgressStore store;
+
+  /// Validations de l'enseignant (élève : les siennes ; enseignant : celles de la séance en cours).
+  final ValidationView? validations;
+
+  /// Vue de l'enseignant : seule la validation est montrée, JAMAIS la progression personnelle (ni la sienne ni celle de l'élève).
+  final bool teacherView;
   final AyahColoring coloring;
   final int perAyahColors;
   final Brightness brightness;
@@ -100,6 +122,10 @@ class AyahPainter {
   final DateTime _now;
 
   bool get mastery => coloring == AyahColoring.mastery;
+  bool get validationMode => coloring == AyahColoring.validation;
+
+  /// Marque personnelle « à réviser » de l'élève (anneau sur le médaillon) : jamais en vue enseignant.
+  bool personalReview(int surah, int ayah) => validationMode && !teacherView && store.storedMasteryOf(surah, ayah) == Mastery.review;
 
   /// Médaillons « par niveau » (forme + couleur) : dès que le toucher change le niveau.
   bool get masteryBadges => tapCyclesMastery(settings);
@@ -115,6 +141,8 @@ class AyahPainter {
         perAyahBackground(ayah, paper: paper, brightness: brightness, colorBlind: settings.colorBlind, colors: perAyahColors),
       AyahColoring.mastery =>
         masteryBackground(masteryOf(surah, ayah), paper: paper, brightness: brightness, colorBlind: settings.colorBlind),
+      AyahColoring.validation =>
+        validationBackground(validations?.of(surah, ayah), paper: paper, brightness: brightness, colorBlind: settings.colorBlind),
     };
   }
 }
@@ -196,6 +224,14 @@ class ColoringLegendButton extends StatelessWidget {
   }
 }
 
+/// Légende de la séance de l'enseignant.
+Future<void> showValidationLegend(BuildContext context) => showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => const SafeArea(
+          child: Padding(padding: EdgeInsets.fromLTRB(20, 0, 20, 20), child: ColoringLegend(coloring: AyahColoring.validation, teacher: true))),
+    );
+
 Future<void> showColoringLegend(BuildContext context) => showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -204,7 +240,13 @@ Future<void> showColoringLegend(BuildContext context) => showModalBottomSheet<vo
 
 /// Légende de la colorisation active.
 class ColoringLegend extends StatelessWidget {
-  const ColoringLegend({super.key, this.mode});
+  const ColoringLegend({super.key, this.mode, this.coloring, this.teacher = false});
+
+  /// Colorisation à expliquer (par défaut : celle du réglage du mode).
+  final AyahColoring? coloring;
+
+  /// Légende de la séance de l'enseignant : sans la marque personnelle de l'élève (qu'il ne voit jamais).
+  final bool teacher;
 
   /// Mode de lecture dont on montre la légende (par défaut : le mode courant).
   final ReadingMode? mode;
@@ -213,7 +255,7 @@ class ColoringLegend extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<Settings>();
     final m = mode ?? settings.readingMode;
-    final coloring = settings.coloringIn(m);
+    final coloring = this.coloring ?? settings.coloringIn(m);
     final tajweed = settings.tajweedIn(m);
     final b = Theme.of(context).brightness;
     final paper = pagePaper(context);
@@ -280,6 +322,8 @@ class ColoringLegend extends StatelessWidget {
           children.add(Text(tr('Touchez un ayah pour changer son niveau : en cours → acquis → à revoir → non appris. Appui long pour plus d’options.'),
               style: context.text.bodySmall));
         }
+      case AyahColoring.validation:
+        break; // légende dédiée ci-dessous
       case AyahColoring.mastery:
         children.add(Text(tr('Par niveau de maîtrise'), style: context.text.titleSmall));
         for (final m in Mastery.values) {
@@ -291,6 +335,25 @@ class ColoringLegend extends StatelessWidget {
               : tr('« À revoir » : marqué par vous. Touchez un ayah pour changer son niveau ; appui long pour plus d’options.'),
           style: context.text.bodySmall,
         ));
+    }
+    if (coloring == AyahColoring.validation) {
+      children.add(Text(tr('Validation de l’enseignant'), style: context.text.titleSmall));
+      for (final r in ValResult.values) {
+        children.add(swatch(validationBackground(r, paper: paper, brightness: b, colorBlind: cb), validationLabel(r)));
+      }
+      if (teacher) {
+        children.add(Text(tr('Touchez un ayah pour changer son résultat : acquis → acquis avec erreur → à revoir → effacé.'), style: context.text.bodyMedium));
+      } else {
+        children.add(Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          KhatamBadge(label: '٣', size: 26, stroke: context.tones.gold, textColor: context.colors.onSurface, ring: context.tones.red, dot: context.tones.red),
+          const SizedBox(width: 10),
+          Flexible(child: Text(tr('Votre marque personnelle « à réviser » : visible de vous seul, jamais de l’enseignant.'), style: context.text.bodyMedium)),
+        ]),
+        ));
+      }
+      children.add(Text(tr('Une page est « à reprendre » quand trop d’ayat y sont acquis avec erreur ; elle porte alors un bandeau en haut.'), style: context.text.bodySmall));
     }
     children
       ..add(const SizedBox(height: 8))
@@ -341,7 +404,10 @@ class _ColoringSettingsPanelState extends State<ColoringSettingsPanel> {
           AyahColoring.mastery => _mode == ReadingMode.mushaf
               ? tr('Non appris, en cours, à revoir, acquis — touchez un ayah pour changer (par défaut)')
               : tr('Non appris, en cours, à revoir, acquis — touchez un ayah pour changer'),
+          AyahColoring.validation => tr('Acquis, acquis avec erreur, à revoir — validés par votre enseignant'),
         };
+    // « Validation » n'est proposée qu'aux élèves que leur enseignant a déjà validés.
+    final hasValidations = context.watch<ValidationStore>().hasAny;
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -363,7 +429,7 @@ class _ColoringSettingsPanelState extends State<ColoringSettingsPanel> {
         padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
         child: Text(tr('Réglage propre à chaque mode et à chaque compte.'), style: context.text.bodySmall?.copyWith(color: context.tones.muted)),
       ),
-      for (final c in AyahColoring.values)
+      for (final c in AyahColoring.values.where((c) => c != AyahColoring.validation || hasValidations || c == coloring))
         ListTile(
           leading: Icon(c == coloring ? Icons.radio_button_checked : Icons.radio_button_unchecked,
               color: c == coloring ? context.colors.primary : context.tones.muted),

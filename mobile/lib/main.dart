@@ -10,6 +10,7 @@ import 'core/prayer_service.dart';
 import 'core/progress_store.dart';
 import 'core/quran_repository.dart';
 import 'core/settings.dart';
+import 'core/validation_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,7 @@ Future<void> main() async {
   final auth = AuthService(prefs);
   final progress = ProgressStore(prefs, auth);
   final settings = Settings(prefs);
+  final validations = ValidationStore(auth);
   final audioCache = AudioCache();
   await audioCache.init();
   await progress.attach(null);
@@ -25,6 +27,8 @@ Future<void> main() async {
   auth.addListener(() {
     settings.owner = auth.userId;
     progress.attach(auth.userId);
+    // Validations de l'enseignant et notifications : propres au compte (vidées à la déconnexion).
+    validations.refresh();
   });
   auth.restore();
 
@@ -34,6 +38,7 @@ Future<void> main() async {
       ChangeNotifierProvider<AuthService>.value(value: auth),
       ChangeNotifierProvider<ProgressStore>.value(value: progress),
       ChangeNotifierProvider<Settings>.value(value: settings),
+      ChangeNotifierProvider<ValidationStore>.value(value: validations),
       ChangeNotifierProvider<PrayerService>(create: (_) => PrayerService(prefs)),
       ChangeNotifierProvider<AudioCache>.value(value: audioCache),
       ChangeNotifierProvider<AudioController>(create: (_) => AudioController(repo, prefs, audioCache)),

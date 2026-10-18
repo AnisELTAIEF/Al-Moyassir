@@ -203,6 +203,9 @@ export function createDemoApi(): Api {
     },
     studentLinkCode: async () => ({ code: 'K7XQ-M2PA', expiresAt: ago(-7) }),
     unlinkStudent: async (_o, id) => { d.students.find((x) => x.id === id)!.linked = false; },
+    studentSummary: async (_o, id) => (id === 'p1'
+      ? { stats: { ayat: 412, surahs: { complete: 9, longestRun: 4 }, ahzab: { complete: 2, longestRun: 2 } }, retakePages: [37], threshold: 3, validatedAyat: 430 }
+      : { stats: { ayat: 0, surahs: { complete: 0, longestRun: 0 }, ahzab: { complete: 0, longestRun: 0 } }, retakePages: [], threshold: 3, validatedAyat: 0 }),
   };
 }
 

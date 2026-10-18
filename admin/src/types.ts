@@ -89,6 +89,12 @@ export interface StudentInput {
   joinedAt?: string | null; hifdhStartedAt?: string | null; pastCompetitions?: string | null;
 }
 export interface DuplicateStudent { id: string; fullName: string; fatherName: string; status: 'active' | 'left' }
+/** Mémorisation VALIDÉE par l'enseignant (jamais l'auto-marquage de l'élève) : global et successif en unités entières. */
+export interface UnitStats { complete: number; longestRun: number }
+export interface StudentSummary {
+  stats: { ayat: number; surahs: UnitStats; ahzab: UnitStats };
+  retakePages: number[]; threshold: number; validatedAyat: number;
+}
 export type CreateStudentResult = { student: Student } | { duplicates: DuplicateStudent[] };
 
 export interface Api {
@@ -165,4 +171,6 @@ export interface Api {
   /** Code de liaison à remettre au parent pour rattacher le compte de l'enfant à sa fiche. */
   studentLinkCode(orgId: string, id: string): Promise<{ code: string; expiresAt: string }>;
   unlinkStudent(orgId: string, id: string): Promise<void>;
+  /** حفظ إجمالي / مسترسل en ahzab et sourates entiers, d'après les validations de l'enseignant. */
+  studentSummary(orgId: string, id: string): Promise<StudentSummary>;
 }

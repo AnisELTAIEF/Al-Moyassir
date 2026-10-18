@@ -273,9 +273,16 @@ Lot **A** peut démarrer immédiatement. Le lot **B** doit être validé avant t
 
 ## 4. Questions pour Wajdi et Amine
 
-**Toutes tranchées** : D1 à D20 (§0). Aucune question bloquante ne reste.
+**Décisions D1 à D21 prises** (§0). Aucune question bloquante.
 Points de détail réglés par défaut (modifiables sans refonte) : la purge après 5 ans est **manuelle** (jamais automatique) ;
 une demande de suppression d'un parent est traitée par un administrateur.
+
+**Hypothèses faites au lot C (0.20.0) — à confirmer avec Wajdi et Amine** (elles se changent sans refonte) :
+| # | Hypothèse | Pourquoi |
+|---|---|---|
+| 18 | Une **page à reprendre** (≥ seuil d'ayat « acquis avec erreur ») ne compte **aucun** de ses ayat dans حفظ إجمالي / مسترسل, tant qu'elle n'est pas refaite | D4 : « toute la page sera taguée à reprendre » |
+| 19 | Un **ayah « à revoir »** ne compte pas comme acquis dans les rapports | Il doit être revu avant d'être validé |
+| 20 | L'**administratif (إداري)** peut valider comme l'enseignant (utile dans une petite structure) ; tout est tracé (qui, quand) | D4 parle de l'enseignant ; à restreindre si besoin |
 
 ## 5. Risques
 

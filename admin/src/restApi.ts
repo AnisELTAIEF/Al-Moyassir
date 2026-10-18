@@ -157,5 +157,6 @@ export function createRestApi(baseUrl: string, googleClientId: string | null): A
     verifyStudentPhone: async (o, id, code) => { await call('POST', `/orgs/${o}/students/${id}/phone-verify`, { code }); },
     studentLinkCode: (o, id) => call('POST', `/orgs/${o}/students/${id}/link-code`, {}),
     unlinkStudent: async (o, id) => { await call('POST', `/orgs/${o}/students/${id}/unlink`, {}); },
+    studentSummary: (o, id) => call('GET', `/orgs/${o}/students/${id}/summary`),
   };
 }

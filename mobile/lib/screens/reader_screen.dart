@@ -10,6 +10,7 @@ import '../core/progress_store.dart';
 import '../core/quran_repository.dart';
 import '../core/screen_wakelock.dart';
 import '../core/settings.dart';
+import '../core/validation_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/khatam.dart';
@@ -148,7 +149,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
     final fontSize = settings.fontSize;
     final store = context.watch<ProgressStore>();
     final audio = context.watch<AudioController>();
-    final painter = AyahPainter(context, settings: settings, store: store, paper: Theme.of(context).scaffoldBackgroundColor);
+    final painter = AyahPainter(context,
+        settings: settings, store: store, validations: context.watch<ValidationStore>(), paper: Theme.of(context).scaffoldBackgroundColor);
     final memorized = store.memorizedIn(surah.number);
     final complete = memorized == surah.ayahCount;
 

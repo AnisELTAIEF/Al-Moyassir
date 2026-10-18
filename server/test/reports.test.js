@@ -6,7 +6,7 @@ import { migrate } from '../src/migrate.js';
 import { createPool } from '../src/db.js';
 import { loadConfig } from '../src/config.js';
 import mysql from 'mysql2/promise';
-import { loadReference, flagsFrom, memorizationStats } from '../src/reports.js';
+import { loadReference, flagsFrom, memorizationStats, retakePages, pageStatus, acquiredFlags } from '../src/reports.js';
 
 const cfg = loadConfig({
   DB_HOST: process.env.TEST_DB_HOST ?? '127.0.0.1',
@@ -129,4 +129,79 @@ test('flagsFrom : couples [sourate, ayah] ; ayah inexistant refusé', () => {
   assert.throws(() => flagsFrom(ref, [[1, 8]]), RangeError);
   assert.throws(() => flagsFrom(ref, [[115, 1]]), RangeError);
   assert.throws(() => flagsFrom(ref, [[2, 0]]), RangeError);
+});
+
+// ───────────── Validation par l'enseignant ─────────────
+// Page 3 du mushaf de Qalun = 2:5 → 2:15 (11 ayat) ; page 4 commence en 2:16.
+const page = (n) => ref.pageRanges[n - 1];
+const codes = () => new Uint8Array(ref.total);
+const put = (c, p, n, code) => { for (let i = 0; i < n; i++) c[page(p).from + i] = code; };
+
+test('refAt est l’inverse exact de indexOf pour les 6214 ayat', () => {
+  for (let i = 0; i < ref.total; i++) {
+    const [s, a] = ref.refAt(i);
+    assert.equal(ref.indexOf(s, a), i);
+  }
+  assert.deepEqual(ref.refAt(0), [1, 1]);
+  assert.deepEqual(ref.refAt(ref.total - 1), [114, 6]);
+  assert.throws(() => ref.refAt(-1), RangeError);
+  assert.throws(() => ref.refAt(ref.total), RangeError);
+});
+
+test('page à reprendre : à partir du seuil d’ayat « avec erreur » sur la MÊME page', () => {
+  assert.equal(page(3).to - page(3).from, 11, 'page 3 = 11 ayat (donnée de référence)');
+  const c = codes();
+  put(c, 3, 2, 2);
+  assert.deepEqual(retakePages(ref, c, 3), [], '2 erreurs < seuil 3');
+  assert.deepEqual(retakePages(ref, c, 2), [3], 'seuil réglé à 2 (D4) : à reprendre');
+  c[page(3).from + 2] = 2;
+  assert.deepEqual(retakePages(ref, c, 3), [3], '3 erreurs = seuil');
+});
+
+test('les erreurs ne se cumulent pas d’une page à l’autre', () => {
+  const c = codes();
+  put(c, 3, 2, 2);
+  put(c, 4, 2, 2);
+  assert.deepEqual(retakePages(ref, c, 3), [], '2 + 2 erreurs sur deux pages différentes');
+});
+
+test('seul un « acquis avec erreur » compte comme erreur (pas « à revoir »)', () => {
+  const c = codes();
+  put(c, 3, 5, 3); // 5 ayat « à revoir »
+  assert.deepEqual(retakePages(ref, c, 3), []);
+});
+
+test('ayat comptés : acquis et acquis avec erreur ; rien sur une page à reprendre ni pour « à revoir »', () => {
+  const c = codes();
+  put(c, 3, 11, 1);
+  assert.equal(acquiredFlags(ref, c, 3).reduce((a, b) => a + b, 0), 11, 'page entièrement acquise');
+  c[page(3).from] = 2; c[page(3).from + 1] = 2; // 2 erreurs : toujours acquise
+  assert.equal(acquiredFlags(ref, c, 3).reduce((a, b) => a + b, 0), 11, '2 erreurs < seuil : compte');
+  c[page(3).from + 2] = 2; // 3e erreur : page à reprendre
+  assert.equal(acquiredFlags(ref, c, 3).reduce((a, b) => a + b, 0), 0, 'page à reprendre : aucun ayat compté');
+  const r = codes(); put(r, 3, 11, 3);
+  assert.equal(acquiredFlags(ref, r, 3).reduce((a, b) => a + b, 0), 0, '« à revoir » ne compte pas');
+});
+
+test('statut de page : none → partial → complete → retake', () => {
+  const c = codes();
+  assert.equal(pageStatus(ref, c, 3, 3), 'none');
+  put(c, 3, 4, 1);
+  assert.equal(pageStatus(ref, c, 3, 3), 'partial');
+  put(c, 3, 11, 1);
+  assert.equal(pageStatus(ref, c, 3, 3), 'complete');
+  c[page(3).from] = 3;
+  assert.equal(pageStatus(ref, c, 3, 3), 'partial', 'un ayah à revoir : la page n’est plus complète');
+  put(c, 3, 3, 2);
+  assert.equal(pageStatus(ref, c, 3, 3), 'retake');
+});
+
+test('une page à reprendre fait perdre un hizb entier acquis (successif comme global)', () => {
+  const c = codes();
+  const h = ref.hizbRanges[0];
+  for (let i = h.from; i < h.to; i++) c[i] = 1;
+  assert.equal(memorizationStats(ref, acquiredFlags(ref, c, 3)).ahzab.complete, 1);
+  put(c, 3, 3, 2); // 3 erreurs sur la page 3, qui est dans le hizb 1
+  const s = memorizationStats(ref, acquiredFlags(ref, c, 3));
+  assert.deepEqual(s.ahzab, { complete: 0, longestRun: 0 });
 });

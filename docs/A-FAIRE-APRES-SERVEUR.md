@@ -51,7 +51,7 @@ Ordre proposé (chaque lot est indépendant du suivant, sauf mention) :
       BO « Établissements », écran « Mes établissements » dans l'app.
       **Reste du lot B** : **B7** disque « Backup U » + sauvegardes longue durée · le **résumé حفظ إجمالي / مسترسل** d'un élève et le **journal d'événements**
       (rythme, périodes) viennent avec le lot C, car ils comptent les validations de l'enseignant (D2).
-- [ ] **Lot C — validation par l'enseignant** (6-7) : mushaf enseignant, règle des 3 erreurs, notifications dans l'app.
+- [x] **Lot C — validation par l'enseignant** : livré en **0.20.0** (18/10/2026) — séance de validation dans l'app (toucher = acquis → avec erreur → à revoir → effacé, ou page entière), règle de la page à reprendre (seuil par association), couche « enseignant » dans le mushaf de l'élève (marque personnelle en anneau sur le médaillon), notifications dans l'app, synthèse en ahzab/sourates dans le BO. Hypothèses à confirmer : `EVOLUTIONS-REUNION-1.md` §4 (18-20).
 - [ ] **Lot D — BO** (9, 11-13, 15, 16) : mosaïque 604, « متابعة », classements/périodes, exports, BO arabe/français.
 - [ ] **Lot E — résultats** (17) : examens, concours, certificats.
 - [ ] **Lot F — audio** (19-20) : كمال صميدة, après **accord des récitateurs** (pas de téléchargement YouTube) et production

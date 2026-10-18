@@ -7,6 +7,7 @@ import '../core/i18n.dart';
 import '../core/models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'teacher_students_screen.dart';
 
 /// « Mes établissements » : les associations / mosquées où j'ai un rôle, et le rattachement du compte
 /// d'un enfant à sa fiche avec le code remis par l'administration.
@@ -84,11 +85,26 @@ class _MyOrgsScreenState extends State<MyOrgsScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Card(
-                        child: ListTile(
-                          leading: Icon(o.isMosque ? Icons.mosque_outlined : Icons.apartment_outlined, color: context.colors.primary),
-                          title: Text(o.name),
-                          subtitle: Text(o.roles.map(_role).join(' · ')),
-                        ),
+                        child: Column(children: [
+                          ListTile(
+                            leading: Icon(o.isMosque ? Icons.mosque_outlined : Icons.apartment_outlined, color: context.colors.primary),
+                            title: Text(o.name),
+                            subtitle: Text(o.roles.map(_role).join(' · ')),
+                          ),
+                          // L'équipe (enseignant, administratif) valide la mémorisation des élèves.
+                          if (o.roles.contains('teacher') || o.roles.contains('admin'))
+                            Padding(
+                              padding: const EdgeInsetsDirectional.fromSTEB(12, 0, 12, 12),
+                              child: Align(
+                                alignment: AlignmentDirectional.centerStart,
+                                child: FilledButton.tonalIcon(
+                                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TeacherStudentsScreen(orgId: o.id, orgName: o.name))),
+                                  icon: const Icon(Icons.fact_check_outlined),
+                                  label: Text(tr('Valider la mémorisation')),
+                                ),
+                              ),
+                            ),
+                        ]),
                       ),
                     ),
                 ]);

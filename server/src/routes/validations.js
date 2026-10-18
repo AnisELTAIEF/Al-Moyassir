@@ -1,0 +1,208 @@
+// Validation de la mémorisation par l'enseignant (lot C) et notifications de l'élève.
+//
+//   - L'ENSEIGNANT (ou l'administratif) pose, ayah par ayah ou page par page : acquis / acquis avec erreur / à revoir.
+//   - Cette validation est la seule source des rapports (D2). Elle ne touche JAMAIS à memorized_ayahs, l'auto-marquage
+//     privé de l'élève (D15) : ces deux couches restent indépendantes.
+//   - Règle de page (D4) : au moins `error_threshold` ayat « acquis avec erreur » sur la même page → page à reprendre.
+//   - Plusieurs établissements (D5/D19) : chacun ne compte que SES validations ; l'élève voit la plus récente par ayah.
+import { HttpError } from '../errors.js';
+import { tx } from '../db.js';
+import { iso } from '../users.js';
+import { orgAccessFor } from '../orgAccess.js';
+import { RESULT_CODE, retakePages, acquiredFlags, memorizationStats } from '../reports.js';
+
+const idPid = { type: 'object', properties: { id: { type: 'string', minLength: 36, maxLength: 36 }, pid: { type: 'string', minLength: 36, maxLength: 36 } } };
+const RESULTS = ['acquired', 'acquired_error', 'review', 'cleared'];
+
+const putSchema = {
+  params: idPid,
+  body: {
+    type: 'object',
+    properties: {
+      items: {
+        type: 'array',
+        maxItems: 700,
+        items: {
+          type: 'object',
+          required: ['surah', 'ayah', 'result'],
+          properties: { surah: { type: 'integer', minimum: 1, maximum: 114 }, ayah: { type: 'integer', minimum: 1 }, result: { enum: RESULTS } },
+        },
+      },
+      page: { type: 'integer', minimum: 1, maximum: 604 },
+      result: { enum: RESULTS },
+    },
+  },
+};
+
+/** Résultats posés (ayah → code), pour un élève dans UN établissement. */
+async function loadStates(db, ref, orgId, profileId) {
+  const [rows] = await db.query(
+    'SELECT surah, ayah, result, updated_at FROM validation_state WHERE organization_id = ? AND profile_id = ?', [orgId, profileId]);
+  const codes = new Uint8Array(ref.total);
+  const items = [];
+  for (const r of rows) {
+    codes[ref.indexOf(r.surah, r.ayah)] = RESULT_CODE[r.result];
+    items.push({ surah: r.surah, ayah: r.ayah, result: r.result, at: iso(r.updated_at) });
+  }
+  return { codes, items };
+}
+
+const stateDto = (ref, codes, items, threshold) => ({
+  items,
+  retakePages: retakePages(ref, codes, threshold),
+  threshold,
+  stats: memorizationStats(ref, acquiredFlags(ref, codes, threshold)),
+});
+
+/** Routes de l'équipe, sous /orgs. */
+export default async function validationRoutes(app) {
+  app.addHook('preHandler', app.authenticate);
+  const db = app.db;
+  const ref = app.reference;
+  const { access, studentOf } = orgAccessFor(app);
+
+  // Ce que l'enseignant a déjà validé pour cet élève (jamais ses marques personnelles).
+  app.get('/:id/students/:pid/validation', { schema: { params: idPid } }, async (req) => {
+    const ctx = await access(req, req.params.id, ['admin', 'teacher']);
+    const st = await studentOf(req, ctx, req.params.pid);
+    const { codes, items } = await loadStates(db, ref, ctx.org.id, st.id);
+    return stateDto(ref, codes, items, Number(ctx.org.error_threshold));
+  });
+
+  // Synthèse sans le détail : حفظ إجمالي / مسترسل en ahzab et en sourates entiers (D1), pages à reprendre.
+  app.get('/:id/students/:pid/summary', { schema: { params: idPid } }, async (req) => {
+    const ctx = await access(req, req.params.id, ['admin', 'teacher']);
+    const st = await studentOf(req, ctx, req.params.pid);
+    const { codes, items } = await loadStates(db, ref, ctx.org.id, st.id);
+    const { stats, retakePages: retake, threshold } = stateDto(ref, codes, items, Number(ctx.org.error_threshold));
+    return { stats, retakePages: retake, threshold, validatedAyat: items.length };
+  });
+
+  app.put('/:id/students/:pid/validation', { schema: putSchema }, async (req) => {
+    const ctx = await access(req, req.params.id, ['admin', 'teacher']);
+    const st = await studentOf(req, ctx, req.params.pid);
+    if (st.status !== 'active') throw new HttpError(409, 'student_left', 'Cet élève est sorti de l’établissement.');
+    const threshold = Number(ctx.org.error_threshold);
+    const { page, result, items } = req.body;
+
+    // 1. Les changements demandés, sous forme d'indices globaux (le dernier gagne si un ayah est répété).
+    const wanted = new Map();
+    if (page != null) {
+      if (!result) throw new HttpError(400, 'invalid_request', 'Indiquez le résultat à appliquer à la page.');
+      const { from, to } = ref.pageRanges[page - 1];
+      for (let i = from; i < to; i++) wanted.set(i, result);
+    } else if (items?.length) {
+      for (const it of items) {
+        let idx;
+        try { idx = ref.indexOf(it.surah, it.ayah); } catch { throw new HttpError(400, 'invalid_ayah', `Ayah inexistant : ${it.surah}:${it.ayah}.`); }
+        wanted.set(idx, it.result);
+      }
+    } else {
+      throw new HttpError(400, 'invalid_request', 'Rien à valider : fournissez « items » ou « page » et « result ».');
+    }
+
+    // 2. On ne garde que ce qui change vraiment (pas de bruit dans le journal).
+    const { codes } = await loadStates(db, ref, ctx.org.id, st.id);
+    const before = new Set(retakePages(ref, codes, threshold));
+    const next = Uint8Array.from(codes);
+    const effective = [];
+    for (const [idx, res] of wanted) {
+      const code = res === 'cleared' ? 0 : RESULT_CODE[res];
+      if (next[idx] === code) continue;
+      next[idx] = code;
+      effective.push({ idx, code, res });
+    }
+    const after = retakePages(ref, next, threshold);
+    if (!effective.length) return { changed: 0, retakePages: after, threshold };
+
+    // 3. Journal + état, en une transaction.
+    await tx(db, async (c) => {
+      const journal = effective.map((e) => { const [s, a] = ref.refAt(e.idx); return [ctx.org.id, st.id, req.user.id, s, a, e.res]; });
+      await c.query('INSERT INTO validations (organization_id, profile_id, teacher_id, surah, ayah, result) VALUES ?', [journal]);
+      const set = effective.filter((e) => e.code !== 0).map((e) => { const [s, a] = ref.refAt(e.idx); return [ctx.org.id, st.id, s, a, e.res, req.user.id]; });
+      if (set.length) {
+        await c.query(
+          `INSERT INTO validation_state (organization_id, profile_id, surah, ayah, result, teacher_id, updated_at)
+           VALUES ${set.map(() => '(?,?,?,?,?,?,UTC_TIMESTAMP(3))').join(',')}
+           ON DUPLICATE KEY UPDATE result = VALUES(result), teacher_id = VALUES(teacher_id), updated_at = VALUES(updated_at)`,
+          set.flat());
+      }
+      for (const e of effective.filter((x) => x.code === 0)) {
+        const [s, a] = ref.refAt(e.idx);
+        await c.query('DELETE FROM validation_state WHERE organization_id = ? AND profile_id = ? AND surah = ? AND ayah = ?', [ctx.org.id, st.id, s, a]);
+      }
+
+      // 4. Notification à l'élève (s'il a un compte lié) : pages qui basculent « à reprendre », ayat à revoir.
+      if (st.user_id) {
+        const newlyRetake = after.filter((p) => !before.has(p));
+        const toReview = effective.filter((e) => e.code === 3).length;
+        const note = (kind, title, body, payload) => c.query(
+          'INSERT INTO notifications (user_id, kind, title, body, payload) VALUES (?,?,?,?,?)',
+          [st.user_id, kind, title, body, JSON.stringify({ organizationId: ctx.org.id, organizationName: ctx.org.name, ...payload })]);
+        if (newlyRetake.length) {
+          await note('retake_pages', 'Page à reprendre', `Page(s) à reprendre : ${newlyRetake.join(', ')} (${ctx.org.name}).`, { pages: newlyRetake });
+        }
+        if (toReview) {
+          await note('review_ayat', 'Ayat à revoir', `${toReview} ayat à revoir (${ctx.org.name}).`, { count: toReview });
+        }
+      }
+    });
+    return { changed: effective.length, retakePages: after, threshold };
+  });
+}
+
+/** Routes de l'élève (ou de son parent), sous /me : ses validations et ses notifications. */
+export async function myValidationRoutes(app) {
+  app.addHook('preHandler', app.authenticate);
+  const db = app.db;
+  const ref = app.reference;
+
+  // Un bloc par établissement qui suit cet élève (D5) ; l'app garde, pour chaque ayah, la validation la plus récente (D19).
+  app.get('/validations', async (req) => {
+    const [profiles] = await db.query(
+      `SELECT p.id, p.organization_id, o.name, o.error_threshold
+       FROM student_profiles p JOIN organizations o ON o.id = p.organization_id
+       WHERE p.user_id = ? AND p.status = 'active' ORDER BY o.name`, [req.user.id]);
+    const organizations = [];
+    for (const p of profiles) {
+      const { codes, items } = await loadStates(db, ref, p.organization_id, p.id);
+      organizations.push({
+        organizationId: p.organization_id,
+        organizationName: p.name,
+        profileId: p.id,
+        items,
+        retakePages: retakePages(ref, codes, Number(p.error_threshold)),
+        threshold: Number(p.error_threshold),
+      });
+    }
+    return { organizations };
+  });
+
+  app.get('/notifications', async (req) => {
+    const [rows] = await db.query(
+      'SELECT id, kind, title, body, payload, created_at, read_at FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 100', [req.user.id]);
+    const [[u]] = await db.query('SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND read_at IS NULL', [req.user.id]);
+    return {
+      unread: Number(u.n),
+      notifications: rows.map((r) => ({
+        id: Number(r.id),
+        kind: r.kind,
+        title: r.title,
+        body: r.body,
+        payload: r.payload ? JSON.parse(r.payload) : null,
+        createdAt: iso(r.created_at),
+        read: !!r.read_at,
+      })),
+    };
+  });
+
+  app.post('/notifications/read', {
+    schema: { body: { type: 'object', properties: { ids: { type: 'array', maxItems: 200, items: { type: 'integer' } } } } },
+  }, async (req) => {
+    const ids = req.body?.ids;
+    if (ids?.length) await db.query('UPDATE notifications SET read_at = UTC_TIMESTAMP(3) WHERE user_id = ? AND read_at IS NULL AND id IN (?)', [req.user.id, ids]);
+    else await db.query('UPDATE notifications SET read_at = UTC_TIMESTAMP(3) WHERE user_id = ? AND read_at IS NULL', [req.user.id]);
+    return { ok: true };
+  });
+}
+
