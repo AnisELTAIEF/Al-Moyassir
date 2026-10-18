@@ -10,3 +10,5 @@
 - Administrateur par défaut : anis.eltaief@gmail.com (variable `BOOTSTRAP_ADMIN_EMAIL`).
 - Après le déploiement du serveur : `docs/A-FAIRE-APRES-SERVEUR.md` (améliorations validées, dans l'ordre).
 - Mettre à jour le serveur après un `git pull` : `docs/MISE-A-JOUR-SERVEUR.md`.
+- Évolutions demandées (réunion 1, établissements/enseignants/rapports…) : `docs/EVOLUTIONS-REUNION-1.md` ; plan d'exécution par lots : `docs/PLAN-EXECUTION.md`.
+- IP publique dynamique (DuckDNS + Cloudflare) : `docs/IP-DYNAMIQUE-DUCKDNS.md`.
