@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.js';
 import meRoutes from './routes/me.js';
 import groupRoutes from './routes/groups.js';
 import adminRoutes from './routes/admin.js';
+import orgRoutes from './routes/orgs.js';
 import inviteRoutes from './routes/invite.js';
 import geocodeRoutes from './routes/geocode.js';
 import downloadRoutes from './routes/download.js';
@@ -89,6 +90,7 @@ export async function buildApp(cfg, deps) {
   await app.register(meRoutes, { prefix: '/me' });
   await app.register(groupRoutes, { prefix: '/groups' });
   await app.register(adminRoutes, { prefix: '/admin' });
+  await app.register(orgRoutes, { prefix: '/orgs' });
   await app.register(inviteRoutes);
   await app.register(geocodeRoutes);
   await app.register(downloadRoutes);

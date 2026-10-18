@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS org_members (               -- rôles par établissem
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 ALTER TABLE study_groups ADD COLUMN organization_id CHAR(36) NULL AFTER name;   -- classe/halqa/fawj d'un établissement
-ALTER TABLE group_members MODIFY role ENUM('admin','member','teacher') NOT NULL DEFAULT 'member';
+-- (réalisé : les enseignants d'une classe sont dans une table à part, group_teachers, pour ne rien changer au sens de group_members)
 
 CREATE TABLE IF NOT EXISTS student_profiles (          -- fiche administrative (point 5)
   id CHAR(36) NOT NULL PRIMARY KEY,
@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS phone_verifications (       -- D3, phase 1
 | `GET/POST /orgs/:id/students`, `GET/PATCH/DELETE …/:pid` | admin ; enseignant en lecture sur ses classes | fiche élève, **alerte de doublon** (même nom + père) |
 | `POST …/:pid/phone-code`, `POST …/:pid/phone-verify` | admin/enseignant | code WhatsApp (phase 1) |
 | `POST …/:pid/link-code`, `POST /me/link-student` | admin ; élève/parent | rattacher un compte à un profil |
-| `GET …/:pid/summary` | équipe | حفظ إجمالي / مسترسل (voir lot C pour la source « validée ») |
+| ~~`GET …/:pid/summary`~~ | équipe | حفظ إجمالي / مسترسل — **reporté au lot C** : D2 impose de compter les validations de l'enseignant, qui n'existent pas encore (compter l'auto-marquage de l'élève violerait D2/D15). Les calculs (`server/src/reports.js`) sont faits et testés. |
 
 Garde-fous : un enseignant ne voit que **ses** classes ; un compte hors établissement ne voit rien ; toute route vérifie le rôle **dans l'établissement
 de la route** (jamais le rôle global seul). Tests : isolation entre deux établissements, multi-rôles, doublons, expiration du code.
@@ -177,6 +177,8 @@ sudo chmod 700 /srv/backup-u
 
 **Ce que contient la copie** : dump mensuel de la base (conservé ≥ 5 ans), dump quotidien récent, certificats (lot E) ; les MP3 des récitateurs
 n'y sont pas obligatoires (les originaux restent chez Anis). **Chiffrement** avant écriture (clé gardée hors de la VM et de F:). **Test de restauration** documenté.
+
+> **État (18/10/2026)** : B1-B6 livrés en **0.19.0** (migrations 009-010, `routes/orgs.js`, `reports.js`, BO « Établissements », écran « Mes établissements »). **B7 (disque « Backup U » et sauvegardes longue durée) en attente** : le disque n'est pas encore attaché à la VM. Tests : serveur 50/50 (dont 16 d'API et 10 de calculs/données de référence), BO 8/8, app 87/87.
 
 **Livrable B** : version **0.19.0** ; migrations 009-010 appliquées par `install.sh`.
 

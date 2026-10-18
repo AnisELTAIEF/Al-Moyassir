@@ -1,5 +1,5 @@
 import { SURAHS } from './data/surahs';
-import type { Api, AyahProgress, GroupSummary, ImportItem, ImportResult, Invitation, UserStats } from './types';
+import type { Api, AyahProgress, GroupSummary, ImportItem, ImportResult, Invitation, OrgClass, OrgMember, OrgSummary, Student, UserStats } from './types';
 
 /** Données fictives pour prévisualiser l'interface sans serveur (VITE_DEMO=1). */
 const DAY = 86_400_000;
@@ -51,7 +51,31 @@ const invitations: Invitation[] = [
 const joinOpen = new Map<string, boolean>();
 const me = { id: 'u0', email: 'anis.eltaief@gmail.com', displayName: 'Anis E.', role: 'admin' as const };
 
+/** Établissements fictifs (en mémoire) pour la démo. */
+function demoOrgs() {
+  const org: OrgSummary = { id: 'o1', name: 'جامع النور', type: 'mosque', address: 'شارع الجمهورية، طرابلس', errorThreshold: 3,
+    roles: ['admin'], studentCount: 3, classCount: 2 };
+  const orgs: OrgSummary[] = [org];
+  const members: OrgMember[] = [
+    { userId: 'u1', email: 'responsable@exemple.tn', displayName: 'Responsable', roles: ['admin'] },
+    { userId: 'u2', email: 'prof1@exemple.tn', displayName: 'Prof Un', roles: ['teacher'] },
+  ];
+  const classes: OrgClass[] = [
+    { id: 'c1', name: 'فوج 1', studentCount: 2, teachers: [{ userId: 'u2', displayName: 'Prof Un' }] },
+    { id: 'c2', name: 'فوج 2', studentCount: 1, teachers: [] },
+  ];
+  const mk = (n: number, fullName: string, fatherName: string, age: number, classIds: string[], over: Partial<Student> = {}): Student => ({
+    id: `p${n}`, organizationId: 'o1', fullName, fatherName, birthDate: `${2026 - age}-01-01`, age, gender: 'm', phone: `+21891000000${n}`,
+    phoneVerified: n === 1, joinedAt: '2025-09-01', hifdhStartedAt: '2025-09-15', pastCompetitions: '', guardianConsentAt: ago(100),
+    status: 'active', leftAt: null, retainUntil: null, linked: n === 1, classes: classes.filter((c) => classIds.includes(c.id)).map(({ id, name }) => ({ id, name })),
+    createdAt: ago(100), ...over,
+  });
+  const students: Student[] = [mk(1, 'عبد الله بن محمد', 'محمد', 11, ['c1']), mk(2, 'يوسف بن علي', 'علي', 9, ['c1']), mk(3, 'مريم بنت أحمد', 'أحمد', 13, ['c2'], { gender: 'f' })];
+  return { org, orgs, members, classes, students };
+}
+
 export function createDemoApi(): Api {
+  const d = demoOrgs();
   let signed = false;
   try { signed = localStorage.getItem('demo') === '1'; } catch { /* */ }
   const set = (v: boolean) => { signed = v; try { v ? localStorage.setItem('demo', '1') : localStorage.removeItem('demo'); } catch { /* */ } };
@@ -109,6 +133,76 @@ export function createDemoApi(): Api {
     setGroupJoinOpen: async (g, open) => { joinOpen.set(g, open); },
     groupMembers: async (g) => (g === 'g1' ? users.slice(0, 8) : users.slice(2, 6)).map((u) => ({ ...u })),
     memberProgress: async (_g, u) => progress.get(u) ?? [],
+
+    myOrgs: async () => d.orgs.map((o) => ({ ...o })),
+    createOrg: async (i) => {
+      const o: OrgSummary = { id: `o${d.orgs.length + 1}`, name: i.name, type: i.type, address: i.address, errorThreshold: 3, roles: [], studentCount: 0, classCount: 0 };
+      d.orgs.push(o);
+      return o;
+    },
+    updateOrg: async (id, patch) => Object.assign(d.orgs.find((o) => o.id === id)!, patch),
+    orgMembers: async () => d.members.map((m) => ({ ...m })),
+    addOrgMember: async (_o, email, role) => {
+      const m = d.members.find((x) => x.email === email);
+      if (m) { if (!m.roles.includes(role)) m.roles.push(role); } else d.members.push({ userId: `u${d.members.length + 1}`, email, displayName: email.split('@')[0], roles: [role] });
+    },
+    removeOrgMember: async (_o, userId, role) => {
+      const m = d.members.find((x) => x.userId === userId);
+      if (!m) return;
+      m.roles = role ? m.roles.filter((r) => r !== role) : [];
+      if (!m.roles.length) d.members.splice(d.members.indexOf(m), 1);
+    },
+    orgClasses: async () => d.classes.map((c) => ({ ...c, teachers: [...c.teachers] })),
+    createClass: async (_o, name) => { d.classes.push({ id: `c${d.classes.length + 1}`, name, studentCount: 0, teachers: [] }); },
+    renameClass: async (_o, id, name) => { const c = d.classes.find((x) => x.id === id); if (c) c.name = name; },
+    deleteClass: async (_o, id) => { d.classes.splice(d.classes.findIndex((x) => x.id === id), 1); },
+    setClassTeacher: async (_o, id, userId, on) => {
+      const c = d.classes.find((x) => x.id === id);
+      if (!c) return;
+      c.teachers = c.teachers.filter((t) => t.userId !== userId);
+      const m = d.members.find((x) => x.userId === userId);
+      if (on && m) c.teachers.push({ userId, displayName: m.displayName });
+    },
+    setClassStudent: async (_o, id, pid, on) => {
+      const s = d.students.find((x) => x.id === pid);
+      const c = d.classes.find((x) => x.id === id);
+      if (!s || !c) return;
+      s.classes = s.classes.filter((x) => x.id !== id);
+      if (on) s.classes.push({ id, name: c.name });
+      c.studentCount = d.students.filter((x) => x.classes.some((k) => k.id === id) && x.status === 'active').length;
+    },
+    orgStudents: async (_o, f = {}) => d.students
+      .filter((s) => (f.status === 'all' ? true : s.status === (f.status ?? 'active')))
+      .filter((s) => !f.classId || s.classes.some((c) => c.id === f.classId))
+      .filter((s) => !f.q?.trim() || `${s.fullName} ${s.fatherName} ${s.phone ?? ''}`.includes(f.q.trim()))
+      .map((s) => ({ ...s })),
+    createStudent: async (_o, input, classIds, confirm) => {
+      const dups = d.students.filter((s) => s.fullName === input.fullName.trim() && s.fatherName === (input.fatherName ?? '').trim());
+      if (dups.length && !confirm) return { duplicates: dups.map((s) => ({ id: s.id, fullName: s.fullName, fatherName: s.fatherName, status: s.status })) };
+      const n = d.students.length + 1;
+      const s: Student = { id: `p${n}`, organizationId: 'o1', fullName: input.fullName.trim(), fatherName: (input.fatherName ?? '').trim(),
+        birthDate: input.birthDate ?? null, age: null, gender: input.gender ?? null, phone: input.phone ?? null, phoneVerified: false,
+        joinedAt: input.joinedAt ?? null, hifdhStartedAt: input.hifdhStartedAt ?? null, pastCompetitions: input.pastCompetitions ?? '',
+        guardianConsentAt: new Date().toISOString(), status: 'active', leftAt: null, retainUntil: null, linked: false,
+        classes: d.classes.filter((c) => classIds.includes(c.id)).map(({ id, name }) => ({ id, name })), createdAt: new Date().toISOString() };
+      d.students.push(s);
+      return { student: s };
+    },
+    updateStudent: async (_o, id, patch) => {
+      const s = d.students.find((x) => x.id === id)!;
+      if ('phone' in patch && patch.phone !== s.phone) s.phoneVerified = false;
+      return Object.assign(s, patch) as Student;
+    },
+    leaveStudent: async (_o, id) => Object.assign(d.students.find((x) => x.id === id)!, { status: 'left' as const, leftAt: new Date().toISOString().slice(0, 10), retainUntil: `${new Date().getFullYear() + 5}-12-31` }),
+    restoreStudent: async (_o, id) => Object.assign(d.students.find((x) => x.id === id)!, { status: 'active' as const, leftAt: null, retainUntil: null }),
+    deleteStudent: async (_o, id) => { d.students.splice(d.students.findIndex((x) => x.id === id), 1); },
+    studentPhoneCode: async (_o, id) => ({ code: '482916', phone: d.students.find((x) => x.id === id)?.phone ?? '', expiresAt: new Date(Date.now() + 15 * 60_000).toISOString() }),
+    verifyStudentPhone: async (_o, id, code) => {
+      if (code !== '482916') throw new Error('Code incorrect ou expiré.');
+      d.students.find((x) => x.id === id)!.phoneVerified = true;
+    },
+    studentLinkCode: async () => ({ code: 'K7XQ-M2PA', expiresAt: ago(-7) }),
+    unlinkStudent: async (_o, id) => { d.students.find((x) => x.id === id)!.linked = false; },
   };
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, configured } from './api';
-import type { GroupSummary, MyGroup, User } from './types';
+import type { GroupSummary, MyGroup, OrgSummary, User } from './types';
 import Login from './pages/Login';
 import Overview from './pages/Overview';
 import Users from './pages/Users';
@@ -8,9 +8,10 @@ import Invitations from './pages/Invitations';
 import GroupsPage from './pages/GroupsPage';
 import GroupView from './pages/GroupView';
 import Import from './pages/Import';
+import Orgs from './pages/Orgs';
 import { ThemeToggle } from './theme';
 
-type Page = 'overview' | 'users' | 'invitations' | 'groups' | 'import';
+type Page = 'overview' | 'users' | 'invitations' | 'groups' | 'orgs' | 'import';
 
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
@@ -18,6 +19,7 @@ export default function App() {
   const [page, setPage] = useState<Page>('overview');
   const [group, setGroup] = useState<{ id: string; name: string } | null>(null);
   const [managed, setManaged] = useState<MyGroup[]>([]);
+  const [orgs, setOrgs] = useState<OrgSummary[]>([]);
 
   useEffect(() => {
     if (!api) return;
@@ -25,6 +27,7 @@ export default function App() {
   }, []);
   useEffect(() => {
     if (user && api) api.myGroups().then((g) => setManaged(g.filter((x) => x.role === 'admin')), () => undefined);
+    if (user && api) api.myOrgs().then(setOrgs, () => undefined);
   }, [user]);
 
   const go = useCallback((p: Page) => { setPage(p); setGroup(null); }, []);
@@ -44,12 +47,14 @@ export default function App() {
   if (!user) return <Login api={api} onSignedIn={setUser} notice={bootError} />;
 
   const isAdmin = user.role === 'admin';
-  if (!isAdmin && managed.length === 0) {
+  // Le personnel d'un établissement (administratif, enseignant) accède au BO ; un simple élève/parent, non.
+  const staffOrgs = orgs.filter((o) => o.roles.includes('admin') || o.roles.includes('teacher'));
+  if (!isAdmin && managed.length === 0 && staffOrgs.length === 0) {
     return (
       <main className="center">
         <div className="card narrow">
           <h1>Accès réservé</h1>
-          <p>Cet espace est destiné aux admins globaux et aux admins de groupe. Votre progression personnelle se gère dans l’application mobile.</p>
+          <p>Cet espace est destiné aux admins globaux, aux admins de groupe et à l’équipe des établissements (administratifs et enseignants). Votre progression personnelle se gère dans l’application mobile.</p>
           <button className="btn ghost" onClick={() => api!.signOut().then(() => setUser(null))}>Se déconnecter</button>
         </div>
       </main>
@@ -57,9 +62,10 @@ export default function App() {
   }
 
   const nav: [Page, string][] = isAdmin
-    ? [['overview', 'Aperçu'], ['users', 'Utilisateurs'], ['invitations', 'Invitations'], ['groups', 'Groupes'], ['import', 'Import']]
-    : [['groups', 'Mes groupes']];
-  const current = isAdmin ? page : 'groups';
+    ? [['overview', 'Aperçu'], ['orgs', 'Établissements'], ['users', 'Utilisateurs'], ['invitations', 'Invitations'], ['groups', 'Groupes'], ['import', 'Import']]
+    : [...(staffOrgs.length ? ([['orgs', staffOrgs.length > 1 ? 'Mes établissements' : 'Mon établissement']] as [Page, string][]) : []),
+       ...(managed.length ? ([['groups', 'Mes groupes']] as [Page, string][]) : [])];
+  const current = nav.some(([p]) => p === page) ? page : nav[0][0];
 
   return (
     <div className="shell">
@@ -83,6 +89,8 @@ export default function App() {
           <GroupView api={api} group={group} isGlobalAdmin={isAdmin} meId={user.id} onBack={() => setGroup(null)} />
         ) : current === 'overview' ? (
           <Overview api={api} onNavigate={go} />
+        ) : current === 'orgs' ? (
+          <Orgs api={api} me={user} />
         ) : current === 'users' ? (
           <Users api={api} me={user} />
         ) : current === 'invitations' ? (

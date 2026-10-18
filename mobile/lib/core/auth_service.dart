@@ -188,6 +188,18 @@ class AuthService extends ChangeNotifier {
     return (r['group'] as Map<String, dynamic>)['name'] as String;
   }
 
+  /// Établissements (association / mosquée) où j'ai un rôle : élève, enseignant ou administratif.
+  Future<List<MyOrg>> myOrgs() async {
+    final r = await api!.get('/orgs') as Map<String, dynamic>;
+    return [for (final o in r['organizations'] as List) MyOrg.fromJson(o as Map<String, dynamic>)];
+  }
+
+  /// Rattache mon compte à la fiche d'un élève avec le code remis par l'administration ; renvoie le nom de l'établissement.
+  Future<String> linkStudent(String code) async {
+    final r = await api!.post('/orgs/link-student', {'code': code.trim()}) as Map<String, dynamic>;
+    return (r['organization'] as Map<String, dynamic>)['name'] as String;
+  }
+
   Future<void> updateName(String name) async {
     await api!.patch('/me', {'displayName': name});
     await refreshProfile();

@@ -46,8 +46,11 @@ Ordre proposé (chaque lot est indépendant du suivant, sauf mention) :
 - [x] **Lot A — gains rapides** : livré en **0.18.0** (18/10/2026) — langue arabe par défaut (21), onglet « Pages » par défaut + marquage page par page (8),
       estimateur de khatma (23). **Reste du lot A**, en attente d'éléments externes : A5/A6 (récitateurs كمال صميدة et المسلاتي : MP3 à fournir par Anis,
       puis lecture « sourate entière », hébergement `/audio/`) · A7 (nom « حفظ قالون » : disponibilité à vérifier dans les stores).
-- [ ] **Lot B — fondations** *(décisions D1-D20 prises le 17/10 ; voir `PLAN-EXECUTION.md`)* : établissements, classes, rôles إداري/مدرس/طالب,
-      fiche élève, journal d'événements de mémorisation, حفظ إجمالي / مسترسل (1-5, 10, 14).
+- [x] **Lot B — fondations** : livré en **0.19.0** (18/10/2026) — établissements (association/mosquée), classes, rôles إداري/مدرس/طالب par établissement,
+      fiche élève (consentement, doublons, téléphone vérifié par code, code de liaison du compte, archivage 5 ans), calculs global/successif en ahzab et sourates,
+      BO « Établissements », écran « Mes établissements » dans l'app.
+      **Reste du lot B** : **B7** disque « Backup U » + sauvegardes longue durée · le **résumé حفظ إجمالي / مسترسل** d'un élève et le **journal d'événements**
+      (rythme, périodes) viennent avec le lot C, car ils comptent les validations de l'enseignant (D2).
 - [ ] **Lot C — validation par l'enseignant** (6-7) : mushaf enseignant, règle des 3 erreurs, notifications dans l'app.
 - [ ] **Lot D — BO** (9, 11-13, 15, 16) : mosaïque 604, « متابعة », classements/périodes, exports, BO arabe/français.
 - [ ] **Lot E — résultats** (17) : examens, concours, certificats.

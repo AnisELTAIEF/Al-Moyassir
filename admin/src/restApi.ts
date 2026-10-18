@@ -1,7 +1,7 @@
 import type { Api, User } from './types';
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string) { super(message); }
+  constructor(public status: number, public code: string, message: string, public data?: unknown) { super(message); }
 }
 
 const KEY = 'hifidh-admin-refresh';
@@ -54,7 +54,7 @@ export function createRestApi(baseUrl: string, googleClientId: string | null): A
       await refresh();
       return call<T>(method, path, body, auth, true);
     }
-    throw new ApiError(res.status, data?.error ?? 'error', data?.message ?? `Erreur ${res.status}`);
+    throw new ApiError(res.status, data?.error ?? 'error', data?.message ?? `Erreur ${res.status}`, data);
   }
 
   async function session(r: { accessToken: string; refreshToken: string; user: User }) {
@@ -116,5 +116,46 @@ export function createRestApi(baseUrl: string, googleClientId: string | null): A
     groupJoinOpen: async (g) => (await call<{ group: { joinOpen?: boolean } }>('GET', `/groups/${g}/overview`)).group.joinOpen ?? true,
     setGroupJoinOpen: async (g, open) => { await call('PUT', `/groups/${g}/join-open`, { open }); },
     memberProgress: async (g, u) => items(await call('GET', `/groups/${g}/members/${u}/progress`)),
+
+    myOrgs: async () => (await call<{ organizations: never[] }>('GET', '/orgs')).organizations,
+    createOrg: async (input) => (await call<{ organization: never }>('POST', '/orgs', input)).organization,
+    updateOrg: async (id, patch) => (await call<{ organization: never }>('PATCH', `/orgs/${id}`, patch)).organization,
+    orgMembers: async (o) => (await call<{ members: never[] }>('GET', `/orgs/${o}/members`)).members,
+    addOrgMember: async (o, email, role) => { await call('PUT', `/orgs/${o}/members`, { email, role }); },
+    removeOrgMember: async (o, u, role) => { await call('DELETE', `/orgs/${o}/members/${u}${role ? `?role=${role}` : ''}`); },
+    orgClasses: async (o) => (await call<{ classes: never[] }>('GET', `/orgs/${o}/classes`)).classes,
+    createClass: async (o, name) => { await call('POST', `/orgs/${o}/classes`, { name }); },
+    renameClass: async (o, c, name) => { await call('PATCH', `/orgs/${o}/classes/${c}`, { name }); },
+    deleteClass: async (o, c) => { await call('DELETE', `/orgs/${o}/classes/${c}`); },
+    setClassTeacher: async (o, c, u, on) => {
+      await (on ? call('PUT', `/orgs/${o}/classes/${c}/teachers`, { userId: u }) : call('DELETE', `/orgs/${o}/classes/${c}/teachers/${u}`));
+    },
+    setClassStudent: async (o, c, p, on) => {
+      await (on ? call('PUT', `/orgs/${o}/classes/${c}/students`, { profileId: p }) : call('DELETE', `/orgs/${o}/classes/${c}/students/${p}`));
+    },
+    orgStudents: async (o, f = {}) => {
+      const qs = new URLSearchParams();
+      if (f.q) qs.set('q', f.q);
+      if (f.classId) qs.set('groupId', f.classId);
+      if (f.status) qs.set('status', f.status);
+      return (await call<{ students: never[] }>('GET', `/orgs/${o}/students${qs.size ? `?${qs}` : ''}`)).students;
+    },
+    createStudent: async (o, input, classIds, confirmDuplicate) => {
+      try {
+        const r = await call<{ student: never }>('POST', `/orgs/${o}/students`, { ...input, guardianConsent: true, groupIds: classIds, confirmDuplicate });
+        return { student: r.student };
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409 && e.code === 'duplicate') return { duplicates: (e.data as { duplicates: never[] }).duplicates };
+        throw e;
+      }
+    },
+    updateStudent: async (o, id, patch) => (await call<{ student: never }>('PATCH', `/orgs/${o}/students/${id}`, patch)).student,
+    leaveStudent: async (o, id) => (await call<{ student: never }>('POST', `/orgs/${o}/students/${id}/leave`, {})).student,
+    restoreStudent: async (o, id) => (await call<{ student: never }>('POST', `/orgs/${o}/students/${id}/restore`, {})).student,
+    deleteStudent: async (o, id) => { await call('DELETE', `/orgs/${o}/students/${id}`); },
+    studentPhoneCode: (o, id) => call('POST', `/orgs/${o}/students/${id}/phone-code`, {}),
+    verifyStudentPhone: async (o, id, code) => { await call('POST', `/orgs/${o}/students/${id}/phone-verify`, { code }); },
+    studentLinkCode: (o, id) => call('POST', `/orgs/${o}/students/${id}/link-code`, {}),
+    unlinkStudent: async (o, id) => { await call('POST', `/orgs/${o}/students/${id}/unlink`, {}); },
   };
 }

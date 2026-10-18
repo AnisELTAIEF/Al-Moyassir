@@ -12,6 +12,7 @@ import '../widgets/common.dart';
 import '../widgets/ayah_coloring.dart';
 import '../widgets/tajweed_view.dart';
 import 'login_screen.dart';
+import 'my_orgs_screen.dart';
 import '../core/i18n.dart';
 
 /// Compte (connexion / profil / groupes) et réglages.
@@ -32,8 +33,19 @@ class AccountScreen extends StatelessWidget {
         child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 32), children: [
           if (!auth.signedIn)
             Card(child: Padding(padding: EdgeInsets.all(18), child: LoginPanel()))
-          else
+          else ...[
             _Profile(auth: auth),
+            const SizedBox(height: 12),
+            Card(
+              child: ListTile(
+                leading: Icon(Icons.apartment_outlined, color: context.colors.primary),
+                title: Text(tr('Mes établissements')),
+                subtitle: Text(tr('Associations, mosquées et rattachement d’un élève')),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyOrgsScreen())),
+              ),
+            ),
+          ],
           SectionTitle(tr('Affichage')),
           Card(
             child: Padding(

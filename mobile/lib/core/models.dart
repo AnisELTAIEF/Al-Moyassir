@@ -276,3 +276,20 @@ enum Mastery {
         review => none,
       };
 }
+
+/// Un établissement (association ou mosquée) où l'utilisateur a un ou plusieurs rôles.
+class MyOrg {
+  const MyOrg({required this.id, required this.name, required this.isMosque, required this.roles});
+  final String id, name;
+  final bool isMosque;
+
+  /// 'admin' (إداري), 'teacher' (مدرس), 'student' (طالب).
+  final List<String> roles;
+
+  factory MyOrg.fromJson(Map<String, dynamic> j) => MyOrg(
+        id: j['id'] as String,
+        name: j['name'] as String,
+        isMosque: j['type'] == 'mosque',
+        roles: [for (final r in (j['roles'] as List? ?? const [])) r as String],
+      );
+}

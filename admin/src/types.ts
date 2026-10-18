@@ -69,6 +69,28 @@ export interface Stats {
   active7Days: number; pendingInvitations: number; groups: number;
 }
 
+// ───── Établissements (association / mosquée), classes, équipe, élèves ─────
+export type OrgRole = 'admin' | 'teacher' | 'student';
+export type OrgType = 'association' | 'mosque';
+export interface OrgSummary {
+  id: string; name: string; type: OrgType; address: string; errorThreshold: number;
+  roles: OrgRole[]; studentCount: number; classCount: number;
+}
+export interface OrgClass { id: string; name: string; studentCount: number; teachers: { userId: string; displayName: string }[] }
+export interface OrgMember { userId: string; email: string; displayName: string; roles: OrgRole[] }
+export interface Student {
+  id: string; organizationId: string; fullName: string; fatherName: string; birthDate: string | null; age: number | null;
+  gender: 'm' | 'f' | null; phone: string | null; phoneVerified: boolean; joinedAt: string | null; hifdhStartedAt: string | null;
+  pastCompetitions: string; guardianConsentAt: string | null; status: 'active' | 'left'; leftAt: string | null;
+  retainUntil: string | null; linked: boolean; classes: { id: string; name: string }[]; createdAt: string;
+}
+export interface StudentInput {
+  fullName: string; fatherName?: string; birthDate?: string | null; gender?: 'm' | 'f' | null; phone?: string | null;
+  joinedAt?: string | null; hifdhStartedAt?: string | null; pastCompetitions?: string | null;
+}
+export interface DuplicateStudent { id: string; fullName: string; fatherName: string; status: 'active' | 'left' }
+export type CreateStudentResult = { student: Student } | { duplicates: DuplicateStudent[] };
+
 export interface Api {
   demo: boolean;
   googleClientId: string | null;
@@ -115,4 +137,32 @@ export interface Api {
   importUsers(text: string, dryRun: boolean): Promise<ImportResult>;
   /** Import dans un groupe : « Nom ; e-mail ». */
   importToGroup(groupId: string, text: string, dryRun: boolean): Promise<ImportResult>;
+
+  // ───── Établissements ─────
+  /** Établissements où l'utilisateur a un rôle (tous pour un admin global). */
+  myOrgs(): Promise<OrgSummary[]>;
+  createOrg(input: { name: string; type: OrgType; address: string; adminEmail?: string }): Promise<OrgSummary>;
+  updateOrg(id: string, patch: Partial<{ name: string; type: OrgType; address: string; errorThreshold: number }>): Promise<OrgSummary>;
+  orgMembers(orgId: string): Promise<OrgMember[]>;
+  addOrgMember(orgId: string, email: string, role: OrgRole): Promise<void>;
+  removeOrgMember(orgId: string, userId: string, role?: OrgRole): Promise<void>;
+  orgClasses(orgId: string): Promise<OrgClass[]>;
+  createClass(orgId: string, name: string): Promise<void>;
+  renameClass(orgId: string, classId: string, name: string): Promise<void>;
+  deleteClass(orgId: string, classId: string): Promise<void>;
+  setClassTeacher(orgId: string, classId: string, userId: string, on: boolean): Promise<void>;
+  setClassStudent(orgId: string, classId: string, profileId: string, on: boolean): Promise<void>;
+  orgStudents(orgId: string, filter?: { q?: string; classId?: string; status?: 'active' | 'left' | 'all' }): Promise<Student[]>;
+  /** Consentement des parents obligatoire. Renvoie `duplicates` si un élève porte déjà ce nom + prénom du père (à confirmer). */
+  createStudent(orgId: string, input: StudentInput, classIds: string[], confirmDuplicate: boolean): Promise<CreateStudentResult>;
+  updateStudent(orgId: string, id: string, patch: Partial<StudentInput>): Promise<Student>;
+  leaveStudent(orgId: string, id: string): Promise<Student>;
+  restoreStudent(orgId: string, id: string): Promise<Student>;
+  deleteStudent(orgId: string, id: string): Promise<void>;
+  /** Code à usage unique à transmettre à l'élève (par WhatsApp) pour vérifier son numéro. */
+  studentPhoneCode(orgId: string, id: string): Promise<{ code: string; phone: string; expiresAt: string }>;
+  verifyStudentPhone(orgId: string, id: string, code: string): Promise<void>;
+  /** Code de liaison à remettre au parent pour rattacher le compte de l'enfant à sa fiche. */
+  studentLinkCode(orgId: string, id: string): Promise<{ code: string; expiresAt: string }>;
+  unlinkStudent(orgId: string, id: string): Promise<void>;
 }

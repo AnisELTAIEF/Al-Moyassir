@@ -572,4 +572,18 @@ const Map<String, String> arStrings = {
   'environ {n} mois': 'حوالي {n} شهرًا',
   'environ {y} ans': 'حوالي {y} سنة',
   'environ {y} ans et {m} mois': 'حوالي {y} سنة و{m} أشهر',
+  // Lot B : établissements.
+  'Mes établissements': 'مؤسساتي',
+  'Associations, mosquées et rattachement d’un élève': 'الجمعيات والجوامع وربط حساب الطالب',
+  'Administratif': 'إداري',
+  'Enseignant': 'مدرّس',
+  'Élève': 'طالب',
+  'Aucun établissement': 'لا توجد مؤسسة',
+  'Si votre enfant est inscrit dans une association ou une mosquée, saisissez ci-dessous le code remis par l’administration.': 'إذا كان ابنكم مسجّلًا في جمعية أو جامع، فأدخلوا أدناه الرمز الذي سلّمته لكم الإدارة.',
+  'Chargement impossible. Réessayez.': 'تعذّر التحميل. أعد المحاولة.',
+  'Rattacher le compte d’un élève': 'ربط حساب طالب',
+  'Saisissez le code remis par l’administration pour relier ce compte à la fiche de l’élève.': 'أدخل الرمز الذي سلّمته الإدارة لربط هذا الحساب ببطاقة الطالب.',
+  'Code de liaison': 'رمز الربط',
+  'Rattacher': 'ربط',
+  'Compte rattaché à {org}.': 'تم ربط الحساب بـ {org}.',
 };

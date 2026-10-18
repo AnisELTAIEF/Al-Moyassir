@@ -125,7 +125,8 @@ suppose l'envoi d'un **code à usage unique**.
 - **Phase 1 (simple, sans coût, sans compte externe)** : à chaque ajout ou changement de numéro, le serveur génère un code
   (6 chiffres, valable 15 min, 5 essais) et le numéro reste « **non vérifié** » tant que le code n'est pas saisi. L'administratif
   (ou l'enseignant) envoie le code à l'élève par WhatsApp en un geste, avec un lien `wa.me` au message pré-rempli — le même principe que
-  le partage des invitations déjà présent dans le BO. L'élève saisit le code dans l'app : le numéro devient « vérifié ».
+  le partage des invitations déjà présent dans le BO. L'élève (ou son parent) **communique en retour le code reçu** à l'équipe, qui le saisit dans la
+  fiche : le numéro devient « vérifié » (preuve que le message est bien arrivé à ce numéro).
 - **Phase 2 (automatique, plus tard)** : envoi direct par la **WhatsApp Business Platform (Cloud API)** avec un modèle de message
   d'« authentification ». Pré-requis : compte Meta Business vérifié, numéro dédié, modèle approuvé par Meta, et **messages
   facturés** (tarifs par pays à consulter sur la page officielle de Meta ; non vérifiés ici). À décider quand le volume le justifie.
