@@ -3,13 +3,12 @@ import 'package:provider/provider.dart';
 
 import '../core/i18n.dart';
 import '../core/quran_repository.dart';
-import '../core/settings.dart';
 import '../core/validation_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../core/push_service.dart';
-import 'reader_screen.dart';
 import 'results_screen.dart';
+import 'review_screen.dart';
 
 /// Centre de notifications : ce que l'enseignant a signalé (pages à reprendre, ayat à revoir).
 class NotificationsScreen extends StatefulWidget {
@@ -26,9 +25,29 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => context.read<ValidationStore>().refresh());
   }
 
+  /// « سورة البقرة 5–7 · سورة يس 12 » (notifications 0.22.0+ ; les anciennes n'ont que le nombre).
+  String _refs(AppNotification n) {
+    final repo = context.read<QuranRepository>();
+    return [
+      for (final r in (n.payload['refs'] as List? ?? const []).cast<Map>())
+        '${repo.surah((r['surah'] as num).toInt()).name} ${r['from'] == r['to'] ? r['from'] : '${r['from']}–${r['to']}'}',
+    ].join(' · ');
+  }
+
+  /// « 3 (البقرة), 4 (البقرة) » : la sourate aide à se repérer sans connaître les numéros de page.
+  String _pages(AppNotification n) {
+    final repo = context.read<QuranRepository>();
+    return [
+      for (final p in ((n.payload['pages'] as List?) ?? const []).cast<num>())
+        '${p.toInt()} (${repo.surah(repo.mushafPages[p.toInt() - 1].$1).name})',
+    ].join(', ');
+  }
+
   String _title(AppNotification n) => switch (n.kind) {
-        'retake_pages' => tr('Pages à reprendre : {p}', {'p': ((n.payload['pages'] as List?) ?? const []).join(', ')}),
-        'review_ayat' => tr('{n} ayat à revoir', {'n': n.payload['count'] ?? 0}),
+        'retake_pages' => tr('Pages à reprendre : {p}', {'p': _pages(n)}),
+        'review_ayat' => _refs(n).isEmpty
+            ? tr('{n} ayat à revoir', {'n': n.payload['count'] ?? 0})
+            : tr('{n} ayat à revoir : {refs}', {'n': n.payload['count'] ?? 0, 'refs': _refs(n)}),
         'certificate' => tr('Nouveau certificat : {t}', {'t': n.payload['title'] ?? ''}),
         'reward' => n.payload['rewardKind'] == 'gift' ? tr('Cadeau remis : {t}', {'t': n.payload['title'] ?? ''}) : tr('Encouragement : {t}', {'t': n.payload['title'] ?? ''}),
         _ => tr('Notification'),
@@ -42,13 +61,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       Navigator.push(context, MaterialPageRoute(builder: (_) => ResultsScreen(initialTab: n.kind == 'certificate' ? 1 : 2)));
       return;
     }
+    if (n.kind == 'review_ayat') {
+      final refs = (n.payload['refs'] as List? ?? const []).cast<Map>();
+      if (refs.isEmpty) {
+        // Anciennes notifications (sans le détail) : la liste « À réviser » les regroupe toutes.
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const ReviewScreen()));
+      } else {
+        openWithTeacherMarks(context, (refs.first['surah'] as num).toInt(), (refs.first['from'] as num).toInt());
+      }
+      return;
+    }
     final pages = ((n.payload['pages'] as List?) ?? const []).cast<num>();
     if (n.kind != 'retake_pages' || pages.isEmpty) return;
     final start = context.read<QuranRepository>().mushafPages[pages.first.toInt() - 1];
-    final settings = context.read<Settings>();
-    settings.readingMode = ReadingMode.mushaf;
-    settings.setColoringIn(ReadingMode.mushaf, AyahColoring.validation);
-    Navigator.push(context, MaterialPageRoute(builder: (_) => ReaderScreen(surah: start.$1, initialAyah: start.$2)));
+    openWithTeacherMarks(context, start.$1, start.$2);
   }
 
   @override
@@ -92,7 +118,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           leading: Icon(icon, color: n.read ? context.tones.muted : context.tones.red),
                           title: Text(_title(n), style: TextStyle(fontWeight: n.read ? FontWeight.w400 : FontWeight.w600)),
                           subtitle: Text('${n.payload['organizationName'] ?? ''} · ${since(n.createdAt)}'),
-                          trailing: n.kind == 'review_ayat' ? null : const Icon(Icons.chevron_right),
+                          trailing: const Icon(Icons.chevron_right),
                           onTap: () => _open(n),
                         ),
                       );

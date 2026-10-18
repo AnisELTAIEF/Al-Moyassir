@@ -53,10 +53,13 @@ export function buildReference(ayahCounts, hizbStarts, pageStarts = []) {
 
 /** Charge les repères depuis la base (tables surahs, hizb_starts, mushaf_pages). */
 export async function loadReference(db) {
-  const [surahs] = await db.query('SELECT n, ayah_count FROM surahs ORDER BY n');
+  const [surahs] = await db.query('SELECT n, name, ayah_count FROM surahs ORDER BY n');
   const [hizb] = await db.query('SELECT surah, ayah FROM hizb_starts ORDER BY hizb');
   const [pages] = await db.query('SELECT surah, ayah FROM mushaf_pages ORDER BY page');
-  return buildReference(new Map(surahs.map((r) => [Number(r.n), Number(r.ayah_count)])), hizb, pages);
+  const ref = buildReference(new Map(surahs.map((r) => [Number(r.n), Number(r.ayah_count)])), hizb, pages);
+  // Noms arabes des sourates (textes des alertes push).
+  ref.surahNames = new Map(surahs.map((r) => [Number(r.n), r.name]));
+  return ref;
 }
 
 /** Indicateurs 0/1 par ayah, à partir de couples [sourate, ayah]. */
@@ -104,6 +107,18 @@ export function memorizationStats(ref, flags) {
 
 export const RESULT_CODE = { acquired: 1, acquired_error: 2, review: 3 };
 export const CODE_RESULT = [null, 'acquired', 'acquired_error', 'review'];
+
+/** Passages (ayat consécutifs d'une même sourate) à partir d'indices globaux : [{ surah, from, to }]. */
+export function passagesOf(ref, indices) {
+  const out = [];
+  for (const idx of [...indices].sort((a, b) => a - b)) {
+    const [surah, ayah] = ref.refAt(idx);
+    const last = out[out.length - 1];
+    if (last && last.surah === surah && last.to + 1 === ayah) last.to = ayah;
+    else out.push({ surah, from: ayah, to: ayah });
+  }
+  return out;
+}
 
 /** Pages (1..604) « à reprendre » : au moins `threshold` ayat acquis avec erreur sur la page. */
 export function retakePages(ref, codes, threshold) {

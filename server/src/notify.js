@@ -14,8 +14,15 @@ export function makePushSender(cfg) {
 export function pushText(kind, p = {}) {
   const org = p.organizationName ?? '';
   switch (kind) {
-    case 'retake_pages': return ['صفحة للإعادة · Page à reprendre', `${(p.pages ?? []).join(', ')} — ${org}`];
-    case 'review_ayat': return ['آيات للمراجعة · Ayat à revoir', `${p.count ?? ''} — ${org}`];
+    case 'retake_pages': {
+      const pages = p.pageInfo?.length ? p.pageInfo.map((x) => `${x.page} (${x.name})`) : (p.pages ?? []);
+      return ['صفحة للإعادة · Page à reprendre', `${pages.join('، ')} — ${org}`];
+    }
+    case 'review_ayat': {
+      // « البقرة 5–7 · يس 12 (4) — association » : sourate, ayat et nombre.
+      const refs = (p.refs ?? []).map((x) => `${x.name} ${x.from === x.to ? x.from : `${x.from}–${x.to}`}`);
+      return [`آيات للمراجعة (${p.count ?? refs.length}) · Ayat à revoir`, `${refs.join(' · ')} — ${org}`];
+    }
     case 'certificate': return ['شهادة جديدة · Nouveau certificat', p.title ?? ''];
     case 'reward': return [p.rewardKind === 'gift' ? 'هدية · Cadeau' : 'تشجيع · Encouragement', p.title ?? ''];
     default: return ['الميسّر · Almoyassir', ''];

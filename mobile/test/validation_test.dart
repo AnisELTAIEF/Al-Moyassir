@@ -7,6 +7,7 @@ import 'package:hifidh_quran/core/auth_service.dart';
 import 'package:hifidh_quran/core/models.dart';
 import 'package:hifidh_quran/core/quran_repository.dart';
 import 'package:hifidh_quran/core/validation_store.dart';
+import 'package:hifidh_quran/screens/review_screen.dart';
 import 'package:hifidh_quran/widgets/ayah_coloring.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -147,6 +148,15 @@ void main() {
       expect(v.of(2, 6), ValResult.review, reason: 'o1 est plus récent');
       expect(v.isRetake(3) && v.isRetake(9), isTrue);
       expect(v.hasAny, isTrue);
+      // « Réviser » : ce que l'enseignant demande, dans l'ordre du Coran.
+      expect(v.reviewAyat, [(2, 5), (2, 6)]);
+      expect(v.retakePages, [3, 9]);
+      expect(passagesOfRefs(v.reviewAyat), [(2, 5, 6)], reason: 'ayat consécutifs : un seul passage');
+    });
+
+    test('passages de l’enseignant : coupés entre sourates et aux trous', () {
+      expect(passagesOfRefs([(2, 5), (2, 6), (2, 8), (3, 1)]), [(2, 5, 6), (2, 8, 8), (3, 1, 1)]);
+      expect(passagesOfRefs([]), isEmpty);
     });
 
     test('hors ligne : on garde ce qu’on avait ; déconnexion : tout est vidé', () async {

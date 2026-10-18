@@ -62,6 +62,18 @@ class ValidationStore extends ChangeNotifier implements ValidationView {
   @override
   bool isRetake(int page) => _retake.contains(page);
   int get retakeCount => _retake.length;
+
+  /// Pages à reprendre, dans l'ordre du mushaf.
+  List<int> get retakePages => _retake.toList()..sort();
+
+  /// Ayat que l'enseignant a marqués « à revoir » (sourate, ayah), dans l'ordre du Coran.
+  List<(int, int)> get reviewAyat {
+    final out = <(int, int)>[
+      for (final e in _items.entries)
+        if (e.value.$1 == ValResult.review) (int.parse(e.key.split(':')[0]), int.parse(e.key.split(':')[1])),
+    ];
+    return out..sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2));
+  }
   List<AppNotification> get notifications => _notifications;
   int get unread => _unread;
 

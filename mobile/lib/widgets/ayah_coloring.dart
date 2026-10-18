@@ -124,11 +124,13 @@ class AyahPainter {
   bool get mastery => coloring == AyahColoring.mastery;
   bool get validationMode => coloring == AyahColoring.validation;
 
-  /// Marque personnelle « à réviser » de l'élève (anneau sur le médaillon) : jamais en vue enseignant.
-  bool personalReview(int surah, int ayah) => validationMode && !teacherView && store.storedMasteryOf(surah, ayah) == Mastery.review;
+  /// Vue combinée de l'élève (colorisation « Validation ») : le FOND montre ce que l'enseignant a validé,
+  /// le MÉDAILLON montre ses propres marques (en cours / à revoir / acquis), qu'il change d'un toucher.
+  /// Jamais en vue enseignant : l'enseignant ne voit pas les marques personnelles de l'élève.
+  bool get studentTags => mastery || (validationMode && !teacherView);
 
   /// Médaillons « par niveau » (forme + couleur) : dès que le toucher change le niveau.
-  bool get masteryBadges => tapCyclesMastery(settings);
+  bool get masteryBadges => !teacherView && (tapCyclesMastery(settings) || validationMode);
 
   Mastery masteryOf(int surah, int ayah) => store.masteryOf(surah, ayah, includeOverdue: settings.overdueAsReview, now: _now);
 
@@ -190,11 +192,12 @@ TapGestureRecognizer ayahRecognizer({required VoidCallback onTap, required VoidC
 }
 
 /// Un toucher sur un ayah change-t-il son niveau de maîtrise ? Oui en colorisation par maîtrise
-/// (Qira'a et Tahfidh), et aussi en colorisation par ayah en Qira'a (le médaillon montre alors le niveau).
+/// (Qira'a et Tahfidh), en colorisation « Validation » (vue combinée de l'élève : sa marque est sur le médaillon),
+/// et en colorisation par ayah en Qira'a (le médaillon montre alors le niveau).
 bool tapCyclesMastery(Settings s, [ReadingMode? mode]) {
   final m = mode ?? s.readingMode;
   final c = s.coloringIn(m);
-  return c == AyahColoring.mastery || (c == AyahColoring.perAyah && m == ReadingMode.mushaf);
+  return c == AyahColoring.mastery || c == AyahColoring.validation || (c == AyahColoring.perAyah && m == ReadingMode.mushaf);
 }
 
 /// Passe un ayah au niveau de maîtrise suivant, avec « Annuler ».
@@ -344,16 +347,24 @@ class ColoringLegend extends StatelessWidget {
       if (teacher) {
         children.add(Text(tr('Touchez un ayah pour changer son résultat : acquis → acquis avec erreur → à revoir → effacé.'), style: context.text.bodyMedium));
       } else {
-        children.add(Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          KhatamBadge(label: '٣', size: 26, stroke: context.tones.gold, textColor: context.colors.onSurface, ring: context.tones.red, dot: context.tones.red),
-          const SizedBox(width: 10),
-          Flexible(child: Text(tr('Votre marque personnelle « à réviser » : visible de vous seul, jamais de l’enseignant.'), style: context.text.bodyMedium)),
-        ]),
-        ));
+        children
+          ..add(const SizedBox(height: 10))
+          ..add(Text(tr('Vos marques (médaillon de fin d’ayah)'), style: context.text.titleSmall));
+        for (final lv in Mastery.values) {
+          children.add(Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              masteryBadge(context, lv, label: '٣', size: 24, colorBlind: cb),
+              const SizedBox(width: 10),
+              Flexible(child: Text(masteryLabel(lv), style: context.text.bodyMedium)),
+            ]),
+          ));
+        }
+        children.add(Text(tr('Le fond montre ce que votre enseignant a validé ; le médaillon, vos propres marques (visibles de vous seul). Touchez un ayah pour changer votre marque ; appui long pour plus d’options.'),
+            style: context.text.bodySmall));
       }
-      children.add(Text(tr('Une page est « à reprendre » quand trop d’ayat y sont acquis avec erreur ; elle porte alors un bandeau en haut.'), style: context.text.bodySmall));
+      children.add(Text(tr('Une page est « à reprendre » quand {n} ayat ou plus y sont acquis avec erreur ; elle porte alors un bandeau en haut et apparaît dans « Réviser ».', {'n': 3}),
+          style: context.text.bodySmall));
     }
     children
       ..add(const SizedBox(height: 8))
@@ -404,7 +415,7 @@ class _ColoringSettingsPanelState extends State<ColoringSettingsPanel> {
           AyahColoring.mastery => _mode == ReadingMode.mushaf
               ? tr('Non appris, en cours, à revoir, acquis — touchez un ayah pour changer (par défaut)')
               : tr('Non appris, en cours, à revoir, acquis — touchez un ayah pour changer'),
-          AyahColoring.validation => tr('Acquis, acquis avec erreur, à revoir — validés par votre enseignant'),
+          AyahColoring.validation => tr('Fond : validation de l’enseignant · médaillon : vos marques (touchez pour changer)'),
         };
     // « Validation » n'est proposée qu'aux élèves que leur enseignant a déjà validés.
     final hasValidations = context.watch<ValidationStore>().hasAny;

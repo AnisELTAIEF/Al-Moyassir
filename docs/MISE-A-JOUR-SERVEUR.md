@@ -88,6 +88,7 @@ et `https://quran.bestconsultingit.com/app/` (version web de l'app).
 | 0.16.0 | E-mails d’invitation détaillés selon le rôle ; envoi automatique **optionnel** (SMTP, voir ci-dessous) ; guide `/guide/` publié avec l’admin web. Nouvelle dépendance `nodemailer` (installée par `install.sh`) |
 | 0.17.0 | Import de listes d’utilisateurs (TXT/CSV, par groupe ou général) ; APK Android hébergé sur le serveur (`/api/download/android`). **Migration 008** (appliquée par `install.sh`) ; `install.sh` crée `/var/lib/hifidh/download` |
 | 0.22.0 | **Alertes natives de l’app Android** (Firebase Cloud Messaging). **Migration 014** (appliquée par `install.sh`) ; compte de service Firebase à installer une fois (voir ci-dessous) |
+| 0.23.0 | Notifications détaillées (sourate, ayat, nombre ; sourate des pages à reprendre) ; app : « Réviser » reprend ce que l'enseignant demande, vue combinée du mushaf. Pas de migration |
 
 ## Mettre à jour la version web (côté développement)
 

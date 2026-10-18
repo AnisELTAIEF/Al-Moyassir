@@ -630,4 +630,17 @@ const Map<String, String> arStrings = {
   'Refusées dans le navigateur : autorisez les notifications dans ses réglages.': 'تم الرفض في المتصفح: اسمح بالإشعارات من إعداداته.',
   'Refusées sur ce téléphone : autorisez les notifications de l’app dans les réglages Android.': 'تم الرفض على هذا الهاتف: اسمح بإشعارات التطبيق من إعدادات أندرويد.',
   'Impossible de modifier les alertes pour le moment.': 'تعذّر تعديل التنبيهات الآن.',
+  // 0.23.0 : ce que l'enseignant demande de réviser, vue combinée du mushaf.
+  '{n} ayat à revoir : {refs}': '{n} آيات للمراجعة: {refs}',
+  'Aucune révision personnelle aujourd’hui.': 'لا مراجعة شخصية اليوم.',
+  'Demandé par votre enseignant': 'مطلوب من معلّمك',
+  'Page {n} à reprendre': 'الصفحة {n} للإعادة',
+  'سورة {s} · depuis l’ayah {a} — trop d’erreurs sur la page': 'سورة {s} · من الآية {a} — أخطاء كثيرة في الصفحة',
+  'à revoir': 'للمراجعة',
+  'Vos marques (médaillon de fin d’ayah)': 'علاماتك (دائرة نهاية الآية)',
+  'Le fond montre ce que votre enseignant a validé ; le médaillon, vos propres marques (visibles de vous seul). Touchez un ayah pour changer votre marque ; appui long pour plus d’options.':
+      'الخلفية تُظهر تقييم معلّمك، والدائرة تُظهر علاماتك الخاصة (لا يراها غيرك). المس الآية لتغيير علامتك، واضغط مطوّلًا لخيارات أخرى.',
+  'Une page est « à reprendre » quand {n} ayat ou plus y sont acquis avec erreur ; elle porte alors un bandeau en haut et apparaît dans « Réviser ».':
+      'تصبح الصفحة «للإعادة» إذا كان فيها {n} آيات أو أكثر محفوظة مع خطأ؛ فيظهر شريط أعلاها وتُضاف إلى «المراجعة».',
+  'Fond : validation de l’enseignant · médaillon : vos marques (touchez pour changer)': 'الخلفية: تقييم المعلّم · الدائرة: علاماتك (المس للتغيير)',
 };

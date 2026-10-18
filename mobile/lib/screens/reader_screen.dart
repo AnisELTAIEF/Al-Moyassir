@@ -423,7 +423,8 @@ class _AyahBlock extends StatelessWidget {
     final tones = context.tones;
     final markerFill = status == AyahStatus.memorized ? cs.primary : null;
     final markerStroke = status == null ? tones.muted.withValues(alpha: 0.6) : cs.primary;
-    final mastery = painter.mastery ? painter.masteryOf(surah, ayah) : null;
+    // Marques de l'élève sur le médaillon (colorisation par maîtrise, ou vue combinée « Validation »).
+    final mastery = painter.studentTags ? painter.masteryOf(surah, ayah) : null;
     final label = masteryLabel(mastery ?? painter.masteryOf(surah, ayah)); // lecture d'écran
     final bg = painter.background(surah, ayah, isPlaying: playing);
     void sheet() => showAyahSheet(context, surah, ayah, text);

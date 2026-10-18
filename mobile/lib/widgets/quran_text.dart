@@ -99,10 +99,10 @@ List<InlineSpan> ayahRunSpans(
     final recognizer = tap(a);
     final status = store.statusOf(surah.number, a);
     final label = arabicDigits(a);
-    final personal = painter != null && painter.personalReview(surah.number, a);
-    final medallion = painter != null && painter.validationMode
-        // Mode validation : le fond dit ce que l'enseignant a validé ; le médaillon ne porte que la marque PERSONNELLE de l'élève.
-        ? KhatamBadge(label: label, size: badge, stroke: tones.gold, textColor: cs.onSurface, ring: personal ? tones.red : null, dot: personal ? tones.red : null)
+    final medallion = painter != null && painter.validationMode && painter.teacherView
+        // Séance de l'enseignant : le fond dit ce qu'il a validé ; aucune marque personnelle de l'élève.
+        ? KhatamBadge(label: label, size: badge, stroke: tones.gold, textColor: cs.onSurface)
+        // Élève en mode validation : fond = enseignant, médaillon = ses propres marques (vue combinée).
         : painter != null && painter.masteryBadges
         ? masteryBadge(context, painter.masteryOf(surah.number, a), label: label, size: badge, colorBlind: painter.settings.colorBlind)
         : KhatamBadge(

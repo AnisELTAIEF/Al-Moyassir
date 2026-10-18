@@ -259,7 +259,8 @@ class _MushafReaderState extends State<MushafReader> {
     final session = widget.session;
     final ValidationView validations = session ?? context.watch<ValidationStore>();
     final painter = AyahPainter(context, settings: settings, store: store, validations: validations, teacherView: session != null);
-    final retake = painter.validationMode && validations.isRetake(page);
+    // Page à reprendre (règle du seuil d'erreurs) : bandeau visible quelle que soit la colorisation choisie.
+    final retake = validations.isRetake(page);
 
     return Padding(
       padding: _outer,

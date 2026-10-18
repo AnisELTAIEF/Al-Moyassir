@@ -9,7 +9,7 @@ import { HttpError } from '../errors.js';
 import { tx } from '../db.js';
 import { iso } from '../users.js';
 import { orgAccessFor } from '../orgAccess.js';
-import { RESULT_CODE, retakePages, acquiredFlags, memorizationStats, coverageMaps } from '../reports.js';
+import { RESULT_CODE, passagesOf, retakePages, acquiredFlags, memorizationStats, coverageMaps } from '../reports.js';
 import { addNotification, pushNotification } from '../notify.js';
 
 const idPid = { type: 'object', properties: { id: { type: 'string', minLength: 36, maxLength: 36 }, pid: { type: 'string', minLength: 36, maxLength: 36 } } };
@@ -137,17 +137,24 @@ export default async function validationRoutes(app) {
       // 4. Notification à l'élève (s'il a un compte lié) : pages qui basculent « à reprendre », ayat à revoir.
       if (st.user_id) {
         const newlyRetake = after.filter((p) => !before.has(p));
-        const toReview = effective.filter((e) => e.code === 3).length;
+        const reviewIdx = effective.filter((e) => e.code === 3).map((e) => e.idx);
+        const name = (s) => ref.surahNames?.get(s) ?? String(s);
+        const span = (x) => (x.from === x.to ? `${x.from}` : `${x.from}–${x.to}`);
         const note = async (kind, title, body, extra) => {
           const payload = { organizationId: ctx.org.id, organizationName: ctx.org.name, ...extra };
           await addNotification(c, st.user_id, { kind, title, body, payload });
           sent.push({ kind, payload });
         };
         if (newlyRetake.length) {
-          await note('retake_pages', 'Page à reprendre', `Page(s) à reprendre : ${newlyRetake.join(', ')} (${ctx.org.name}).`, { pages: newlyRetake });
+          // Sourate du début de chaque page, pour que l'élève s'y retrouve sans connaître les numéros de page.
+          const pageInfo = newlyRetake.map((p) => { const [s, a] = ref.refAt(ref.pageRanges[p - 1].from); return { page: p, surah: s, ayah: a, name: name(s) }; });
+          const txt = pageInfo.map((x) => `${x.page} (${x.name})`).join(', ');
+          await note('retake_pages', 'Page à reprendre', `Page(s) à reprendre : ${txt} (${ctx.org.name}).`, { pages: newlyRetake, pageInfo });
         }
-        if (toReview) {
-          await note('review_ayat', 'Ayat à revoir', `${toReview} ayat à revoir (${ctx.org.name}).`, { count: toReview });
+        if (reviewIdx.length) {
+          const refs = passagesOf(ref, reviewIdx).map((x) => ({ ...x, name: name(x.surah) }));
+          const txt = refs.map((x) => `${x.name} ${span(x)}`).join(' · ');
+          await note('review_ayat', 'Ayat à revoir', `${reviewIdx.length} ayat à revoir : ${txt} (${ctx.org.name}).`, { count: reviewIdx.length, refs });
         }
       }
     });

@@ -6,6 +6,7 @@ import '../core/models.dart';
 import '../core/progress_store.dart';
 import '../core/quran_repository.dart';
 import '../core/settings.dart';
+import '../core/validation_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'reader_screen.dart';
@@ -36,6 +37,27 @@ List<Passage> groupPassages(Iterable<AyahProgress> ayat) {
   return out;
 }
 
+/// Ouvre le mushaf sur un ayah, en vue combinée : fond = validation de l'enseignant, médaillon = marques de l'élève.
+void openWithTeacherMarks(BuildContext context, int surah, int ayah) {
+  final settings = context.read<Settings>();
+  settings.readingMode = ReadingMode.mushaf;
+  settings.setColoringIn(ReadingMode.mushaf, AyahColoring.validation);
+  Navigator.push(context, MaterialPageRoute(builder: (_) => ReaderScreen(surah: surah, initialAyah: ayah)));
+}
+
+/// Passages (sourate, premier et dernier ayah) à partir d'ayat triés dans l'ordre du Coran.
+List<(int, int, int)> passagesOfRefs(List<(int, int)> refs) {
+  final out = <(int, int, int)>[];
+  for (final (s, a) in refs) {
+    if (out.isNotEmpty && out.last.$1 == s && out.last.$3 + 1 == a) {
+      out.last = (s, out.last.$2, a);
+    } else {
+      out.add((s, a, a));
+    }
+  }
+  return out;
+}
+
 /// Date à laquelle un ayah appris doit être révisé : 3 jours après l'avoir appris, puis 7 jours
 /// après chaque révision (même règle que [AyahProgress.isDue]).
 DateTime nextReviewOf(AyahProgress p) {
@@ -50,7 +72,14 @@ class ReviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<ProgressStore>();
+    final validations = context.watch<ValidationStore>();
+    final repo = context.read<QuranRepository>();
     final now = DateTime.now();
+    // Demandé par l'enseignant : pages à reprendre et ayat « à revoir » (ils s'ajoutent aux marques personnelles).
+    final retakePages = validations.retakePages;
+    final teacherPassages = passagesOfRefs(validations.reviewAyat);
+    final teacherAyat = validations.reviewAyat.length + retakePages.fold<int>(0, (n, p) => n + repo.ayahsOfMushafPage(p).length);
+    final hasTeacher = retakePages.isNotEmpty || teacherPassages.isNotEmpty;
     final memorized = store.all.where((p) => p.status == AyahStatus.memorized).toList();
     final due = memorized.where((p) => p.needsReview || p.isDue(now)).toList();
     final learning = store.all.where((p) => p.status == AyahStatus.learning).toList();
@@ -68,19 +97,33 @@ class ReviewScreen extends StatelessWidget {
             if (store.syncing)
               const Padding(padding: EdgeInsets.all(16), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
             else
-              IconButton(tooltip: tr('Synchroniser'), onPressed: store.sync, icon: const Icon(Icons.sync)),
+              IconButton(
+                  tooltip: tr('Synchroniser'),
+                  onPressed: () {
+                    store.sync();
+                    validations.refresh();
+                  },
+                  icon: const Icon(Icons.sync)),
           ],
           bottom: TabBar(tabs: [
-            Tab(text: tr('À réviser ({n})', {'n': due.length})),
+            Tab(text: tr('À réviser ({n})', {'n': due.length + teacherAyat})),
             Tab(text: tr('En cours ({n})', {'n': learning.length})),
             Tab(text: tr('Acquis ({n})', {'n': memorized.length})),
           ]),
         ),
         body: TabBarView(children: [
           _PassageList(
-            header: const _HowItWorks(),
+            header: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              if (hasTeacher) _TeacherSection(retakePages: retakePages, passages: teacherPassages),
+              const _HowItWorks(),
+            ]),
             passages: duePassages,
-            empty: EmptyState(
+            empty: hasTeacher
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(tr('Aucune révision personnelle aujourd’hui.'), textAlign: TextAlign.center, style: TextStyle(color: context.tones.muted)),
+                  )
+                : EmptyState(
               icon: Icons.check_circle_outline,
               title: tr('Rien à réviser aujourd’hui'),
               body: memorized.isEmpty
@@ -160,6 +203,57 @@ class ReviewScreen extends StatelessWidget {
     if (!context.mounted) return;
     snack(context, tr('{n} ayat acquis : première révision dans 3 jours.', {'n': g.length}),
         action: SnackBarAction(label: tr('Annuler'), onPressed: () => store.restoreAyahs(before)));
+  }
+}
+
+/// « Demandé par l'enseignant » : pages à reprendre et ayat à revoir, en tête de la liste « À réviser ».
+/// L'élève ne peut pas les effacer (seul l'enseignant le fait, après l'avoir réentendu) : un toucher ouvre le mushaf
+/// en vue combinée, où il voit aussi ses propres marques.
+class _TeacherSection extends StatelessWidget {
+  const _TeacherSection({required this.retakePages, required this.passages});
+  final List<int> retakePages;
+  final List<(int, int, int)> passages;
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = context.read<QuranRepository>();
+    final red = context.tones.red;
+    Widget card({required IconData icon, required Widget title, required String subtitle, required VoidCallback onTap}) => Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: Icon(icon, color: red),
+            title: title,
+            subtitle: Text(subtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: onTap,
+          ),
+        );
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 8, top: 2),
+        child: Row(children: [
+          Icon(Icons.school_outlined, size: 20, color: red),
+          const SizedBox(width: 8),
+          Expanded(child: Text(tr('Demandé par votre enseignant'), style: context.text.titleSmall?.copyWith(color: red))),
+        ]),
+      ),
+      for (final p in retakePages)
+        card(
+          icon: Icons.replay,
+          title: Text(tr('Page {n} à reprendre', {'n': p}), style: const TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: tr('سورة {s} · depuis l’ayah {a} — trop d’erreurs sur la page',
+              {'s': repo.surah(repo.mushafPages[p - 1].$1).name, 'a': repo.mushafPages[p - 1].$2}),
+          onTap: () => openWithTeacherMarks(context, repo.mushafPages[p - 1].$1, repo.mushafPages[p - 1].$2),
+        ),
+      for (final (s, from, to) in passages)
+        card(
+          icon: Icons.rate_review_outlined,
+          title: ArabicText('سُورَةُ ${repo.surah(s).name}', size: 19, height: 1.4),
+          subtitle: '${from == to ? tr('ayah {a}', {'a': from}) : tr('ayat {a}–{b}', {'a': from, 'b': to})} · ${tr('à revoir')}',
+          onTap: () => openWithTeacherMarks(context, s, from),
+        ),
+      const SizedBox(height: 8),
+    ]);
   }
 }
 

@@ -111,6 +111,10 @@ test('3 ayat « avec erreur » sur la page → page à reprendre + notification 
   assert.equal(n.body.unread, 1);
   assert.equal(n.body.notifications[0].kind, 'retake_pages');
   assert.deepEqual(n.body.notifications[0].payload.pages, [3]);
+  const info = n.body.notifications[0].payload.pageInfo[0];
+  assert.equal(info.page, 3);
+  assert.equal(info.surah, 2, 'sourate du début de la page');
+  assert.equal(info.name, 'البَقَرَة');
   assert.equal(n.body.notifications[0].payload.organizationName, 'جامع النور');
   const s = await state('teacher');
   assert.equal(s.body.stats.ayat, 0, 'page à reprendre : aucun ayat compté dans les rapports');
@@ -134,6 +138,8 @@ test('« à revoir » : notification avec le nombre d’ayat ; effacer retire le
   assert.equal(n.unread, 1);
   assert.equal(n.notifications[0].kind, 'review_ayat');
   assert.equal(n.notifications[0].payload.count, 2);
+  assert.deepEqual(n.notifications[0].payload.refs, [{ surah: 2, from: 9, to: 10, name: 'البَقَرَة' }], 'sourate et ayat');
+  assert.match(n.notifications[0].body, /2 ayat à revoir : البَقَرَة 9–10/);
   assert.equal((await state('teacher')).body.stats.ayat, 9, '2 ayat à revoir ne comptent pas (11 − 2)');
   await validate('teacher', { items: ayat(9, 10, 'cleared') });
   const s = await state('teacher');
