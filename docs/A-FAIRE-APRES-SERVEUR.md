@@ -52,11 +52,14 @@ Ordre proposé (chaque lot est indépendant du suivant, sauf mention) :
       **Reste du lot B** : **B7** disque « Backup U » + sauvegardes longue durée · le **résumé حفظ إجمالي / مسترسل** d'un élève et le **journal d'événements**
       (rythme, périodes) viennent avec le lot C, car ils comptent les validations de l'enseignant (D2).
 - [x] **Lot C — validation par l'enseignant** : livré en **0.20.0** (18/10/2026) — séance de validation dans l'app (toucher = acquis → avec erreur → à revoir → effacé, ou page entière), règle de la page à reprendre (seuil par association), couche « enseignant » dans le mushaf de l'élève (marque personnelle en anneau sur le médaillon), notifications dans l'app, synthèse en ahzab/sourates dans le BO. Hypothèses à confirmer : `EVOLUTIONS-REUNION-1.md` §4 (18-20).
-- [ ] **Lot D — BO** (9, 11-13, 15, 16) : mosaïque 604, « متابعة », classements/périodes, exports, BO arabe/français.
-- [ ] **Lot E — résultats** (17) : examens, concours, certificats.
+- [x] **Lot D — BO** : livré en **0.21.0** — onglet « Suivi (متابعة) » (classement par classe/établissement, périodes mois/trimestre/semestre/année, élèves d'élite, export **Excel et Word**),
+      fiche élève : carte **604 pages / 114 sourates**, rythme sur 12 semaines, encouragements (message, cadeau), BO **bilingue arabe (par défaut) / français**.
+      **Reste** : traduire en arabe les anciennes pages (Aperçu, Utilisateurs, Invitations, Groupes, Import, Connexion) — elles s'affichent encore en français ; cases « 604 » sur l'Aperçu global ;
+      exports d'autres rapports que le classement ; adaptation fine du CSS en lecture droite-gauche.
+- [x] **Lot E — résultats** : livré en **0.21.0** — examens/concours, certificats téléversés par l'administratif (PDF/PNG/JPEG ≤ 5 Mo, type vérifié sur le contenu, stockés hors base, lien de 5 min), notification à l'élève, historique complet côté app (« Résultats et certificats »). **Reste** : sauvegarde du dossier des certificats (B7), génération automatique de certificats (non demandée), aperçu intégré du PDF.
 - [ ] **Lot F — audio** (19-20) : كمال صميدة, après **accord des récitateurs** (pas de téléchargement YouTube) et production
       des minutages ayah par ayah.
-- [ ] **Lot G — alertes app fermée** : push natif + Web Push, mutualisé avec le rappel de prière.
+- [~] **Lot G — alertes app fermée** : **Web Push livré en 0.21.0** (version web / PWA : service worker dédié, abonnement par l'élève, alertes à la validation, au certificat, aux encouragements ; clés VAPID générées sur le serveur). **Reste** : alertes **natives** Android/iOS (projet Firebase à créer par Anis + `firebase_messaging`), **rappel de prière app fermée** (le serveur devrait connaître le lieu et la méthode de chaque utilisateur), iPhone : PWA installée sur l'écran d'accueil (iOS ≥ 16.4).
 - [ ] **Sauvegardes longue durée** (conservation ≥ 5 ans, copie chiffrée sur le disque virtuel « Backup U » de F:) : dump mensuel + copie chiffrée + test de restauration (lot B7).
 - ✅ Déjà fait : création de compte sans invitation (22).
 

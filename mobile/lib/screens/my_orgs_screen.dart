@@ -7,6 +7,7 @@ import '../core/i18n.dart';
 import '../core/models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'results_screen.dart';
 import 'teacher_students_screen.dart';
 
 /// « Mes établissements » : les associations / mosquées où j'ai un rôle, et le rattachement du compte
@@ -91,6 +92,18 @@ class _MyOrgsScreenState extends State<MyOrgsScreen> {
                             title: Text(o.name),
                             subtitle: Text(o.roles.map(_role).join(' · ')),
                           ),
+                          if (o.roles.contains('student'))
+                            Padding(
+                              padding: const EdgeInsetsDirectional.fromSTEB(12, 0, 12, 12),
+                              child: Align(
+                                alignment: AlignmentDirectional.centerStart,
+                                child: FilledButton.tonalIcon(
+                                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ResultsScreen())),
+                                  icon: const Icon(Icons.workspace_premium_outlined),
+                                  label: Text(tr('Résultats et certificats')),
+                                ),
+                              ),
+                            ),
                           // L'équipe (enseignant, administratif) valide la mémorisation des élèves.
                           if (o.roles.contains('teacher') || o.roles.contains('admin'))
                             Padding(

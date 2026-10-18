@@ -94,7 +94,20 @@ export interface UnitStats { complete: number; longestRun: number }
 export interface StudentSummary {
   stats: { ayat: number; surahs: UnitStats; ahzab: UnitStats };
   retakePages: number[]; threshold: number; validatedAyat: number;
+  /** Une lettre par page (604) et par sourate (114) : n rien · p en cours · c complet · r à reprendre. */
+  pages: string; surahs: string;
 }
+export type Period = 'month' | 'quarter' | 'semester' | 'year' | 'all';
+export interface RankRow {
+  studentId: string; fullName: string; fatherName: string; age: number | null; joinedAt: string | null; hasCompetitions: boolean;
+  classes: string[]; ahzab: UnitStats; surahs: UnitStats; ayat: number; retakeCount: number;
+  gain: number; perWeek: number; lastValidationAt: string | null; rank: number; elite: boolean;
+}
+export interface Ranking { period: Period; since: string | null; threshold: number; rows: RankRow[] }
+export interface Assessment { id: string; kind: 'exam' | 'competition'; title: string; heldOn: string; score: string | null; rank: string | null }
+export interface Certificate { id: string; title: string; issuedOn: string; fileName: string; mime: string; size: number; assessmentId: string | null }
+export interface Reward { id: string; kind: 'message' | 'gift'; title: string; body: string; giftStatus: 'to_give' | 'given' | null; givenOn: string | null; createdAt: string }
+export interface StudentResults { assessments: Assessment[]; certificates: Certificate[]; rewards: Reward[] }
 export type CreateStudentResult = { student: Student } | { duplicates: DuplicateStudent[] };
 
 export interface Api {
@@ -173,4 +186,19 @@ export interface Api {
   unlinkStudent(orgId: string, id: string): Promise<void>;
   /** حفظ إجمالي / مسترسل en ahzab et sourates entiers, d'après les validations de l'enseignant. */
   studentSummary(orgId: string, id: string): Promise<StudentSummary>;
+  /** Classement de l'équipe (jamais des élèves) : par classe ou pour tout l'établissement, sur une période civile. */
+  ranking(orgId: string, filter: { classId?: string; period: Period }): Promise<Ranking>;
+  /** Ayat validés par semaine (les `weeks` dernières semaines, la plus récente en dernier). */
+  rhythm(orgId: string, id: string, weeks?: number): Promise<{ weekStart: string; ayat: number }[]>;
+  studentResults(orgId: string, id: string): Promise<StudentResults>;
+  addAssessment(orgId: string, id: string, a: { kind: Assessment['kind']; title: string; heldOn: string; score?: string; rank?: string }): Promise<void>;
+  deleteAssessment(orgId: string, assessmentId: string): Promise<void>;
+  /** Téléverse un certificat (PDF, PNG ou JPEG, 5 Mo au plus) ; l'élève est notifié. */
+  uploadCertificate(orgId: string, id: string, c: { title: string; issuedOn: string; assessmentId?: string; file: File }): Promise<void>;
+  deleteCertificate(orgId: string, certId: string): Promise<void>;
+  /** Adresse de téléchargement valable 5 minutes. */
+  certificateLink(orgId: string, certId: string): Promise<string>;
+  addReward(orgId: string, id: string, r: { kind: 'message' | 'gift'; title: string; body?: string }): Promise<void>;
+  setGiftGiven(orgId: string, rewardId: string, given: boolean): Promise<void>;
+  deleteReward(orgId: string, rewardId: string): Promise<void>;
 }

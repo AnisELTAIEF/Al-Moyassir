@@ -1,0 +1,50 @@
+// Notifications : enregistrées en base (centre de notifications de l'app) et, si configuré, poussées sur les
+// appareils abonnés (Web Push) pour prévenir l'élève même app fermée. L'envoi push ne fait JAMAIS échouer l'action.
+import webpush from 'web-push';
+
+/** Expéditeur Web Push, ou null si les clés VAPID ne sont pas configurées. */
+export function makePushSender(cfg) {
+  const { publicKey, privateKey, subject } = cfg.vapid;
+  if (!publicKey || !privateKey) return null;
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+  return (subscription, payload) => webpush.sendNotification(subscription, payload, { TTL: 86_400 });
+}
+
+/** Texte d'une alerte : bilingue (arabe · français), car la langue du compte n'est pas connue du serveur. */
+export function pushText(kind, p = {}) {
+  const org = p.organizationName ?? '';
+  switch (kind) {
+    case 'retake_pages': return ['صفحة للإعادة · Page à reprendre', `${(p.pages ?? []).join(', ')} — ${org}`];
+    case 'review_ayat': return ['آيات للمراجعة · Ayat à revoir', `${p.count ?? ''} — ${org}`];
+    case 'certificate': return ['شهادة جديدة · Nouveau certificat', p.title ?? ''];
+    case 'reward': return [p.rewardKind === 'gift' ? 'هدية · Cadeau' : 'تشجيع · Encouragement', p.title ?? ''];
+    default: return ['الميسّر · Almoyassir', ''];
+  }
+}
+
+/** Enregistre une notification (avec la connexion donnée : peut faire partie d'une transaction). */
+export async function addNotification(conn, userId, { kind, title, body = '', payload = {} }) {
+  await conn.query('INSERT INTO notifications (user_id, kind, title, body, payload) VALUES (?,?,?,?,?)',
+    [userId, kind, title, body, JSON.stringify(payload)]);
+}
+
+/** Envoie l'alerte push aux appareils de l'utilisateur ; supprime les abonnements expirés. Silencieux en cas d'échec. */
+export async function pushNotification(app, userId, { kind, payload = {} }) {
+  const send = app.pushSender;
+  if (!send) return;
+  try {
+    const [subs] = await app.db.query('SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?', [userId]);
+    const [title, body] = pushText(kind, payload);
+    const message = JSON.stringify({ title, body, url: '/app/' });
+    for (const s of subs) {
+      try {
+        await send({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, message);
+      } catch (e) {
+        if (e?.statusCode === 404 || e?.statusCode === 410) await app.db.query('DELETE FROM push_subscriptions WHERE id = ?', [s.id]);
+        else app.log.warn({ err: e?.message }, 'push non envoyé');
+      }
+    }
+  } catch (e) {
+    app.log.warn({ err: e?.message }, 'push indisponible');
+  }
+}

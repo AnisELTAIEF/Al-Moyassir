@@ -158,5 +158,21 @@ export function createRestApi(baseUrl: string, googleClientId: string | null): A
     studentLinkCode: (o, id) => call('POST', `/orgs/${o}/students/${id}/link-code`, {}),
     unlinkStudent: async (o, id) => { await call('POST', `/orgs/${o}/students/${id}/unlink`, {}); },
     studentSummary: (o, id) => call('GET', `/orgs/${o}/students/${id}/summary`),
+    ranking: (o, f) => call('GET', `/orgs/${o}/reports/ranking?period=${f.period}${f.classId ? `&groupId=${f.classId}` : ''}`),
+    rhythm: async (o, id, weeks = 12) => (await call<{ weeks: never[] }>('GET', `/orgs/${o}/students/${id}/rhythm?weeks=${weeks}`)).weeks,
+    studentResults: (o, id) => call('GET', `/orgs/${o}/students/${id}/results`),
+    addAssessment: async (o, id, a) => { await call('POST', `/orgs/${o}/students/${id}/assessments`, a); },
+    deleteAssessment: async (o, aid) => { await call('DELETE', `/orgs/${o}/assessments/${aid}`); },
+    uploadCertificate: async (o, id, c) => {
+      const bytes = new Uint8Array(await c.file.arrayBuffer());
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      await call('POST', `/orgs/${o}/students/${id}/certificates`, { title: c.title, issuedOn: c.issuedOn, assessmentId: c.assessmentId, fileName: c.file.name, dataBase64: btoa(bin) });
+    },
+    deleteCertificate: async (o, cid) => { await call('DELETE', `/orgs/${o}/certificates/${cid}`); },
+    certificateLink: async (o, cid) => (await call<{ url: string }>('GET', `/orgs/${o}/certificates/${cid}/link`)).url,
+    addReward: async (o, id, r) => { await call('POST', `/orgs/${o}/students/${id}/rewards`, r); },
+    setGiftGiven: async (o, rid, given) => { await call('PATCH', `/orgs/${o}/rewards/${rid}`, { given }); },
+    deleteReward: async (o, rid) => { await call('DELETE', `/orgs/${o}/rewards/${rid}`); },
   };
 }

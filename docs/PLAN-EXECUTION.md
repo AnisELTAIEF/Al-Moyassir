@@ -286,6 +286,8 @@ CREATE TABLE IF NOT EXISTS rewards (
 Message et certificat déclenchent une notification à l'élève ; un cadeau n'est visible de l'élève que s'il est marqué « remis » (pas de spoiler).
 Dépend du lot E pour le certificat : livrer D6 sans certificat d'abord (message + cadeau), ajouter le certificat avec le lot E.
 
+> **État (18/10/2026)** : lots D, E et G (Web Push) livrés en **0.21.0** ; voir `A-FAIRE-APRES-SERVEUR.md` §6 pour le reste de chaque lot.
+
 **Livrable D** : BO déployé (`install.sh`), version **0.21.0**.
 
 ---

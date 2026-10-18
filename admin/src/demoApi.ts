@@ -1,5 +1,5 @@
 import { SURAHS } from './data/surahs';
-import type { Api, AyahProgress, GroupSummary, ImportItem, ImportResult, Invitation, OrgClass, OrgMember, OrgSummary, Student, UserStats } from './types';
+import type { Api, Assessment, Certificate, Reward, RankRow, AyahProgress, GroupSummary, ImportItem, ImportResult, Invitation, OrgClass, OrgMember, OrgSummary, Student, UserStats } from './types';
 
 /** Données fictives pour prévisualiser l'interface sans serveur (VITE_DEMO=1). */
 const DAY = 86_400_000;
@@ -76,6 +76,7 @@ function demoOrgs() {
 
 export function createDemoApi(): Api {
   const d = demoOrgs();
+  const results: { assessments: Assessment[]; certificates: Certificate[]; rewards: Reward[] } = { assessments: [], certificates: [], rewards: [] };
   let signed = false;
   try { signed = localStorage.getItem('demo') === '1'; } catch { /* */ }
   const set = (v: boolean) => { signed = v; try { v ? localStorage.setItem('demo', '1') : localStorage.removeItem('demo'); } catch { /* */ } };
@@ -203,9 +204,33 @@ export function createDemoApi(): Api {
     },
     studentLinkCode: async () => ({ code: 'K7XQ-M2PA', expiresAt: ago(-7) }),
     unlinkStudent: async (_o, id) => { d.students.find((x) => x.id === id)!.linked = false; },
-    studentSummary: async (_o, id) => (id === 'p1'
-      ? { stats: { ayat: 412, surahs: { complete: 9, longestRun: 4 }, ahzab: { complete: 2, longestRun: 2 } }, retakePages: [37], threshold: 3, validatedAyat: 430 }
-      : { stats: { ayat: 0, surahs: { complete: 0, longestRun: 0 }, ahzab: { complete: 0, longestRun: 0 } }, retakePages: [], threshold: 3, validatedAyat: 0 }),
+    studentSummary: async (_o, id) => {
+      const real = id === 'p1';
+      // Cartes de démonstration : 604 pages et 114 sourates (n rien · p en cours · c complet · r à reprendre).
+      const pages = Array.from({ length: 604 }, (_, i) => (!real ? 'n' : i < 40 ? (i === 36 ? 'r' : 'c') : i < 55 ? 'p' : 'n')).join('');
+      const surahs = Array.from({ length: 114 }, (_, i) => (!real ? 'n' : i > 104 ? 'c' : i === 1 ? 'p' : 'n')).join('');
+      return real
+        ? { stats: { ayat: 412, surahs: { complete: 9, longestRun: 4 }, ahzab: { complete: 2, longestRun: 2 } }, retakePages: [37], threshold: 3, validatedAyat: 430, pages, surahs }
+        : { stats: { ayat: 0, surahs: { complete: 0, longestRun: 0 }, ahzab: { complete: 0, longestRun: 0 } }, retakePages: [], threshold: 3, validatedAyat: 0, pages, surahs };
+    },
+    ranking: async (_o, f) => {
+      const rows: RankRow[] = d.students.filter((s) => s.status === 'active').map((s, i) => ({
+        studentId: s.id, fullName: s.fullName, fatherName: s.fatherName, age: s.age, joinedAt: s.joinedAt, hasCompetitions: i === 0, classes: s.classes.map((c) => c.name),
+        ahzab: { complete: 3 - i, longestRun: 2 - (i > 0 ? 1 : 0) }, surahs: { complete: 12 - 4 * i, longestRun: 6 - 2 * i }, ayat: 600 - 220 * i,
+        retakeCount: i, gain: f.period === 'all' ? 600 - 220 * i : 60 - 20 * i, perWeek: 12 - 4 * i, lastValidationAt: ago(i + 1), rank: i + 1, elite: i === 0,
+      })).filter((r) => !f.classId || d.students.find((s) => s.id === r.studentId)?.classes.some((c) => c.id === f.classId));
+      return { period: f.period, since: null, threshold: 3, rows };
+    },
+    rhythm: async (_o, _id, weeks = 12) => Array.from({ length: weeks }, (_, i) => ({ weekStart: new Date(Date.now() - (weeks - 1 - i) * 7 * DAY).toISOString().slice(0, 10), ayat: (i * 7) % 23 })),
+    studentResults: async () => results,
+    addAssessment: async (_o, _id, a) => { results.assessments.unshift({ id: `a${results.assessments.length + 1}`, kind: a.kind, title: a.title, heldOn: a.heldOn, score: a.score ?? null, rank: a.rank ?? null } satisfies Assessment); },
+    deleteAssessment: async (_o, aid) => { results.assessments = results.assessments.filter((x) => x.id !== aid); },
+    uploadCertificate: async (_o, _id, c) => { results.certificates.unshift({ id: `c${results.certificates.length + 1}`, title: c.title, issuedOn: c.issuedOn, fileName: c.file.name, mime: c.file.type || 'application/pdf', size: c.file.size, assessmentId: null } satisfies Certificate); },
+    deleteCertificate: async (_o, cid) => { results.certificates = results.certificates.filter((x) => x.id !== cid); },
+    certificateLink: async () => 'about:blank',
+    addReward: async (_o, _id, r) => { results.rewards.unshift({ id: `r${results.rewards.length + 1}`, kind: r.kind, title: r.title, body: r.body ?? '', giftStatus: r.kind === 'gift' ? 'to_give' : null, givenOn: null, createdAt: new Date().toISOString() } satisfies Reward); },
+    setGiftGiven: async (_o, rid, given) => { const r = results.rewards.find((x) => x.id === rid); if (r) { r.giftStatus = given ? 'given' : 'to_give'; r.givenOn = given ? new Date().toISOString().slice(0, 10) : null; } },
+    deleteReward: async (_o, rid) => { results.rewards = results.rewards.filter((x) => x.id !== rid); },
   };
 }
 

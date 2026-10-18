@@ -9,6 +9,10 @@ import adminRoutes from './routes/admin.js';
 import orgRoutes from './routes/orgs.js';
 import validationRoutes, { myValidationRoutes } from './routes/validations.js';
 import { loadReference } from './reports.js';
+import reportRoutes from './routes/reports.js';
+import resultsRoutes, { myResultsRoutes, certificateFileRoutes } from './routes/results.js';
+import pushRoutes from './routes/push.js';
+import { makePushSender } from './notify.js';
 import inviteRoutes from './routes/invite.js';
 import geocodeRoutes from './routes/geocode.js';
 import downloadRoutes from './routes/download.js';
@@ -42,6 +46,8 @@ export async function buildApp(cfg, deps) {
   app.decorate('ayahCounts', ayahCounts);
   // Repères du mushaf (pages, ahzab) pour les calculs de validation et de rapports.
   app.decorate('reference', await loadReference(deps.pool));
+  // Alertes push (null si les clés VAPID ne sont pas configurées) ; remplaçable dans les tests.
+  app.decorate('pushSender', deps.pushSender !== undefined ? deps.pushSender : makePushSender(cfg));
 
   await app.register(cors, {
     origin: cfg.corsOrigins.length ? cfg.corsOrigins : false,
@@ -97,6 +103,11 @@ export async function buildApp(cfg, deps) {
   await app.register(orgRoutes, { prefix: '/orgs' });
   await app.register(validationRoutes, { prefix: '/orgs' });
   await app.register(myValidationRoutes, { prefix: '/me' });
+  await app.register(reportRoutes, { prefix: '/orgs' });
+  await app.register(resultsRoutes, { prefix: '/orgs' });
+  await app.register(myResultsRoutes, { prefix: '/me' });
+  await app.register(pushRoutes, { prefix: '/me' });
+  await app.register(certificateFileRoutes);
   await app.register(inviteRoutes);
   await app.register(geocodeRoutes);
   await app.register(downloadRoutes);

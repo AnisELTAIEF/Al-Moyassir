@@ -9,7 +9,8 @@ import { HttpError } from '../errors.js';
 import { tx } from '../db.js';
 import { iso } from '../users.js';
 import { orgAccessFor } from '../orgAccess.js';
-import { RESULT_CODE, retakePages, acquiredFlags, memorizationStats } from '../reports.js';
+import { RESULT_CODE, retakePages, acquiredFlags, memorizationStats, coverageMaps } from '../reports.js';
+import { addNotification, pushNotification } from '../notify.js';
 
 const idPid = { type: 'object', properties: { id: { type: 'string', minLength: 36, maxLength: 36 }, pid: { type: 'string', minLength: 36, maxLength: 36 } } };
 const RESULTS = ['acquired', 'acquired_error', 'review', 'cleared'];
@@ -75,7 +76,7 @@ export default async function validationRoutes(app) {
     const st = await studentOf(req, ctx, req.params.pid);
     const { codes, items } = await loadStates(db, ref, ctx.org.id, st.id);
     const { stats, retakePages: retake, threshold } = stateDto(ref, codes, items, Number(ctx.org.error_threshold));
-    return { stats, retakePages: retake, threshold, validatedAyat: items.length };
+    return { stats, retakePages: retake, threshold, validatedAyat: items.length, ...coverageMaps(ref, codes, threshold) };
   });
 
   app.put('/:id/students/:pid/validation', { schema: putSchema }, async (req) => {
@@ -116,6 +117,7 @@ export default async function validationRoutes(app) {
     if (!effective.length) return { changed: 0, retakePages: after, threshold };
 
     // 3. Journal + état, en une transaction.
+    const sent = [];
     await tx(db, async (c) => {
       const journal = effective.map((e) => { const [s, a] = ref.refAt(e.idx); return [ctx.org.id, st.id, req.user.id, s, a, e.res]; });
       await c.query('INSERT INTO validations (organization_id, profile_id, teacher_id, surah, ayah, result) VALUES ?', [journal]);
@@ -136,9 +138,11 @@ export default async function validationRoutes(app) {
       if (st.user_id) {
         const newlyRetake = after.filter((p) => !before.has(p));
         const toReview = effective.filter((e) => e.code === 3).length;
-        const note = (kind, title, body, payload) => c.query(
-          'INSERT INTO notifications (user_id, kind, title, body, payload) VALUES (?,?,?,?,?)',
-          [st.user_id, kind, title, body, JSON.stringify({ organizationId: ctx.org.id, organizationName: ctx.org.name, ...payload })]);
+        const note = async (kind, title, body, extra) => {
+          const payload = { organizationId: ctx.org.id, organizationName: ctx.org.name, ...extra };
+          await addNotification(c, st.user_id, { kind, title, body, payload });
+          sent.push({ kind, payload });
+        };
         if (newlyRetake.length) {
           await note('retake_pages', 'Page à reprendre', `Page(s) à reprendre : ${newlyRetake.join(', ')} (${ctx.org.name}).`, { pages: newlyRetake });
         }
@@ -147,6 +151,8 @@ export default async function validationRoutes(app) {
         }
       }
     });
+    // 5. Alerte sur les appareils de l'élève, une fois la transaction validée (n'échoue jamais).
+    for (const n of sent) await pushNotification(app, st.user_id, n);
     return { changed: effective.length, retakePages: after, threshold };
   });
 }

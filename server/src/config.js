@@ -25,6 +25,14 @@ export function loadConfig(env = process.env) {
     // Lien de téléchargement de l'app Android (APK), repris dans les e-mails d'invitation (optionnel).
     androidApkUrl: (env.ANDROID_APK_URL ?? '').trim(),
     apkFile: (env.APK_FILE ?? '/var/lib/hifidh/download/Almoyassir.apk').trim(),
+    // Certificats des élèves (fichiers hors base). Le service n'y a le droit d'écrire que s'il figure dans ReadWritePaths.
+    certDir: (env.CERT_DIR ?? '/var/lib/hifidh/certificates').trim().replace(/\/$/, ''),
+    // Alertes quand l'app est fermée (Web Push). Sans clés : tout fonctionne, seules ces alertes sont désactivées.
+    vapid: {
+      publicKey: (env.VAPID_PUBLIC_KEY ?? '').trim(),
+      privateKey: (env.VAPID_PRIVATE_KEY ?? '').trim(),
+      subject: (env.VAPID_SUBJECT ?? 'mailto:anis.eltaief@gmail.com').trim(),
+    },
     // Envoi automatique des e-mails d'invitation (optionnel). Sans SMTP_HOST : rien n'est envoyé,
     // l'admin copie le message comme avant.
     smtp: {

@@ -10,6 +10,7 @@ import GroupView from './pages/GroupView';
 import Import from './pages/Import';
 import Orgs from './pages/Orgs';
 import { ThemeToggle } from './theme';
+import { lang, setLang, t } from './i18n';
 
 type Page = 'overview' | 'users' | 'invitations' | 'groups' | 'orgs' | 'import';
 
@@ -73,15 +74,16 @@ export default function App() {
         <div className="brand"><span className="ar brand-ar">الميسّر</span><span>Almoyassir</span><ThemeToggle /></div>
         <nav>
           {nav.map(([p, label]) => (
-            <button key={p} className={current === p && !group ? 'on' : ''} aria-current={current === p ? 'page' : undefined} onClick={() => go(p)}>{label}</button>
+            <button key={p} className={current === p && !group ? 'on' : ''} aria-current={current === p ? 'page' : undefined} onClick={() => go(p)}>{t(label)}</button>
           ))}
         </nav>
         <div className="me">
-          {api.demo && <span className="badge">Démo</span>}
+          {api.demo && <span className="badge">{t('Démo')}</span>}
           <strong>{user.displayName}</strong>
-          <span className="muted small">{user.email} · {isAdmin ? 'admin global' : 'admin de groupe'}</span>
-          <a className="btn ghost small" href="/guide/" target="_blank" rel="noopener">Guide d’utilisation</a>
-          <button className="btn ghost small" onClick={() => api!.signOut().then(() => setUser(null))}>Se déconnecter</button>
+          <span className="muted small">{user.email} · {isAdmin ? t('admin global') : t('admin de groupe')}</span>
+          <a className="btn ghost small" href="/guide/" target="_blank" rel="noopener">{t('Guide d’utilisation')}</a>
+          <button className="btn ghost small" onClick={() => setLang(lang === 'ar' ? 'fr' : 'ar')}>{lang === 'ar' ? 'Français' : 'العربية'}</button>
+          <button className="btn ghost small" onClick={() => api!.signOut().then(() => setUser(null))}>{t('Se déconnecter')}</button>
         </div>
       </aside>
       <main className="content">

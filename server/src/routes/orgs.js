@@ -8,6 +8,7 @@ import { tx } from '../db.js';
 import { uuid, sha256, newInvitationCode, normalizeCode } from '../security.js';
 import { iso } from '../users.js';
 import { orgAccessFor, STUDENT_COLS } from '../orgAccess.js';
+import { removeProfileFiles } from '../certFiles.js';
 
 const RETENTION_YEARS = 5; // D20 : données d'un élève sorti conservées 5 ans au moins
 const CODE_TTL_MIN = 15;
@@ -44,7 +45,7 @@ function validDate(s, { notFuture = false } = {}) {
   return s;
 }
 
-function ageOf(birth) {
+export function ageOf(birth) {
   if (!birth) return null;
   const [y, m, d] = birth.split('-').map(Number);
   const n = new Date();
@@ -497,6 +498,7 @@ export default async function orgRoutes(app) {
     if (cur.status !== 'left' || !cur.retain_until || cur.retain_until > today()) {
       throw new HttpError(409, 'retention', `Cette fiche doit être conservée jusqu’au ${cur.retain_until ?? '—'} (au moins ${RETENTION_YEARS} ans après la sortie de l’élève).`);
     }
+    await removeProfileFiles(db, app.cfg, cur.id); // les fichiers de certificats partent avec la fiche
     await db.query('DELETE FROM student_profiles WHERE id = ?', [cur.id]);
     return { ok: true };
   });

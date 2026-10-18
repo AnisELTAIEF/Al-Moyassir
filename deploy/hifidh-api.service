@@ -18,6 +18,8 @@ ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
 ReadOnlyPaths=/opt/hifidh
+# Seul endroit où l'API écrit des fichiers : les certificats des élèves (créé par install.sh avant le démarrage).
+ReadWritePaths=/var/lib/hifidh/certificates
 
 [Install]
 WantedBy=multi-user.target

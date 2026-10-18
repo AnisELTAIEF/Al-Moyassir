@@ -1,4 +1,5 @@
 import { FormEvent, useState } from 'react';
+import { t } from '../i18n';
 import { useAsync, useFlash } from '../components';
 import type { Api, OrgSummary, OrgType, User } from '../types';
 import OrgView from './OrgView';
@@ -30,17 +31,16 @@ export default function Orgs({ api, me }: { api: Api; me: User }) {
 
   return (
     <>
-      <h1>Établissements</h1>
-      <p className="muted lead">Une association (جمعية) ou une mosquée (جامع) regroupe des classes (قاعة / حلقة / فوج), une équipe (إداري، مدرس)
-        et les fiches de ses élèves (طالب).</p>
+      <h1>{t('Établissements')}</h1>
+      <p className="muted lead">{t('Une association (جمعية) ou une mosquée (جامع) regroupe des classes (قاعة / حلقة / فوج), une équipe (إداري، مدرس) et les fiches de ses élèves (طالب).')}</p>
       {isGlobal && (
         <form className="card invite-form" onSubmit={create}>
-          <label>Nom<input required minLength={2} value={name} onChange={(e) => setName(e.target.value)} placeholder="جامع النور" /></label>
-          <label>Type<select value={type} onChange={(e) => setType(e.target.value as OrgType)}>
+          <label>{t('Nom')}<input required minLength={2} value={name} onChange={(e) => setName(e.target.value)} placeholder={t('جامع النور')} /></label>
+          <label>{t('Type')}<select value={type} onChange={(e) => setType(e.target.value as OrgType)}>
             <option value="association">{ORG_TYPE.association}</option><option value="mosque">{ORG_TYPE.mosque}</option></select></label>
-          <label>Adresse (مقر الإدارة)<input value={address} onChange={(e) => setAddress(e.target.value)} /></label>
-          <label>E-mail du responsable<input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="optionnel — compte existant" /></label>
-          <button className="btn">Créer l’établissement</button>
+          <label>{t('Adresse (مقر الإدارة)')}<input value={address} onChange={(e) => setAddress(e.target.value)} /></label>
+          <label>{t('E-mail du responsable')}<input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder={t('optionnel — compte existant')} /></label>
+          <button className="btn">{t('Créer l’établissement')}</button>
         </form>
       )}
       {msg && <p className="error" role="alert">{msg}</p>}

@@ -13,6 +13,8 @@ chmod 600 /etc/hifidh/api.env
 id hifidh >/dev/null 2>&1 || useradd --system --home /opt/hifidh --shell /usr/sbin/nologin hifidh
 # Dossier de l'APK Android téléchargeable (/api/download/android) — voir docs/MISE-A-JOUR-SERVEUR.md
 install -d -m 755 -o root -g hifidh /var/lib/hifidh/download
+# Certificats des élèves : lisibles par le seul service (le service n'y a accès en écriture que via ReadWritePaths).
+install -d -m 700 -o hifidh -g hifidh /var/lib/hifidh/certificates
 
 # API
 mkdir -p /opt/hifidh/server

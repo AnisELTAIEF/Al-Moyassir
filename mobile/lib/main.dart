@@ -8,6 +8,7 @@ import 'core/audio_controller.dart';
 import 'core/auth_service.dart';
 import 'core/prayer_service.dart';
 import 'core/progress_store.dart';
+import 'core/push_service.dart';
 import 'core/quran_repository.dart';
 import 'core/settings.dart';
 import 'core/validation_store.dart';
@@ -20,6 +21,7 @@ Future<void> main() async {
   final progress = ProgressStore(prefs, auth);
   final settings = Settings(prefs);
   final validations = ValidationStore(auth);
+  final push = PushService(auth);
   final audioCache = AudioCache();
   await audioCache.init();
   await progress.attach(null);
@@ -29,6 +31,7 @@ Future<void> main() async {
     progress.attach(auth.userId);
     // Validations de l'enseignant et notifications : propres au compte (vidées à la déconnexion).
     validations.refresh();
+    push.refresh();
   });
   auth.restore();
 
@@ -39,6 +42,7 @@ Future<void> main() async {
       ChangeNotifierProvider<ProgressStore>.value(value: progress),
       ChangeNotifierProvider<Settings>.value(value: settings),
       ChangeNotifierProvider<ValidationStore>.value(value: validations),
+      ChangeNotifierProvider<PushService>.value(value: push),
       ChangeNotifierProvider<PrayerService>(create: (_) => PrayerService(prefs)),
       ChangeNotifierProvider<AudioCache>.value(value: audioCache),
       ChangeNotifierProvider<AudioController>(create: (_) => AudioController(repo, prefs, audioCache)),

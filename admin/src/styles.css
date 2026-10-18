@@ -181,3 +181,15 @@ tbody tr:hover, tbody tr.sel { background: color-mix(in srgb, var(--zellige) 6%,
 tr.sel td { background: var(--soft); }
 fieldset.span-all { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .chip button.link { padding: 0; }
+
+/* Carte de la mémorisation validée (604 pages / 114 sourates) et rythme hebdomadaire */
+.cover { display: grid; gap: 2px; margin: 6px 0; }
+.cover.pages { grid-template-columns: repeat(auto-fill, minmax(9px, 1fr)); }
+.cover.surahs { grid-template-columns: repeat(auto-fill, minmax(18px, 1fr)); }
+.cover i, .cover-legend i { display: inline-block; aspect-ratio: 1; border-radius: 2px; background: var(--line); }
+.cover-legend i { width: 10px; margin-inline: 8px 3px; }
+.cover .c-c, .cover-legend .c-c { background: var(--zellige); }
+.cover .c-p, .cover-legend .c-p { background: var(--saffron); }
+.cover .c-r, .cover-legend .c-r { background: #c0392b; }
+.rhythm { width: 100%; max-width: 360px; height: 60px; }
+.rhythm .on { fill: var(--zellige); } .rhythm .off { fill: var(--line); }

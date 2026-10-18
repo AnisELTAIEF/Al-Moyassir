@@ -1,0 +1,54 @@
+// Dictionnaire arabe du BO : clé = texte français. Un texte absent s'affiche en français (comme dans l'app).
+// Le test i18n.test.ts vérifie que chaque t('…') des pages traduites a son entrée.
+export const AR: Record<string, string> = {
+  // Navigation
+  'Aperçu': 'نظرة عامة', 'Établissements': 'المؤسسات', 'Utilisateurs': 'المستخدمون', 'Invitations': 'الدعوات', 'Groupes': 'المجموعات', 'Import': 'استيراد',
+  'Mes établissements': 'مؤسساتي', 'Mon établissement': 'مؤسستي', 'Mes groupes': 'مجموعاتي', 'Démo': 'تجريبي', 'admin global': 'مسؤول عام', 'admin de groupe': 'مسؤول مجموعة',
+  'Guide d’utilisation': 'دليل الاستخدام', 'Se déconnecter': 'تسجيل الخروج',
+  // Établissements
+  'Une association (جمعية) ou une mosquée (جامع) regroupe des classes (قاعة / حلقة / فوج), une équipe (إداري، مدرس) et les fiches de ses élèves (طالب).': 'تضمّ الجمعية أو الجامع أفواجًا (قاعة / حلقة / فوج) وفريقًا (إداري، مدرّس) وبطاقات طلابها.',
+  'Nom': 'الاسم', 'Type': 'النوع', 'Adresse (مقر الإدارة)': 'العنوان (مقر الإدارة)', 'E-mail du responsable': 'البريد الإلكتروني للمسؤول', 'optionnel — compte existant': 'اختياري — حساب موجود',
+  'Créer l’établissement': 'إنشاء المؤسسة', '← Établissements': '→ المؤسسات',
+  'Élèves': 'الطلاب', 'Suivi (متابعة)': 'متابعة', 'Classes': 'الأفواج', 'Équipe': 'الفريق', 'Réglages': 'الإعدادات',
+  // Fiche élève
+  'Nom et prénom (الإسم واللقب)': 'الاسم واللقب', 'Prénom du père (إسم الأب)': 'اسم الأب', 'Date de naissance': 'تاريخ الميلاد', 'Sexe': 'الجنس', 'Garçon': 'ذكر', 'Fille': 'أنثى',
+  'Téléphone (format international)': 'الهاتف (بالصيغة الدولية)', 'Date d’adhésion (تاريخ الإنخراط)': 'تاريخ الانخراط', 'Début du hifdh (تاريخ بداية الحفظ)': 'تاريخ بداية الحفظ',
+  'Participations précédentes à des concours': 'مشاركات سابقة في المسابقات', 'Rechercher (nom, père, téléphone)': 'بحث (الاسم، الأب، الهاتف)', 'Rechercher un élève': 'ابحث عن طالب',
+  'Filtrer par classe': 'تصفية حسب الفوج', 'Toutes les classes': 'كل الأفواج', 'Élèves sortis': 'الطلاب المغادرون',
+  'Les parents ont autorisé l’enregistrement des informations de l’enfant (nom, âge, téléphone, résultats).': 'وافق الأولياء على تسجيل معلومات الطفل (الاسم، السن، الهاتف، النتائج).',
+  'Créer la fiche': 'إنشاء البطاقة', 'Élève': 'الطالب', 'Âge': 'السن', 'Téléphone': 'الهاتف', 'Compte': 'الحساب', 'lié': 'مرتبط', 'non lié': 'غير مرتبط', 'Fermer': 'إغلاق', 'Enregistrer': 'حفظ',
+  'Adhésion': 'الانخراط', 'Début du hifdh': 'بداية الحفظ', 'Mémorisation validée': 'الحفظ المصحَّح', 'Ahzab entiers': 'الأحزاب الكاملة', '· suite continue max': '· أطول سلسلة متصلة',
+  'Sourates entières': 'السور الكاملة', 'Ayat comptés': 'الآيات المحتسبة', 'Pages à reprendre': 'صفحات للإعادة', 'Rythme de mémorisation': 'وتيرة الحفظ',
+  'Aucun numéro enregistré.': 'لا يوجد رقم هاتف.', 'Générer un code de vérification': 'توليد رمز تحقق',
+  'Envoyez ce code à l’élève par WhatsApp, puis saisissez ci-dessous le code qu’il vous communique (valable 15 min, 5 essais).': 'أرسل هذا الرمز إلى الطالب عبر واتساب، ثم أدخل أدناه الرمز الذي يخبرك به (صالح 15 دقيقة، 5 محاولات).',
+  'Envoyer par WhatsApp': 'إرسال عبر واتساب', 'Code reçu de l’élève': 'الرمز الذي أخبرك به الطالب', 'Code communiqué par l’élève': 'الرمز الذي أخبرك به الطالب', 'Valider': 'تأكيد',
+  'Compte de l’élève': 'حساب الطالب', 'compte lié': 'حساب مرتبط', 'aucun compte lié': 'لا حساب مرتبط', 'Détacher le compte': 'فصل الحساب',
+  'Le parent crée un compte pour son enfant, puis saisit ce code dans l’application pour le rattacher à la fiche.': 'ينشئ الولي حسابًا لابنه ثم يُدخل هذا الرمز في التطبيق لربطه بالبطاقة.',
+  'Générer un code de liaison': 'توليد رمز الربط', 'valable 7 jours, usage unique': 'صالح 7 أيام، لمرة واحدة', 'Créez d’abord une classe (onglet « Classes »).': 'أنشئ فوجًا أولًا (تبويب «الأفواج»).',
+  'Archivage': 'الأرشفة', 'Un élève qui quitte l’établissement est archivé, jamais supprimé : ses données sont conservées au moins 5 ans.': 'الطالب الذي يغادر المؤسسة يُؤرشَف ولا يُحذف: تُحفظ بياناته 5 سنوات على الأقل.',
+  'Marquer comme sorti': 'تسجيل كمغادر', 'Réintégrer': 'إعادة إدماج', 'Supprimer définitivement': 'حذف نهائي',
+  // Classes, équipe, réglages
+  'Aucun enseignant': 'لا يوجد مدرّس', 'Affecter un enseignant': 'تعيين مدرّس', '+ Enseignant…': '+ مدرّس…', 'Renommer': 'إعادة تسمية', 'Supprimer': 'حذف',
+  'Nom de la nouvelle classe': 'اسم الفوج الجديد', 'Nom de la nouvelle classe (ex. فوج 1)': 'اسم الفوج الجديد (مثال: فوج 1)', 'Créer la classe': 'إنشاء الفوج',
+  'La personne doit d’abord avoir créé son compte (application ou page de connexion) avec cet e-mail.': 'يجب أن يكون الشخص قد أنشأ حسابه (في التطبيق أو صفحة الدخول) بهذا البريد.',
+  'E-mail': 'البريد الإلكتروني', 'Rôle': 'الدور', 'Ajouter à l’équipe': 'إضافة إلى الفريق', 'Personne': 'الشخص', 'Rôles': 'الأدوار', 'Aucun membre dans l’équipe.': 'لا يوجد أعضاء في الفريق.',
+  'Seuil « page à reprendre »': 'عتبة «صفحة للإعادة»', 'Nombre d’ayat « acquis avec erreur » sur une même page à partir duquel la page est à reprendre.': 'عدد الآيات «المحفوظة بأخطاء» في الصفحة الواحدة الذي تصبح عنده الصفحة للإعادة.',
+  // Carte, rythme, résultats
+  '604 pages': '604 صفحة', '114 sourates': '114 سورة', 'Carte de la mémorisation validée': 'خريطة الحفظ المصحَّح', 'Page {n}': 'الصفحة {n}',
+  'complet': 'كامل', 'en cours': 'قيد الحفظ', 'à reprendre': 'للإعادة', 'non commencé': 'لم يبدأ', 'Ayat validés par semaine': 'الآيات المصحَّحة أسبوعيًا',
+  '{n} ayat validés sur 12 semaines · moyenne {m} par semaine': '{n} آية مصحَّحة في 12 أسبوعًا · المعدل {m} في الأسبوع',
+  'Résultat enregistré.': 'تم تسجيل النتيجة.', 'Certificat envoyé : l’élève est prévenu.': 'أُرسلت الشهادة: تم إشعار الطالب.', 'Message envoyé à l’élève.': 'أُرسلت الرسالة إلى الطالب.',
+  'Cadeau enregistré : l’élève n’est prévenu qu’une fois remis.': 'سُجّلت الهدية: لا يُشعَر الطالب إلا بعد تسليمها.',
+  'Examens et concours': 'الامتحانات والمسابقات', 'Examen': 'امتحان', 'Concours': 'مسابقة', 'rang': 'المرتبة', 'Supprimer ce résultat ?': 'حذف هذه النتيجة؟', 'Aucun résultat.': 'لا توجد نتائج.',
+  'Intitulé': 'العنوان', 'Date': 'التاريخ', 'Note': 'العلامة', 'Rang': 'المرتبة', 'Ajouter le résultat': 'إضافة النتيجة', 'Certificats': 'الشهادات', 'Ko': 'ك.ب', 'Ouvrir': 'فتح',
+  'Supprimer ce certificat ?': 'حذف هذه الشهادة؟', 'Aucun certificat.': 'لا توجد شهادات.', 'Fichier (PDF, PNG ou JPEG, 5 Mo)': 'الملف (PDF أو PNG أو JPEG، 5 ميغابايت)',
+  'Envoyer le certificat': 'إرسال الشهادة', 'Fichier trop volumineux (5 Mo au maximum).': 'الملف كبير جدًا (5 ميغابايت كحد أقصى).',
+  'Encouragements': 'التشجيعات', 'remis': 'سُلِّمت', 'à remettre': 'للتسليم', 'Aucun encouragement.': 'لا توجد تشجيعات.', 'Message d’encouragement': 'رسالة تشجيع', 'Cadeau': 'هدية', 'Détail (facultatif)': 'تفاصيل (اختياري)',
+  // Suivi et exports
+  'Classement': 'الترتيب', 'Tous les élèves': 'كل الطلاب', 'Période': 'الفترة', 'Classe': 'الفوج', 'Tout l’établissement': 'كل المؤسسة', 'Exporter Excel': 'تصدير Excel', 'Exporter Word': 'تصدير Word',
+  'Classement réservé à l’équipe : les élèves et leurs parents ne le voient jamais. Il ne compte que les validations de l’enseignant ; les suites continues de ahzab puis de sourates passent en premier (comme en concours).': 'الترتيب مخصّص للفريق: لا يراه الطلاب ولا أولياؤهم أبدًا. يعتمد تصحيح المدرّس فقط، وتُقدَّم سلاسل الأحزاب المتصلة ثم السور (كما في المسابقات).',
+  'Ahzab entiers · suite continue': 'الأحزاب الكاملة · أطول سلسلة متصلة', 'Ahzab': 'الأحزاب', 'Sourates entières · suite continue': 'السور الكاملة · أطول سلسلة متصلة', 'Sourates': 'السور', 'Ayat': 'الآيات',
+  'Ayat validés sur la période': 'الآيات المصحَّحة في الفترة', 'Gain': 'الحصيلة', 'Par semaine': 'أسبوعيًا', 'Dernière validation': 'آخر تصحيح', 'Élève d’élite': 'طالب متميّز', 'élite': 'نخبة', 'suite': 'سلسلة',
+  'Aucun élève à afficher.': 'لا يوجد طلاب للعرض.', 'Père': 'الأب', 'Ahzab : suite': 'الأحزاب: السلسلة', 'Sourates : suite': 'السور: السلسلة', 'Gain (période)': 'الحصيلة (الفترة)', 'Ayat / semaine': 'آيات / أسبوع',
+  'classement': 'ترتيب', 'Ce mois': 'هذا الشهر', 'Ce trimestre': 'هذا الثلث', 'Ce semestre': 'هذا السداسي', 'Cette année': 'هذه السنة', 'Depuis toujours': 'منذ البداية',
+};

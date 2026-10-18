@@ -130,6 +130,19 @@ export function pageStatus(ref, codes, page, threshold) {
   return any ? 'partial' : 'none';
 }
 
+/** Carte de la mémorisation pour le BO : une lettre par page (604) et par sourate (114). n = rien · p = en cours · c = complet · r = à reprendre. */
+export function coverageMaps(ref, codes, threshold) {
+  const LETTER = { none: 'n', partial: 'p', complete: 'c', retake: 'r' };
+  const pages = ref.pageRanges.map((_, i) => LETTER[pageStatus(ref, codes, i + 1, threshold)]).join('');
+  const flags = acquiredFlags(ref, codes, threshold);
+  const surahs = ref.surahRanges.map(({ from, to }) => {
+    let acquired = 0, any = 0;
+    for (let k = from; k < to; k++) { acquired += flags[k]; if (codes[k]) any++; }
+    return acquired === to - from ? 'c' : any ? 'p' : 'n';
+  }).join('');
+  return { pages, surahs };
+}
+
 /** Ayat comptés comme acquis dans les rapports : acquis ou acquis avec erreur, hors pages à reprendre. */
 export function acquiredFlags(ref, codes, threshold) {
   const flags = new Uint8Array(ref.total);

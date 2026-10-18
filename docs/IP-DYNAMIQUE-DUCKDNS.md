@@ -72,6 +72,8 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d bestconsultingit.com --redirect
 ```
 
+> Note : le service API (`ProtectSystem=strict`) n'écrit que dans `/var/lib/hifidh/certificates` (`ReadWritePaths`).
+
 ## Vérification / diagnostic
 
 ```bash
