@@ -57,6 +57,12 @@ class AudioController extends ChangeNotifier {
   String? get error => _error;
   bool get active => _surah != null;
 
+  /// Récitateur sans minutages : pas de suivi d'ayah ni de répétition, mais une barre de progression.
+  bool get timed => reciter.timed;
+  Duration get position => _player.position;
+  Duration? get duration => _player.duration;
+  int _shownSecond = -1; // sans minutages : l'interface est prévenue une fois par seconde
+
   Future<void> setReciter(String id) async {
     if (id == _reciterId) return;
     final resume = _surah != null && _currentAyah != null ? (_surah!, _currentAyah!, _player.playing) : null;
@@ -72,7 +78,7 @@ class AudioController extends ChangeNotifier {
   }
 
   void setMode(PlayMode m) {
-    _mode = m;
+    _mode = timed ? m : PlayMode.continuous;
     notifyListeners();
   }
 
@@ -90,6 +96,7 @@ class AudioController extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    if (!timed) return _playWhole(surah, autoplay: autoplay);
     try {
       if (_surah != surah || _timings.isEmpty) {
         _loading = true;
@@ -117,6 +124,52 @@ class AudioController extends ChangeNotifier {
     } catch (e) {
       _fail('$e');
     }
+    notifyListeners();
+  }
+
+  /// Sans minutages : la sourate entière, depuis le début (ou reprise si elle est déjà chargée).
+  Future<void> _playWhole(int surah, {required bool autoplay}) async {
+    _mode = PlayMode.continuous;
+    _currentAyah = null;
+    try {
+      if (_surah != surah) {
+        _loading = true;
+        _surah = surah;
+        _timings = const [];
+        notifyListeners();
+        final cached = _cache.cachedPath(_reciterId, surah);
+        if (cached != null) {
+          await _player.setFilePath(cached);
+        } else {
+          await _player.setUrl(reciter.audioUri(surah).toString());
+        }
+        _loading = false;
+      }
+      if (autoplay) unawaited(_player.play());
+    } on PlayerException catch (e) {
+      _fail(tr('Lecture impossible (connexion ?) : {err}', {'err': e.message ?? e.code}));
+    } on PlayerInterruptedException {
+      _loading = false;
+    } catch (e) {
+      _fail('$e');
+    }
+    notifyListeners();
+  }
+
+  /// Sans minutages : avance ou recule dans la sourate.
+  Future<void> seekBy(Duration d) async {
+    if (_surah == null) return;
+    final end = _player.duration;
+    var to = _player.position + d;
+    if (to < Duration.zero) to = Duration.zero;
+    if (end != null && to > end) to = end;
+    await _player.seek(to);
+    notifyListeners();
+  }
+
+  Future<void> seekTo(Duration to) async {
+    if (_surah == null) return;
+    await _player.seek(to);
     notifyListeners();
   }
 
@@ -153,6 +206,8 @@ class AudioController extends ChangeNotifier {
     } else {
       if (_player.processingState == ProcessingState.completed && _currentAyah != null) {
         await _seekToAyah(_currentAyah!);
+      } else if (_player.processingState == ProcessingState.completed) {
+        await _player.seek(Duration.zero); // sourate entière terminée : on recommence
       }
       unawaited(_player.play());
     }
@@ -160,6 +215,7 @@ class AudioController extends ChangeNotifier {
   }
 
   Future<void> next() async {
+    if (!timed) return seekBy(const Duration(seconds: 15));
     if (_surah == null || _currentAyah == null) return;
     final n = _currentAyah! + 1;
     if (_timingOf(n) != null) await _seekToAyah(n);
@@ -167,6 +223,7 @@ class AudioController extends ChangeNotifier {
   }
 
   Future<void> previous() async {
+    if (!timed) return seekBy(const Duration(seconds: -15));
     if (_surah == null || _currentAyah == null) return;
     final p = max(1, _currentAyah! - 1);
     await _seekToAyah(p);
@@ -182,6 +239,13 @@ class AudioController extends ChangeNotifier {
   }
 
   void _onPosition(Duration pos) {
+    if (_surah != null && _timings.isEmpty && !timed) {
+      if (pos.inSeconds != _shownSecond) {
+        _shownSecond = pos.inSeconds;
+        notifyListeners();
+      }
+      return;
+    }
     if (_surah == null || _timings.isEmpty || _seeking || _currentAyah == null) return;
     final ms = pos.inMilliseconds;
     final cur = _timingOf(_currentAyah!);

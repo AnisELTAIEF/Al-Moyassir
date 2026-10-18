@@ -651,4 +651,10 @@ const Map<String, String> arStrings = {
   'Nouvelle notification': 'إشعار جديد',
   'Voir': 'عرض',
   '{n} établissements': '{n} مؤسسات',
+  // 0.25.0 : récitateurs sans minutages (sourate entière)
+  'Toute la sourate': 'السورة كاملة',
+  'sans suivi des ayat': 'دون تتبّع الآيات',
+  'sourate entière, sans suivi des ayat': 'السورة كاملة، دون تتبّع الآيات',
+  'Reculer de 15 s': 'رجوع 15 ثانية',
+  'Avancer de 15 s': 'تقديم 15 ثانية',
 };

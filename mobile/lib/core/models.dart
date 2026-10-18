@@ -12,7 +12,11 @@ class Reciter {
   final String source;
   final String audioTemplate;
   final Set<int> surahs;
-  const Reciter(this.id, this.name, this.source, this.audioTemplate, this.surahs);
+
+  /// Minutages ayah par ayah disponibles : suivi de l'ayah récité et répétition. Sinon (enregistrements
+  /// pas encore alignés) : écoute de la sourate entière, avec avance et retour de 15 s.
+  final bool timed;
+  const Reciter(this.id, this.name, this.source, this.audioTemplate, this.surahs, {this.timed = true});
 
   factory Reciter.fromJson(Map<String, dynamic> j) => Reciter(
         j['id'] as String,
@@ -20,6 +24,7 @@ class Reciter {
         j['source'] as String,
         j['audio'] as String,
         (j['surahs'] as List).cast<int>().toSet(),
+        timed: j['timed'] != false,
       );
 
   bool hasSurah(int s) => surahs.contains(s);

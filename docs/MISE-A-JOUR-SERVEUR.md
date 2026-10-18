@@ -90,6 +90,7 @@ et `https://quran.bestconsultingit.com/app/` (version web de l'app).
 | 0.22.0 | **Alertes natives de l’app Android** (Firebase Cloud Messaging). **Migration 014** (appliquée par `install.sh`) ; compte de service Firebase à installer une fois (voir ci-dessous) |
 | 0.23.0 | Notifications détaillées (sourate, ayat, nombre ; sourate des pages à reprendre) ; app : « Réviser » reprend ce que l'enseignant demande, vue combinée du mushaf. Pas de migration |
 | 0.24.0 | Les alertes portent la notification à ouvrir (toucher → l'app l'ouvre directement) ; app : « Aller à » page/sourate/juz pour l'enseignant, raccourci « Valider la mémorisation » sur l'accueil, correction du marquage de l'ayah voisin, mise à jour instantanée app ouverte. Pas de migration |
+| 0.25.0 | App : récitateurs Kamel Smida et Nour Eddine Al-Mesallati (khatma complète), sourate entière sans suivi des ayat ; nginx : emplacement `/audio/` (installé par `install.sh`). Publier les fichiers : section « Enregistrements de nos récitateurs ». Pas de migration |
 
 ## Mettre à jour la version web (côté développement)
 
@@ -175,3 +176,32 @@ curl -sI https://quran.bestconsultingit.com/api/download/android | head -n 5   #
 À chaque nouvelle version : refaire ces deux commandes (le lien ne change pas).
 Pour utiliser un autre lien à la place (Google Drive…), renseigner `ANDROID_APK_URL` dans
 `/etc/hifidh/api.env` puis `sudo systemctl restart hifidh-api`.
+
+## Enregistrements de nos récitateurs (0.25.0)
+
+Les MP3 ne sont pas dans Git (`mp3/` est ignoré) : ils sont servis par nginx depuis
+`/var/www/almoyassir-app/audio/<id>/001.mp3 … 114.mp3` (→ `https://quran.bestconsultingit.com/audio/…`).
+`install.sh` installe l'emplacement `/audio/` dans le snippet nginx ; son `rsync --delete` ne touche que `app/`.
+
+1. **Copier les dossiers sur la VM** (5,4 Go ; SSH est fermé) : clé USB / disque partagé de la VM, par exemple
+   vers `/srv/hifidh-mp3/`. Pour ouvrir SSH sur le réseau local seulement (sans redirection du port 22 sur la box) :
+   demander d'abord à Anis (`sudo apt install openssh-server`).
+2. **ffmpeg** (conseillé, paquet système : demander à Anis) — `sudo apt install ffmpeg`. Il sert à réduire les
+   fichiers (≈ 300 → 64 kbit/s, 5 fois moins à télécharger pour l'élève) et à extraire le son de la Fatiha de
+   Kamel Smida (fournie en vidéo .mp4 ; sans ffmpeg elle est ignorée et ne joue pas dans l'app).
+3. **Vérifier puis publier** :
+   ```bash
+   cd $SRC
+   python3 tools/publish_reciter_audio.py --id kamel_smida --src "/srv/hifidh-mp3/Kamel Smida" --list
+   sudo python3 tools/publish_reciter_audio.py --id kamel_smida --src "/srv/hifidh-mp3/Kamel Smida" --kbps 64
+   sudo python3 tools/publish_reciter_audio.py --id nooreddine_almeslati_khatma         --src "/srv/hifidh-mp3/Noureddine Meessleti الختمة الكاملة للشيخ نور الدين المسلاتي" --kbps 64
+   sudo chmod -R a+rX /var/www/almoyassir-app/audio
+   curl -sI https://quran.bestconsultingit.com/audio/kamel_smida/036.mp3 | head -3   # 200, audio/mpeg
+   ```
+   Sans ffmpeg : retirer `--kbps 64` (copie telle quelle).
+4. La liste des sourates de chaque récitateur est dans l'app (`tools/reciters_own.json`, recopié dans
+   `mobile/assets/data/reciters.json`) : si des sourates sont ajoutées plus tard, mettre à jour ce fichier
+   (la commande `--list` affiche la liste) et republier l'app.
+
+Ces récitateurs n'ont pas de minutages ayah par ayah : l'app joue la sourate entière (barre de progression,
+± 15 s), sans suivi de l'ayah récité ni répétition. Les minutages viendront d'un alignement (projet qalun-timing).

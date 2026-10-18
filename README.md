@@ -89,5 +89,6 @@ En production, `deploy/install.sh` construit et publie l'admin.
 - **Minutages** : Abdeljawad Almiladi, qalun-timing.abdeljawad.com — CC BY 4.0 (mention dans l'app).
 - **Audio** : non inclus, lu en streaming (mp3quran.net et hébergement du projet qalun-timing). Les
   enregistrements appartiennent à leurs éditeurs ; pour une diffusion publique, prévoir un accord ou votre
-  propre hébergement.
+  propre hébergement. Kamel Smida (avec son accord) et Nour Eddine Al-Mesallati (khatma complète ; droits de
+  diffusion à confirmer) : hébergés sur notre serveur (`/audio/`, voir docs/MISE-A-JOUR-SERVEUR.md), sans minutages.
 - **Polices** : Scheherazade New et Readex Pro (licence OFL, fichiers dans `mobile/assets/fonts`).

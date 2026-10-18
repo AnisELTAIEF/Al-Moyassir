@@ -19,7 +19,7 @@ void main() {
   test('chaque récitateur : minutages cohérents avec le texte pour chaque sourate annoncée', () async {
     final repo = await QuranRepository.load();
     expect(repo.reciters, isNotEmpty);
-    for (final r in repo.reciters) {
+    for (final r in repo.reciters.where((r) => r.timed)) {
       for (final s in r.surahs) {
         final t = await repo.timingsFor(r.id, s);
         expect(t.length, repo.surah(s).ayahCount, reason: '${r.id} sourate $s');
@@ -30,6 +30,18 @@ void main() {
         }
       }
     }
+  });
+
+  test('nos enregistrements (sans minutages) : hébergés chez nous, sourate entière', () async {
+    final repo = await QuranRepository.load();
+    final own = repo.reciters.where((r) => !r.timed).toList();
+    expect(own.map((r) => r.id), containsAll(['kamel_smida', 'nooreddine_almeslati_khatma']));
+    for (final r in own) {
+      expect(r.audioUri(36).toString(), 'https://quran.bestconsultingit.com/audio/${r.id}/036.mp3');
+      expect(r.surahs.every((s) => s >= 1 && s <= 114), isTrue);
+    }
+    expect(repo.reciter('nooreddine_almeslati_khatma').surahs.length, 113, reason: 'sourate 33 absente du dossier');
+    expect(repo.reciter('mp3quran_201_199').timed, isTrue, reason: 'par défaut : minutages');
   });
 
   test('URL audio : modèle {surah:03d} remplacé', () async {

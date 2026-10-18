@@ -53,6 +53,9 @@ for r in rec:
     slim.append(item)
     json.dump({"surahs": t["surahs"]}, open(os.path.join(out, "timings", r["id"] + ".json"), "w"),
               separators=(",", ":"))
+# Nos propres enregistrements (tools/reciters_own.json), hébergés sur le serveur, sans minutages :
+# l'app les joue sourate entière (voir tools/publish_reciter_audio.py).
+slim += json.load(open(os.path.join(os.path.dirname(__file__), "reciters_own.json"), encoding="utf-8"))
 json.dump(slim, open(os.path.join(out, "reciters.json"), "w", encoding="utf-8"),
           ensure_ascii=False, separators=(",", ":"))
 print("reciters:", len(slim))

@@ -528,13 +528,14 @@ class _AyahSheet extends StatelessWidget {
                   Navigator.pop(context);
                 },
                 icon: const Icon(Icons.play_arrow_rounded),
-                label: Text(tr('À partir d’ici')),
+                // Récitateur sans minutages : on ne sait pas où commence l'ayah, la sourate part du début.
+                label: Text(audio.timed ? tr('À partir d’ici') : tr('Toute la sourate')),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () {
+                onPressed: !audio.timed ? null : () {
                   audio.setMode(PlayMode.singleAyah);
                   if (audio.repeatTarget == 1) audio.setRepeat(3);
                   audio.play(surah, ayah);
@@ -643,7 +644,9 @@ class _MiniPlayer extends StatelessWidget {
                             ? tr('Sourate indisponible pour ce récitateur')
                             : here && audio.currentAyah != null
                                 ? (audio.mode == PlayMode.singleAyah ? tr('Ayah {n} · répétition {i}/{t}', {'n': audio.currentAyah, 'i': audio.repeatsDone + 1, 't': audio.repeatTarget == 0 ? '∞' : audio.repeatTarget}) : tr('Ayah {n}', {'n': audio.currentAyah}))
-                                : tr('Riwaya de Qalun · changer de récitateur'),
+                                : here && !audio.timed && audio.duration != null
+                                    ? '${clock(audio.position)} / ${clock(audio.duration!)} · ${tr('sans suivi des ayat')}'
+                                    : tr('Riwaya de Qalun · changer de récitateur'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: compact ? 11.5 : 12, color: context.tones.muted),
@@ -651,8 +654,13 @@ class _MiniPlayer extends StatelessWidget {
                     ]),
                   ),
                 ),
-                IconButton(tooltip: tr('Ayah précédent'), onPressed: here ? audio.previous : null, icon: Icon(Icons.skip_previous_rounded)),
-                IconButton(tooltip: tr('Ayah suivant'), onPressed: here ? audio.next : null, icon: Icon(Icons.skip_next_rounded)),
+                if (audio.timed) ...[
+                  IconButton(tooltip: tr('Ayah précédent'), onPressed: here ? audio.previous : null, icon: Icon(Icons.skip_previous_rounded)),
+                  IconButton(tooltip: tr('Ayah suivant'), onPressed: here ? audio.next : null, icon: Icon(Icons.skip_next_rounded)),
+                ] else ...[
+                  IconButton(tooltip: tr('Reculer de 15 s'), onPressed: here ? audio.previous : null, icon: Icon(Icons.replay_rounded)),
+                  IconButton(tooltip: tr('Avancer de 15 s'), onPressed: here ? audio.next : null, icon: Icon(Icons.forward_rounded)),
+                ],
                 if (available && context.watch<AudioCache>().ready) // pas d'audio hors ligne sur la version web
                   Consumer<AudioCache>(
                     builder: (context, cache, _) {
@@ -676,6 +684,7 @@ class _MiniPlayer extends StatelessWidget {
                       );
                     },
                   ),
+                if (audio.timed)
                 PopupMenuButton<int>(
                   tooltip: tr('Répétition'),
                   icon: Icon(audio.mode == PlayMode.singleAyah ? Icons.repeat_one_rounded : Icons.repeat_rounded,
@@ -698,6 +707,16 @@ class _MiniPlayer extends StatelessWidget {
                   ],
                 ),
               ]),
+              // Sans minutages : la barre de progression permet de retrouver un passage.
+              if (here && !audio.timed && (audio.duration?.inMilliseconds ?? 0) > 0)
+                SizedBox(
+                  height: compact ? 22 : 28,
+                  child: Slider(
+                    value: audio.position.inMilliseconds.clamp(0, audio.duration!.inMilliseconds).toDouble(),
+                    max: audio.duration!.inMilliseconds.toDouble(),
+                    onChanged: (v) => audio.seekTo(Duration(milliseconds: v.round())),
+                  ),
+                ),
             ]),
             ),
           ),
@@ -766,4 +785,11 @@ class _HizbBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+/// « 1:05:09 » ou « 12:08 ».
+String clock(Duration d) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  final h = d.inHours, m = d.inMinutes % 60, sec = d.inSeconds % 60;
+  return h > 0 ? '$h:${two(m)}:${two(sec)}' : '$m:${two(sec)}';
 }

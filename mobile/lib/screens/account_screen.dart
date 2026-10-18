@@ -136,7 +136,10 @@ class AccountScreen extends StatelessWidget {
                   RadioListTile<String>(
                     value: r.id,
                     title: Text(r.name, textDirection: TextDirection.rtl, textAlign: TextAlign.left),
-                    subtitle: Text(r.surahs.length < 114 ? tr('Source : {src} · {n} sourates', {'src': r.source, 'n': r.surahs.length}) : tr('Source : {src}', {'src': r.source})),
+                    subtitle: Text([
+                      r.surahs.length < 114 ? tr('Source : {src} · {n} sourates', {'src': r.source, 'n': r.surahs.length}) : tr('Source : {src}', {'src': r.source}),
+                      if (!r.timed) tr('sourate entière, sans suivi des ayat'),
+                    ].join(' · ')),
                   ),
               ]),
             ),
