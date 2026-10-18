@@ -9,6 +9,7 @@ import '../widgets/common.dart';
 import '../widgets/khatam.dart';
 import '../widgets/surah_actions.dart';
 import 'juz_list_view.dart';
+import 'pages_list_view.dart';
 import 'reader_screen.dart';
 import '../core/i18n.dart';
 
@@ -41,13 +42,14 @@ class _SurahListScreenState extends State<SurahListScreen> {
     }).toList();
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: Text(tr('Lire')),
-          bottom: TabBar(tabs: [Tab(text: tr('Sourates')), Tab(text: tr('Juz et hizb'))]),
+          bottom: TabBar(tabs: [Tab(text: tr('Pages')), Tab(text: tr('Sourates')), Tab(text: tr('Juz et hizb'))]),
         ),
-        body: TabBarView(children: [_surahs(list, per, store), const Constrained(child: JuzListView())]),
+        // Pages en premier : c'est la vue par défaut (lecture et validation se font à la page).
+        body: TabBarView(children: [const Constrained(child: PagesListView()), _surahs(list, per, store), const Constrained(child: JuzListView())]),
       ),
     );
   }

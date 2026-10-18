@@ -11,8 +11,18 @@ class Settings extends ChangeNotifier {
         _lastRead = _prefs.getString('last_read'),
         _themeMode = ThemeMode.values.byName(_prefs.getString('theme_mode') ?? 'system'),
         _tajweed = _prefs.getBool('tajweed') ?? true,
-        _language = _prefs.getString('language') ?? 'system',
+        _language = _prefs.getString('language') ?? _initialLanguage(_prefs),
         _readingMode = ReadingMode.values.asNameMap()[_prefs.getString('reading_mode')] ?? ReadingMode.ayah;
+
+  /// Langue d'une installation qui n'a encore rien choisi : arabe pour une nouvelle installation ;
+  /// pour quelqu'un qui utilisait déjà l'app avant ce réglage, on garde « selon le téléphone »
+  /// (sinon la mise à jour le ferait passer en arabe sans l'avoir demandé). Le choix est mémorisé.
+  static String _initialLanguage(SharedPreferences prefs) {
+    const usedBefore = ['last_read', 'font_size', 'theme_mode', 'reading_mode'];
+    final lang = usedBefore.any(prefs.containsKey) ? 'system' : 'ar';
+    prefs.setString('language', lang);
+    return lang;
+  }
 
   final SharedPreferences _prefs;
   double _fontSize;

@@ -12,6 +12,7 @@ import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/mosaic.dart';
 import 'account_screen.dart';
+import 'khatma_planner_screen.dart';
 import 'reader_screen.dart';
 import '../core/i18n.dart';
 
@@ -99,6 +100,16 @@ class HomeScreen extends StatelessWidget {
               ],
               const SizedBox(height: 14),
               _NextPrayerCard(onTap: () => onOpenTab(3)),
+              const SizedBox(height: 14),
+              Card(
+                child: ListTile(
+                  leading: Icon(Icons.hourglass_bottom_rounded, color: context.colors.primary),
+                  title: Text(tr('Estimer ma khatma')),
+                  subtitle: Text(tr('Combien de temps pour terminer le Coran à votre rythme ?')),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KhatmaPlannerScreen())),
+                ),
+              ),
               const SizedBox(height: 14),
               Row(children: [
                 Expanded(child: _Stat(value: '$toReview', label: tr('à réviser'), icon: Icons.replay, onTap: () => onOpenTab(2))),
