@@ -34,6 +34,8 @@ Version du dépôt et de la production au 17/10/2026 : **0.17.0+19**.
 
 **Livrable A** : version **0.18.0**. Déploiement (app web + API inchangée).
 
+> **État (18/10/2026)** : A1-A4 livrés et déployés en 0.18.0. **A5-A6 attendent les MP3** (inutiles sans fichiers, non testables) et **A7 attend la vérification du nom** dans les stores. Dans A3, le marquage page par page est dans la liste des Pages ; le lecteur Qira'a n'a pas (encore) de bouton « page apprise » dédié (appui long/menu de la liste).
+
 ---
 
 ## Lot B — Fondations de données (établissements, classes, rôles, fiche élève)

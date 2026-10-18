@@ -43,8 +43,9 @@ Liste validée par Anis le 12/10/2026 : à traiter **dans cet ordre**, une fois 
 Analyse, décisions (D1-D20) et questions restantes : **`docs/EVOLUTIONS-REUNION-1.md`**. Plan d'exécution détaillé (tâches, schéma SQL,
 API, critères d'acceptation, ordre de démarrage) : **`docs/PLAN-EXECUTION.md`**.
 Ordre proposé (chaque lot est indépendant du suivant, sauf mention) :
-- [ ] **Lot A — gains rapides** : langue par défaut arabe (21) · vue « Pages » dans Lire (8) · estimateur de khatma (23) ·
-      compléter المسلاتي (20, 53/114 sourates aujourd'hui) · nom de l'app (18) : « حفظ قالون », repli « تحفيظ قالون », à vérifier dans les stores.
+- [x] **Lot A — gains rapides** : livré en **0.18.0** (18/10/2026) — langue arabe par défaut (21), onglet « Pages » par défaut + marquage page par page (8),
+      estimateur de khatma (23). **Reste du lot A**, en attente d'éléments externes : A5/A6 (récitateurs كمال صميدة et المسلاتي : MP3 à fournir par Anis,
+      puis lecture « sourate entière », hébergement `/audio/`) · A7 (nom « حفظ قالون » : disponibilité à vérifier dans les stores).
 - [ ] **Lot B — fondations** *(décisions D1-D20 prises le 17/10 ; voir `PLAN-EXECUTION.md`)* : établissements, classes, rôles إداري/مدرس/طالب,
       fiche élève, journal d'événements de mémorisation, حفظ إجمالي / مسترسل (1-5, 10, 14).
 - [ ] **Lot C — validation par l'enseignant** (6-7) : mushaf enseignant, règle des 3 erreurs, notifications dans l'app.
