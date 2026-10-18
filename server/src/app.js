@@ -13,6 +13,7 @@ import reportRoutes from './routes/reports.js';
 import resultsRoutes, { myResultsRoutes, certificateFileRoutes } from './routes/results.js';
 import pushRoutes from './routes/push.js';
 import { makePushSender } from './notify.js';
+import { makeFcmSender } from './fcm.js';
 import inviteRoutes from './routes/invite.js';
 import geocodeRoutes from './routes/geocode.js';
 import downloadRoutes from './routes/download.js';
@@ -48,6 +49,17 @@ export async function buildApp(cfg, deps) {
   app.decorate('reference', await loadReference(deps.pool));
   // Alertes push (null si les clés VAPID ne sont pas configurées) ; remplaçable dans les tests.
   app.decorate('pushSender', deps.pushSender !== undefined ? deps.pushSender : makePushSender(cfg));
+  // Alertes natives Android (null sans compte de service Firebase) ; un fichier illisible ne bloque pas le démarrage.
+  let fcmSender = deps.fcmSender;
+  if (fcmSender === undefined) {
+    try {
+      fcmSender = makeFcmSender(cfg);
+    } catch (e) {
+      app.log.error({ err: e.message }, 'compte de service Firebase illisible : alertes Android désactivées');
+      fcmSender = null;
+    }
+  }
+  app.decorate('fcmSender', fcmSender);
 
   await app.register(cors, {
     origin: cfg.corsOrigins.length ? cfg.corsOrigins : false,

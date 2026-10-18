@@ -149,7 +149,9 @@ class _PushBannerState extends State<_PushBanner> {
           secondary: Icon(Icons.notifications_active_outlined, color: context.colors.primary),
           title: Text(tr('Alertes quand l’app est fermée')),
           subtitle: Text(denied
-              ? tr('Refusées dans le navigateur : autorisez les notifications dans ses réglages.')
+              ? (push.native
+                  ? tr('Refusées sur ce téléphone : autorisez les notifications de l’app dans les réglages Android.')
+                  : tr('Refusées dans le navigateur : autorisez les notifications dans ses réglages.'))
               : tr('Recevez un message sur cet appareil quand votre enseignant valide ou envoie un certificat.')),
           value: push.state == PushState.on,
           onChanged: _busy || denied ? null : (v) => _toggle(push, v),

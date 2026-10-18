@@ -2,4 +2,6 @@
 <resources>
     <!-- Nom affiché sous l'icône (arabe si le téléphone est en arabe). -->
     <string name="app_name">الميسّر</string>
+    <!-- Canal des notifications (réglages Android de l’app). -->
+    <string name="alerts_channel">تنبيهات المعلّم</string>
 </resources>

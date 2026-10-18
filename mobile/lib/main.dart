@@ -21,7 +21,7 @@ Future<void> main() async {
   final progress = ProgressStore(prefs, auth);
   final settings = Settings(prefs);
   final validations = ValidationStore(auth);
-  final push = PushService(auth);
+  final push = PushService(auth, prefs);
   final audioCache = AudioCache();
   await audioCache.init();
   await progress.attach(null);

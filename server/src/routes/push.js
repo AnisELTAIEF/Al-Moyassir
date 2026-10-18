@@ -1,4 +1,4 @@
-// Abonnement aux alertes quand l'app est fermée (Web Push, version web / PWA installée).
+// Abonnement aux alertes quand l'app est fermée : Web Push (version web / PWA installée) et FCM (app Android).
 import { createHash } from 'node:crypto';
 import { HttpError } from '../errors.js';
 
@@ -18,7 +18,8 @@ export default async function pushRoutes(app) {
   const db = app.db;
 
   // Clé publique à donner au navigateur ; null si le serveur n'a pas de clés (alertes désactivées).
-  app.get('/push/key', async () => ({ publicKey: app.cfg.vapid.publicKey || null }));
+  // `native` : le serveur sait envoyer aux appareils Android (compte de service Firebase configuré).
+  app.get('/push/key', async () => ({ publicKey: app.cfg.vapid.publicKey || null, native: Boolean(app.fcmSender) }));
 
   app.post('/push/subscribe', {
     schema: {
@@ -49,6 +50,30 @@ export default async function pushRoutes(app) {
   app.post('/push/unsubscribe', { schema: { body: { type: 'object', required: ['endpoint'], properties: { endpoint: { type: 'string', maxLength: 2000 } } } } }, async (req) => {
     const hash = createHash('sha256').update(req.body.endpoint).digest('hex');
     await db.query('DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint_hash = ?', [req.user.id, hash]);
+    return { ok: true };
+  });
+
+  // App Android : jeton Firebase de l'appareil (il change de temps en temps : l'app le renvoie à chaque ouverture).
+  const fcmBody = { type: 'object', required: ['token'], properties: { token: { type: 'string', minLength: 20, maxLength: 4096 } } };
+  app.post('/push/fcm', {
+    schema: { body: { ...fcmBody, properties: { ...fcmBody.properties, platform: { type: 'string', enum: ['android', 'ios'] } } } },
+  }, async (req) => {
+    const { token, platform = 'android' } = req.body;
+    const hash = createHash('sha256').update(token).digest('hex');
+    await db.query(
+      `INSERT INTO fcm_tokens (user_id, token_hash, token, platform) VALUES (?,?,?,?)
+       ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), platform = VALUES(platform)`,
+      [req.user.id, hash, token, platform]);
+    // Au plus 10 appareils par compte : les plus anciens sont retirés.
+    await db.query(
+      `DELETE FROM fcm_tokens WHERE user_id = ? AND id NOT IN (SELECT id FROM (SELECT id FROM fcm_tokens WHERE user_id = ? ORDER BY id DESC LIMIT 10) t)`,
+      [req.user.id, req.user.id]);
+    return { ok: true };
+  });
+
+  app.post('/push/fcm/remove', { schema: { body: fcmBody } }, async (req) => {
+    const hash = createHash('sha256').update(req.body.token).digest('hex');
+    await db.query('DELETE FROM fcm_tokens WHERE user_id = ? AND token_hash = ?', [req.user.id, hash]);
     return { ok: true };
   });
 }

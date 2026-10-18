@@ -12,3 +12,6 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Configuration Firebase de l’app (non secrète, mais propre à notre projet) : gardée hors du dépôt public.
+app/google-services.json

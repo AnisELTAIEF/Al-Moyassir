@@ -87,6 +87,7 @@ et `https://quran.bestconsultingit.com/app/` (version web de l'app).
 | 0.15.0 | Géocodage inverse `/geocode/reverse` (nom du lieu détecté, ex. « Monastir, Tunisie ») — pas de migration |
 | 0.16.0 | E-mails d’invitation détaillés selon le rôle ; envoi automatique **optionnel** (SMTP, voir ci-dessous) ; guide `/guide/` publié avec l’admin web. Nouvelle dépendance `nodemailer` (installée par `install.sh`) |
 | 0.17.0 | Import de listes d’utilisateurs (TXT/CSV, par groupe ou général) ; APK Android hébergé sur le serveur (`/api/download/android`). **Migration 008** (appliquée par `install.sh`) ; `install.sh` crée `/var/lib/hifidh/download` |
+| 0.22.0 | **Alertes natives de l’app Android** (Firebase Cloud Messaging). **Migration 014** (appliquée par `install.sh`) ; compte de service Firebase à installer une fois (voir ci-dessous) |
 
 ## Mettre à jour la version web (côté développement)
 
@@ -118,6 +119,35 @@ envoyé ». En cas d’échec : `journalctl -u hifidh-api -n 30 --no-pager` (lig
 impossible », sans mot de passe).
 
 `ANDROID_APK_URL` (optionnel) : lien de téléchargement de l’APK, ajouté aux e-mails.
+
+## Alertes de l’app Android (Firebase, 0.22.0)
+
+Le serveur envoie les alertes « app fermée » aux téléphones Android via Firebase (projet
+`easy-taxi-161906`, app `com.bestconsultingit.hifidh_quran`). Il lui faut le **fichier JSON du compte
+de service** (console Firebase → Paramètres du projet → Comptes de service → « Générer une nouvelle
+clé privée »). Ce fichier donne le droit d’envoyer des notifications : **jamais dans Git**, jamais par e-mail.
+
+Depuis le PC (PowerShell) :
+
+```powershell
+scp .irebase-service-account.json anis@SERVEUR:/tmp/firebase.json
+```
+
+Sur le serveur :
+
+```bash
+sudo install -o root -g hifidh -m 640 /tmp/firebase.json /etc/hifidh/firebase-service-account.json && rm /tmp/firebase.json
+sudo cp /etc/hifidh/api.env /etc/hifidh/api.env.bak.$(date +%F)
+echo 'FCM_SERVICE_ACCOUNT_FILE=/etc/hifidh/firebase-service-account.json' | sudo tee -a /etc/hifidh/api.env
+sudo systemctl restart hifidh-api   # service de l'app uniquement (pas nginx)
+journalctl -u hifidh-api -n 20 --no-pager   # aucune ligne « compte de service Firebase illisible »
+```
+
+Test : dans l’app Android 0.22.0, ouvrir les notifications (cloche) → activer « Alertes quand l’app est
+fermée » (Android demande l’autorisation) ; fermer l’app ; depuis un compte enseignant, signaler une page
+à reprendre pour cet élève : la notification arrive sur le téléphone.
+L’APK doit être signé avec la clé de publication (`mobile/android/key.properties`), dont les empreintes
+SHA-1/SHA-256 sont déclarées dans la console Firebase.
 
 ## Publier l’APK Android sur le serveur (0.17.0)
 

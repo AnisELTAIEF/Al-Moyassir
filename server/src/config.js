@@ -33,6 +33,11 @@ export function loadConfig(env = process.env) {
       privateKey: (env.VAPID_PRIVATE_KEY ?? '').trim(),
       subject: (env.VAPID_SUBJECT ?? 'mailto:anis.eltaief@gmail.com').trim(),
     },
+    // Alertes natives de l'app Android (Firebase Cloud Messaging) : chemin du JSON du compte de service.
+    // Sans fichier : seules ces alertes sont désactivées.
+    fcm: {
+      serviceAccountFile: (env.FCM_SERVICE_ACCOUNT_FILE ?? '').trim(),
+    },
     // Envoi automatique des e-mails d'invitation (optionnel). Sans SMTP_HOST : rien n'est envoyé,
     // l'admin copie le message comme avant.
     smtp: {

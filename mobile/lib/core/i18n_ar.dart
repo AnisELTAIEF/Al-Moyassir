@@ -628,5 +628,6 @@ const Map<String, String> arStrings = {
   'Alertes quand l’app est fermée': 'تنبيهات والتطبيق مغلق',
   'Recevez un message sur cet appareil quand votre enseignant valide ou envoie un certificat.': 'تصلك رسالة على هذا الجهاز عندما يصحّح مدرّسك أو يرسل شهادة.',
   'Refusées dans le navigateur : autorisez les notifications dans ses réglages.': 'تم الرفض في المتصفح: اسمح بالإشعارات من إعداداته.',
+  'Refusées sur ce téléphone : autorisez les notifications de l’app dans les réglages Android.': 'تم الرفض على هذا الهاتف: اسمح بإشعارات التطبيق من إعدادات أندرويد.',
   'Impossible de modifier les alertes pour le moment.': 'تعذّر تعديل التنبيهات الآن.',
 };

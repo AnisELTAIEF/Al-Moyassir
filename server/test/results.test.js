@@ -19,6 +19,12 @@ const fakePush = async (sub, payload) => {
   if (pushFails) { const e = new Error('gone'); e.statusCode = pushFails; throw e; }
   pushes.push({ endpoint: sub.endpoint, ...JSON.parse(payload) });
 };
+const fcmPushes = []; // alertes Android « envoyées »
+let fcmFails = null; // { unregistered } simulé pour l'envoi suivant
+const fakeFcm = async (token, msg) => {
+  if (fcmFails) { const e = new Error('fcm'); Object.assign(e, fcmFails); throw e; }
+  fcmPushes.push({ token, ...msg });
+};
 const U = {}, S = {};
 
 before(async () => {
@@ -37,7 +43,7 @@ before(async () => {
   await root.end();
   await migrate(cfg.db, () => {});
   pool = createPool(cfg.db);
-  app = await buildApp(cfg, { pool, logger: false, pushSender: fakePush });
+  app = await buildApp(cfg, { pool, logger: false, pushSender: fakePush, fcmSender: fakeFcm });
 });
 after(async () => { await app.close(); await pool.end(); await rm(certDir, { recursive: true, force: true }); });
 
@@ -213,6 +219,37 @@ test('push : clé publique, adresses contrôlées, alerte envoyée aux appareils
   await sub('https://fcm.googleapis.com/fcm/send/BBB');
   assert.equal((await call('POST', '/me/push/unsubscribe', { ...T('parent'), body: { endpoint: 'https://fcm.googleapis.com/fcm/send/BBB' } })).status, 200);
   assert.equal(Number((await pool.query('SELECT COUNT(*) n FROM push_subscriptions'))[0][0].n), 0);
+  await call('PUT', stUrl('/validation'), { ...T('teacher'), body: { items: ayat(5, 7, 'cleared') } });
+});
+
+test('push Android (FCM) : jeton enregistré, alerte envoyée, jeton périmé oublié', async () => {
+  assert.equal((await call('GET', '/me/push/key', T('parent'))).body.native, true);
+  const TOK = 'fcm-jeton-appareil-' + 'x'.repeat(140);
+  const reg = (token, k = 'parent') => call('POST', '/me/push/fcm', { ...T(k), body: { token, platform: 'android' } });
+  assert.equal((await call('POST', '/me/push/fcm', { body: { token: TOK } })).status, 401);
+  assert.equal((await reg('court')).status, 400);
+  assert.equal((await reg(TOK)).status, 200);
+  assert.equal((await reg(TOK)).status, 200, 'idempotent');
+  assert.equal(Number((await pool.query('SELECT COUNT(*) n FROM fcm_tokens'))[0][0].n), 1);
+
+  fcmPushes.length = 0;
+  await call('PUT', stUrl('/validation'), { ...T('teacher'), body: { items: ayat(5, 7, 'acquired_error') } });
+  assert.equal(fcmPushes.length, 1, 'une alerte Android pour la page à reprendre');
+  assert.equal(fcmPushes[0].token, TOK);
+  assert.match(fcmPushes[0].title, /للإعادة.*reprendre/);
+  assert.equal(fcmPushes[0].data.kind, 'retake_pages');
+
+  fcmFails = { message: 'boom', statusCode: 500 }; // panne passagère : le jeton est gardé
+  await call('PUT', stUrl('/validation'), { ...T('teacher'), body: { items: ayat(9, 9, 'review') } });
+  assert.equal(Number((await pool.query('SELECT COUNT(*) n FROM fcm_tokens'))[0][0].n), 1);
+  fcmFails = { statusCode: 404, unregistered: true }; // app désinstallée
+  await call('PUT', stUrl('/validation'), { ...T('teacher'), body: { items: ayat(10, 10, 'review') } });
+  fcmFails = null;
+  assert.equal(Number((await pool.query('SELECT COUNT(*) n FROM fcm_tokens'))[0][0].n), 0, 'jeton périmé supprimé');
+
+  await reg(TOK);
+  assert.equal((await call('POST', '/me/push/fcm/remove', { ...T('parent'), body: { token: TOK } })).status, 200);
+  assert.equal(Number((await pool.query('SELECT COUNT(*) n FROM fcm_tokens'))[0][0].n), 0);
   await call('PUT', stUrl('/validation'), { ...T('teacher'), body: { items: ayat(5, 7, 'cleared') } });
 });
 
