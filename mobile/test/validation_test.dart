@@ -184,6 +184,21 @@ void main() {
       expect(v.notifications, isEmpty);
     });
 
+    test('une alerte arrivée pendant un chargement relance un chargement juste après', () async {
+      final (auth, server) = await setup();
+      var unread = 0;
+      server.handler = (req) => req.url.path == '/me/notifications'
+          ? json({'unread': unread, 'notifications': <Object>[]})
+          : json({'organizations': <Object>[]});
+      final v = ValidationStore(auth);
+      final first = v.refresh();
+      unread = 1; // nouvelle notification côté serveur pendant le premier chargement
+      await v.refresh();
+      await first;
+      expect(v.unread, 1);
+      expect(server.requests.length, 4, reason: 'deux chargements, pas plus');
+    });
+
     test('tout marquer comme lu', () async {
       final (auth, server) = await setup();
       server.handler = (req) => req.method == 'POST'

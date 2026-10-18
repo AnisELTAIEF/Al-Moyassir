@@ -34,6 +34,8 @@ Future<void> main() async {
     push.refresh();
   });
   auth.restore();
+  // Alertes reçues app ouverte ou touchées (l'interface s'y abonne dans Shell).
+  push.listen();
 
   runApp(MultiProvider(
     providers: [

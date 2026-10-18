@@ -36,3 +36,23 @@ Future<void> nativePushDeleteToken() async => (await _messaging()).deleteToken()
 
 /// Nouveau jeton attribué par Firebase (rare) : à renvoyer au serveur.
 Future<Stream<String>> nativePushTokenRefresh() async => (await _messaging()).onTokenRefresh;
+
+/// Contenu d'une alerte : `kind`, `id` (notification à ouvrir), `title`, `body`.
+Map<String, String> _content(RemoteMessage m) => {
+      for (final e in m.data.entries) e.key: '${e.value}',
+      if (m.notification?.title != null) 'title': m.notification!.title!,
+      if (m.notification?.body != null) 'body': m.notification!.body!,
+    };
+
+/// [onReceived] : alerte arrivée app ouverte (Android ne l'affiche pas lui-même) ;
+/// [onOpened] : alerte touchée, app en arrière-plan ou fermée (dans ce cas, au démarrage).
+Future<void> nativePushListen({
+  required void Function(Map<String, String>) onReceived,
+  required void Function(Map<String, String>) onOpened,
+}) async {
+  final m = await _messaging();
+  FirebaseMessaging.onMessage.listen((r) => onReceived(_content(r)));
+  FirebaseMessaging.onMessageOpenedApp.listen((r) => onOpened(_content(r)));
+  final initial = await m.getInitialMessage();
+  if (initial != null) onOpened(_content(initial));
+}

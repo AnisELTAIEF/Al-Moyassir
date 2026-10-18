@@ -20,6 +20,7 @@ import '../widgets/tajweed_view.dart';
 import 'account_screen.dart';
 import '../widgets/ayah_coloring.dart';
 import '../widgets/islamic_frame.dart';
+import '../widgets/mushaf_jump.dart';
 import 'mushaf_reader.dart';
 import '../core/i18n.dart';
 
@@ -42,29 +43,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
   bool _immersive = false;
   Key _mushafKey = UniqueKey(); // renouvelée pour « Aller à la page »
 
-  /// Qira'a : saute à une page du mushaf (1..604).
+  /// Qira'a : saute à une page, une sourate ou un juz du mushaf.
   Future<void> _goToPage() async {
     final repo = context.read<QuranRepository>();
-    final c = TextEditingController(text: '${repo.mushafPageOf(_surahNo, _here)}');
-    final page = await showDialog<int>(
-      context: context,
-      builder: (d) => AlertDialog(
-        title: Text(tr('Aller à la page…')),
-        content: TextField(
-          controller: c,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(helperText: tr('De 1 à {n}', {'n': repo.mushafPages.length})),
-          onSubmitted: (v) => Navigator.pop(d, int.tryParse(v.trim())),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d), child: Text(tr('Annuler'))),
-          FilledButton(onPressed: () => Navigator.pop(d, int.tryParse(c.text.trim())), child: Text(tr('Ouvrir'))),
-        ],
-      ),
-    );
-    if (page == null || page < 1 || page > repo.mushafPages.length) return;
-    final (s, a) = repo.mushafPages[page - 1];
+    final to = await showMushafJump(context, currentPage: repo.mushafPageOf(_surahNo, _here));
+    if (to == null || !mounted) return;
+    final (s, a) = to;
     setState(() {
       _surahNo = s;
       _here = a;

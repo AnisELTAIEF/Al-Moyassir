@@ -22,6 +22,20 @@ enum PushState {
   on,
 }
 
+/// Une alerte reçue ou touchée : la notification enregistrée qu'elle annonce.
+class PushAlert {
+  const PushAlert({this.id, this.kind, this.title, this.body});
+  final int? id;
+  final String? kind, title, body;
+
+  factory PushAlert.from(Map<String, dynamic> m) => PushAlert(
+        id: m['id'] is num ? (m['id'] as num).toInt() : int.tryParse('${m['id']}'),
+        kind: m['kind'] as String?,
+        title: m['title'] as String?,
+        body: m['body'] as String?,
+      );
+}
+
 /// Active ou désactive les alertes de l'appareil et l'enregistre auprès du serveur :
 /// Web Push pour la version web / PWA, Firebase Cloud Messaging pour l'app Android.
 class PushService extends ChangeNotifier {
@@ -37,6 +51,49 @@ class PushService extends ChangeNotifier {
 
   /// Vrai sur l'app Android (alertes natives) ; faux sur le web.
   bool get native => native_.nativePushSupported();
+
+  /// Alerte arrivée pendant que l'app est ouverte : de quoi la mettre à jour et l'annoncer.
+  void Function(PushAlert alert)? onReceived;
+
+  /// Alerte touchée : ouvrir sa notification. Gardée en attente tant que l'interface n'écoute pas
+  /// (app lancée par le toucher : l'alerte arrive avant que l'écran principal soit prêt).
+  set onOpened(void Function(PushAlert alert)? f) {
+    _onOpened = f;
+    final p = _pendingOpen;
+    if (f != null && p != null) {
+      _pendingOpen = null;
+      f(p);
+    }
+  }
+
+  void Function(PushAlert alert)? _onOpened;
+  PushAlert? _pendingOpen;
+  bool _listening = false;
+
+  void _opened(PushAlert a) => _onOpened == null ? _pendingOpen = a : _onOpened!(a);
+
+  /// Écoute les alertes (une fois, au démarrage) : reçues app ouverte, ou touchées.
+  Future<void> listen() async {
+    if (_listening) return;
+    _listening = true;
+    try {
+      if (native) {
+        await native_.nativePushListen(
+          onReceived: (m) => onReceived?.call(PushAlert.from(m)),
+          onOpened: (m) => _opened(PushAlert.from(m)),
+        );
+      } else {
+        final launch = platform.pushLaunchId();
+        if (launch != null) _opened(PushAlert(id: int.tryParse(launch)));
+        platform.pushListen((m) {
+          final a = PushAlert.from(m);
+          m['hifidhPush'] == 'opened' ? _opened(a) : onReceived?.call(a);
+        });
+      }
+    } catch (e) {
+      debugPrint('alertes : $e'); // Firebase indisponible sur l'appareil
+    }
+  }
 
   Future<void> refresh() async {
     if (native) return _refreshNative();

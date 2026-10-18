@@ -16,6 +16,7 @@ import 'account_screen.dart';
 import 'khatma_planner_screen.dart';
 import 'notifications_screen.dart';
 import 'reader_screen.dart';
+import 'teacher_students_screen.dart';
 import '../core/i18n.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -64,6 +65,11 @@ class HomeScreen extends StatelessWidget {
               // Rappel : reprendre la dernière activité, avec une suggestion ; puis l'invocation du jour.
               _NextStepCard(onOpenTab: onOpenTab, toReview: toReview),
               const SizedBox(height: 12),
+              // Enseignant / administratif : la validation de la mémorisation en un toucher.
+              if (auth.validatingOrgs.isNotEmpty) ...[
+                _ValidateCard(orgs: auth.validatingOrgs),
+                const SizedBox(height: 12),
+              ],
               _DuaCard(name: firstName(auth.user?.displayName)),
               const SizedBox(height: 14),
               Card(
@@ -132,6 +138,50 @@ class HomeScreen extends StatelessWidget {
 
   void _open(BuildContext context, int surah, int ayah) =>
       Navigator.push(context, MaterialPageRoute(builder: (_) => ReaderScreen(surah: surah, initialAyah: ayah)));
+}
+
+/// Raccourci « Valider la mémorisation » (sinon : Compte → Mes établissements → Valider).
+/// Un seul établissement : sa liste d'élèves s'ouvre directement ; plusieurs : on choisit d'abord.
+class _ValidateCard extends StatelessWidget {
+  const _ValidateCard({required this.orgs});
+  final List<MyOrg> orgs;
+
+  void _openOrg(BuildContext context, MyOrg o) =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => TeacherStudentsScreen(orgId: o.id, orgName: o.name)));
+
+  Future<void> _open(BuildContext context) async {
+    if (orgs.length == 1) return _openOrg(context, orgs.single);
+    final o = await showModalBottomSheet<MyOrg>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheet) => SafeArea(
+        child: ListView(shrinkWrap: true, children: [
+          Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 8), child: Text(tr('Valider la mémorisation'), style: context.text.titleMedium)),
+          for (final o in orgs)
+            ListTile(
+              leading: Icon(o.isMosque ? Icons.mosque_outlined : Icons.apartment_outlined, color: context.colors.primary),
+              title: Text(o.name),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.pop(sheet, o),
+            ),
+        ]),
+      ),
+    );
+    if (o != null && context.mounted) _openOrg(context, o);
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+        color: context.colors.primary.withValues(alpha: 0.08),
+        child: ListTile(
+          contentPadding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+          leading: Icon(Icons.fact_check_outlined, color: context.colors.primary, size: 30),
+          title: Text(tr('Valider la mémorisation'), style: const TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: Text(orgs.length == 1 ? orgs.single.name : tr('{n} établissements', {'n': orgs.length})),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _open(context),
+        ),
+      );
 }
 
 class _Legend extends StatelessWidget {

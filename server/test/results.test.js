@@ -207,7 +207,9 @@ test('push : clé publique, adresses contrôlées, alerte envoyée aux appareils
   await call('PUT', stUrl('/validation'), { ...T('teacher'), body: { items: ayat(5, 7, 'acquired_error') } });
   assert.equal(pushes.length, 1, 'une alerte pour la page à reprendre');
   assert.match(pushes[0].title, /للإعادة.*reprendre/);
-  assert.equal(pushes[0].url, '/app/');
+  const notifId = (await notifs('parent')).notifications[0].id;
+  assert.equal(pushes[0].id, notifId, 'l’alerte porte la notification à ouvrir');
+  assert.equal(pushes[0].url, `/app/?notif=${notifId}`);
   assert.equal(pushes[0].endpoint, 'https://fcm.googleapis.com/fcm/send/AAA');
 
   pushFails = 410; // l'abonnement a expiré côté navigateur
@@ -238,6 +240,7 @@ test('push Android (FCM) : jeton enregistré, alerte envoyée, jeton périmé ou
   assert.equal(fcmPushes[0].token, TOK);
   assert.match(fcmPushes[0].title, /للإعادة.*reprendre/);
   assert.equal(fcmPushes[0].data.kind, 'retake_pages');
+  assert.equal(fcmPushes[0].data.id, String((await notifs('parent')).notifications[0].id), 'données FCM : texte uniquement');
 
   fcmFails = { message: 'boom', statusCode: 500 }; // panne passagère : le jeton est gardé
   await call('PUT', stUrl('/validation'), { ...T('teacher'), body: { items: ayat(9, 9, 'review') } });

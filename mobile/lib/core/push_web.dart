@@ -11,6 +11,7 @@ extension type _Push._(JSObject _) implements JSObject {
   external JSPromise<JSString?> subscribe(String vapidKey);
   external JSPromise<JSString?> unsubscribe();
   external JSPromise<JSBoolean> subscribed();
+  external void listen(JSFunction cb);
 }
 
 bool pushSupported() => _push?.supported() ?? false;
@@ -24,3 +25,10 @@ Future<Map<String, dynamic>?> pushSubscribe(String vapidKey) async {
 }
 
 Future<String?> pushUnsubscribe() async => (await _push?.unsubscribe().toDart)?.toDart;
+
+/// Messages du service worker : `{hifidhPush: 'received' | 'opened', id, kind, title?, body?}`.
+void pushListen(void Function(Map<String, dynamic> message) onMessage) =>
+    _push?.listen(((JSString json) => onMessage(jsonDecode(json.toDart) as Map<String, dynamic>)).toJS);
+
+/// App ouverte par le toucher d'une alerte (`/app/?notif=12`) : la notification à afficher.
+String? pushLaunchId() => Uri.base.queryParameters['notif'];

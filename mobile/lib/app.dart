@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/auth_service.dart';
 import 'core/prayer_service.dart';
+import 'core/push_service.dart';
 import 'core/settings.dart';
 import 'core/validation_store.dart';
 import 'screens/home_screen.dart';
+import 'screens/notifications_screen.dart';
 import 'screens/review_screen.dart';
 import 'screens/supervision_screen.dart';
 import 'screens/surah_list_screen.dart';
@@ -47,6 +51,8 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int _index = 0;
+  Timer? _poll;
+  late final PushService _push = context.read<PushService>();
 
   void go(int i) => setState(() => _index = i);
 
@@ -59,11 +65,40 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<PrayerService>().onDue = _announcePrayer;
+      // Alertes de l'enseignant : touchée → sa notification ; reçue app ouverte → mise à jour + bandeau.
+      _push.onReceived = _onPushReceived;
+      _push.onOpened = (a) => _openNotification(a.id);
     });
+    _startPolling();
+  }
+
+  /// Filet de sécurité quand les alertes sont désactivées : nouvelles validations toutes les 2 minutes,
+  /// seulement pendant que l'app est à l'écran.
+  void _startPolling() {
+    _poll?.cancel();
+    _poll = Timer.periodic(const Duration(minutes: 2), (_) => context.read<ValidationStore>().refresh());
+  }
+
+  void _openNotification(int? id) {
+    context.read<ValidationStore>().refresh();
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => NotificationsScreen(openId: id)));
+  }
+
+  void _onPushReceived(PushAlert a) {
+    context.read<ValidationStore>().refresh();
+    final text = [a.title, a.body].where((t) => t != null && t.isNotEmpty).join('\n');
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+      duration: const Duration(seconds: 8),
+      content: Text(text.isEmpty ? tr('Nouvelle notification') : text),
+      action: SnackBarAction(label: tr('Voir'), onPressed: () => _openNotification(a.id)),
+    ));
   }
 
   @override
   void dispose() {
+    _poll?.cancel();
+    _push.onReceived = null;
+    _push.onOpened = null;
     WidgetsBinding.instance.removeObserver(this);
     context.read<ValidationStore>().removeListener(_onValidations);
     super.dispose();
@@ -87,7 +122,12 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   /// Au retour dans l'app : nouvelles validations et notifications de l'enseignant.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) context.read<ValidationStore>().refresh();
+    if (state == AppLifecycleState.resumed) {
+      context.read<ValidationStore>().refresh();
+      _startPolling();
+    } else if (state == AppLifecycleState.paused) {
+      _poll?.cancel();
+    }
   }
 
   void _announcePrayer(Salat s) {

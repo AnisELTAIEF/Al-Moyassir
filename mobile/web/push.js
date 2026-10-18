@@ -35,6 +35,13 @@
       await sub.unsubscribe();
       return endpoint;
     },
+    // Messages du service worker : alerte reçue app ouverte, ou alerte touchée (JSON transmis à l'app).
+    listen: function (cb) {
+      if (!('serviceWorker' in navigator)) return;
+      navigator.serviceWorker.addEventListener('message', function (e) {
+        if (e.data && e.data.hifidhPush) cb(JSON.stringify(e.data));
+      });
+    },
     // L'appareil est-il déjà abonné ?
     subscribed: async function () {
       if (!supported()) return false;

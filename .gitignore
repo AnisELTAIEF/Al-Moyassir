@@ -6,3 +6,6 @@ dist/
 build/
 .flutter-plugins-dependencies
 __pycache__/
+
+# Enregistrements audio des récitateurs (lourds, hébergés à part)
+mp3/

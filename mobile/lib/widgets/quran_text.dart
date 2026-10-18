@@ -1,6 +1,5 @@
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -171,12 +170,12 @@ class SurahTitleBox extends StatelessWidget {
 }
 
 
-/// Texte d'une suite d'ayat (modes page). Identique à `Text.rich`, sauf sur le web : le moteur web
-/// de Flutter renvoie parfois les emplacements des médaillons (WidgetSpan) d'une ligne arabe dans le
-/// désordre — quand un médaillon tombe en début de ligne, il échange sa place avec le suivant
-/// (« ⑧ … ⑦ » au lieu de « ⑦ … ⑧ »), et le toucher d'un ayah semblait marquer le numéro voisin.
-/// Les emplacements eux-mêmes sont justes : on les remet dans l'ordre de lecture avant de placer
-/// les médaillons.
+/// Texte d'une suite d'ayat (modes page). Identique à `Text.rich`, à un détail près : le moteur de
+/// texte de Flutter (web comme Android) renvoie parfois les emplacements des médaillons (WidgetSpan)
+/// d'une ligne arabe dans le désordre — quand deux fins d'ayah tombent sur la même ligne, ou qu'un
+/// médaillon tombe en bout de ligne, il échange sa place avec le suivant (« ⑧ … ⑦ » au lieu de
+/// « ⑦ … ⑧ »), et le toucher d'un ayah semblait marquer l'ayah voisin. Les emplacements eux-mêmes
+/// sont justes : on les remet dans l'ordre de lecture avant de placer les médaillons.
 class AyahRunText extends RichText {
   AyahRunText({super.key, required super.text, required super.textScaler}) : super(textAlign: TextAlign.justify);
 
@@ -203,7 +202,7 @@ class _AyahRunParagraph extends RenderParagraph {
 
   @override
   void positionInlineChildren(List<ui.TextBox> boxes) =>
-      super.positionInlineChildren(kIsWeb && textDirection == TextDirection.rtl ? rtlReadingOrder(boxes) : boxes);
+      super.positionInlineChildren(textDirection == TextDirection.rtl ? rtlReadingOrder(boxes) : boxes);
 }
 
 /// Emplacements de médaillons remis dans l'ordre de lecture d'un texte de droite à gauche :

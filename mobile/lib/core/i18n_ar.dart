@@ -643,4 +643,12 @@ const Map<String, String> arStrings = {
   'Une page est « à reprendre » quand {n} ayat ou plus y sont acquis avec erreur ; elle porte alors un bandeau en haut et apparaît dans « Réviser ».':
       'تصبح الصفحة «للإعادة» إذا كان فيها {n} آيات أو أكثر محفوظة مع خطأ؛ فيظهر شريط أعلاها وتُضاف إلى «المراجعة».',
   'Fond : validation de l’enseignant · médaillon : vos marques (touchez pour changer)': 'الخلفية: تقييم المعلّم · الدائرة: علاماتك (المس للتغيير)',
+  // 0.24.0 : aller à une page / sourate, alertes touchées, raccourci de validation
+  'Aller à une page ou une sourate': 'الانتقال إلى صفحة أو سورة',
+  'Juz': 'الأجزاء',
+  'Nom ou numéro de la sourate': 'اسم السورة أو رقمها',
+  'Page': 'الصفحة',
+  'Nouvelle notification': 'إشعار جديد',
+  'Voir': 'عرض',
+  '{n} établissements': '{n} مؤسسات',
 };

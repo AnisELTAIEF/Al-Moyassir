@@ -5,3 +5,5 @@ String pushPermission() => 'unsupported';
 Future<bool> pushSubscribed() async => false;
 Future<Map<String, dynamic>?> pushSubscribe(String vapidKey) async => null;
 Future<String?> pushUnsubscribe() async => null;
+void pushListen(void Function(Map<String, dynamic> message) onMessage) {}
+String? pushLaunchId() => null;

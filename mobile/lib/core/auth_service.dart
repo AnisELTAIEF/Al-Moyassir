@@ -69,6 +69,9 @@ class AuthService extends ChangeNotifier {
   ApiClient? api;
   AppUser? user;
   List<MyGroup> groups = const [];
+
+  /// Établissements où j'ai un rôle (chargés avec les groupes) : raccourcis de l'accueil.
+  List<MyOrg> orgs = const [];
   bool _googleReady = false;
 
   bool get enabled => api != null;
@@ -80,10 +83,16 @@ class AuthService extends ChangeNotifier {
   /// Peut ouvrir l'onglet « Suivi » (admins globaux et admins de groupe).
   bool get canSupervise => isAdmin || managesGroups;
 
+  /// Établissements où je valide la mémorisation des élèves (enseignant ou administratif).
+  List<MyOrg> get validatingOrgs => [for (final o in orgs) if (o.roles.contains('teacher') || o.roles.contains('admin')) o];
+
   Future<void> loadGroups() async {
     if (!signedIn) return;
     try {
       groups = await myGroups();
+      try {
+        orgs = await myOrgs();
+      } catch (_) {/* serveur plus ancien ou hors ligne : pas de raccourci */}
       notifyListeners();
     } catch (_) {/* hors ligne */}
   }
@@ -225,6 +234,7 @@ class AuthService extends ChangeNotifier {
     api?.refreshToken = null;
     user = null;
     groups = const [];
+    orgs = const [];
     await _storage.delete(key: _kRefresh);
     await _storage.delete(key: _kUser);
     notifyListeners();

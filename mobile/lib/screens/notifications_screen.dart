@@ -12,17 +12,49 @@ import 'review_screen.dart';
 
 /// Centre de notifications : ce que l'enseignant a signalé (pages à reprendre, ayat à revoir).
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key});
+  const NotificationsScreen({super.key, this.openId});
+
+  /// Alerte touchée : cette notification s'ouvre dès qu'elle est chargée (page, ayat, certificat…).
+  final int? openId;
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
+  late final ValidationStore _store = context.read<ValidationStore>();
+  late int? _pendingOpen = widget.openId;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => context.read<ValidationStore>().refresh());
+    _store.addListener(_openPending);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _openPending();
+      _store.refresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_openPending);
+    super.dispose();
+  }
+
+  /// La notification de l'alerte touchée, dès qu'elle figure dans la liste (au démarrage, la session
+  /// peut encore se rétablir : on attend le chargement suivant).
+  void _openPending() {
+    final id = _pendingOpen;
+    if (id == null || !mounted) return;
+    for (final n in _store.notifications) {
+      if (n.id == id) {
+        _pendingOpen = null;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _open(n);
+        });
+        return;
+      }
+    }
   }
 
   /// « سورة البقرة 5–7 · سورة يس 12 » (notifications 0.22.0+ ; les anciennes n'ont que le nombre).

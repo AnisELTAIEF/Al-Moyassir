@@ -142,8 +142,8 @@ export default async function validationRoutes(app) {
         const span = (x) => (x.from === x.to ? `${x.from}` : `${x.from}–${x.to}`);
         const note = async (kind, title, body, extra) => {
           const payload = { organizationId: ctx.org.id, organizationName: ctx.org.name, ...extra };
-          await addNotification(c, st.user_id, { kind, title, body, payload });
-          sent.push({ kind, payload });
+          const id = await addNotification(c, st.user_id, { kind, title, body, payload });
+          sent.push({ kind, payload, id });
         };
         if (newlyRetake.length) {
           // Sourate du début de chaque page, pour que l'élève s'y retrouve sans connaître les numéros de page.

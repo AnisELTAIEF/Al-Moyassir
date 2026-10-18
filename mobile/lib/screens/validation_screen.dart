@@ -8,6 +8,7 @@ import '../core/validation_store.dart';
 import '../theme.dart';
 import '../widgets/ayah_coloring.dart';
 import '../widgets/common.dart';
+import '../widgets/mushaf_jump.dart';
 import 'mushaf_reader.dart';
 
 /// Séance de validation : l'enseignant ouvre le mushaf d'un élève et marque ce qu'il a récité.
@@ -31,6 +32,7 @@ class _ValidationScreenState extends State<ValidationScreen> {
   int _page = 1;
   bool _opened = false;
   (int, int) _start = (1, 1);
+  Key _readerKey = UniqueKey(); // renouvelée pour « Aller à »
 
   @override
   void initState() {
@@ -54,6 +56,17 @@ class _ValidationScreenState extends State<ValidationScreen> {
     super.dispose();
   }
 
+  /// Page, sourate ou juz : l'enseignant va directement là où l'élève récite (sans tourner 604 pages).
+  Future<void> _jump() async {
+    final to = await showMushafJump(context, currentPage: _page);
+    if (to == null || !mounted) return;
+    setState(() {
+      _start = to;
+      _page = _repo.mushafPageOf(to.$1, to.$2);
+      _readerKey = UniqueKey();
+    });
+  }
+
   Future<void> _setPage(ValResult? r) async {
     final err = await _session.setPage(_page, r);
     if (err != null && mounted) snack(context, err);
@@ -71,7 +84,10 @@ class _ValidationScreenState extends State<ValidationScreen> {
                 style: TextStyle(fontSize: 12, color: context.tones.muted, fontWeight: FontWeight.w400)),
           ),
         ]),
-        actions: [IconButton(tooltip: tr('Légende des couleurs'), icon: const Icon(Icons.palette_outlined), onPressed: () => showValidationLegend(context))],
+        actions: [
+          if (_opened) IconButton(tooltip: tr('Aller à une page ou une sourate'), icon: const Icon(Icons.travel_explore), onPressed: _jump),
+          IconButton(tooltip: tr('Légende des couleurs'), icon: const Icon(Icons.palette_outlined), onPressed: () => showValidationLegend(context)),
+        ],
       ),
       body: !_opened
           ? Center(
@@ -82,13 +98,14 @@ class _ValidationScreenState extends State<ValidationScreen> {
           : Column(children: [
               Expanded(
                 child: MushafReader(
+                  key: _readerKey,
                   surah: _start.$1,
                   ayah: _start.$2,
                   session: _session,
                   onShown: (s, a) => setState(() => _page = _repo.mushafPageOf(s, a)),
                 ),
               ),
-              _PageBar(page: _page, session: _session, onAccept: () => _setPage(ValResult.acquired), onClear: () => _setPage(null)),
+              _PageBar(page: _page, session: _session, onJump: _jump, onAccept: () => _setPage(ValResult.acquired), onClear: () => _setPage(null)),
             ]),
     );
   }
@@ -96,10 +113,10 @@ class _ValidationScreenState extends State<ValidationScreen> {
 
 /// Barre du bas : valider ou effacer toute la page affichée.
 class _PageBar extends StatelessWidget {
-  const _PageBar({required this.page, required this.session, required this.onAccept, required this.onClear});
+  const _PageBar({required this.page, required this.session, required this.onJump, required this.onAccept, required this.onClear});
   final int page;
   final ValidationSession session;
-  final VoidCallback onAccept, onClear;
+  final VoidCallback onJump, onAccept, onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -113,10 +130,23 @@ class _PageBar extends StatelessWidget {
           child: ListenableBuilder(
             listenable: session,
             builder: (context, _) => Row(children: [
+              // Toucher le numéro de page ouvre « Aller à » (page, sourate, juz).
               Expanded(
-                child: Text(
-                  session.isRetake(page) ? tr('Page {n} · à reprendre', {'n': page}) : tr('Page {n}', {'n': page}),
-                  style: TextStyle(fontWeight: FontWeight.w600, color: session.isRetake(page) ? context.tones.red : null),
+                child: InkWell(
+                  onTap: onJump,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(children: [
+                      Flexible(
+                        child: Text(
+                          session.isRetake(page) ? tr('Page {n} · à reprendre', {'n': page}) : tr('Page {n}', {'n': page}),
+                          style: TextStyle(fontWeight: FontWeight.w600, color: session.isRetake(page) ? context.tones.red : null),
+                        ),
+                      ),
+                      const Icon(Icons.arrow_drop_down),
+                    ]),
+                  ),
                 ),
               ),
               TextButton(onPressed: onClear, child: Text(tr('Effacer la page'))),

@@ -34,8 +34,8 @@ export default async function resultsRoutes(app) {
   async function notifyStudent(profile, org, kind, title, body, extra) {
     if (!profile.user_id) return;
     const payload = { organizationId: org.id, organizationName: org.name, ...extra };
-    await addNotification(db, profile.user_id, { kind, title, body, payload });
-    await pushNotification(app, profile.user_id, { kind, payload });
+    const id = await addNotification(db, profile.user_id, { kind, title, body, payload });
+    await pushNotification(app, profile.user_id, { kind, payload, id });
   }
 
   // Tout ce qui concerne un élève, pour l'équipe : résultats, certificats, récompenses.

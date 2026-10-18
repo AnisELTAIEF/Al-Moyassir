@@ -88,11 +88,17 @@ class ValidationStore extends ChangeNotifier implements ValidationView {
 
   /// Recharge depuis le serveur. Silencieux en cas d'échec (hors ligne) : on garde ce qu'on avait.
   bool _refreshing = false;
+  bool _again = false;
 
   Future<void> refresh() async {
     final api = _auth.api;
     if (!_auth.signedIn || api == null) return clear();
-    if (_refreshing) return; // la session notifie souvent : une seule requête à la fois
+    if (_refreshing) {
+      // La session notifie souvent : une seule requête à la fois, mais une alerte arrivée pendant
+      // le chargement relance un chargement juste après (sinon elle n'apparaîtrait qu'au suivant).
+      _again = true;
+      return;
+    }
     _refreshing = true;
     try {
       final v = await api.get('/me/validations') as Map<String, dynamic>;
@@ -124,6 +130,10 @@ class ValidationStore extends ChangeNotifier implements ValidationView {
       // hors ligne ou session expirée : on garde l'état courant.
     } finally {
       _refreshing = false;
+      if (_again) {
+        _again = false;
+        await refresh();
+      }
     }
   }
 

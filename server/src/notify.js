@@ -29,14 +29,18 @@ export function pushText(kind, p = {}) {
   }
 }
 
-/** Enregistre une notification (avec la connexion donnée : peut faire partie d'une transaction). */
+/** Enregistre une notification (avec la connexion donnée : peut faire partie d'une transaction) ; renvoie son id. */
 export async function addNotification(conn, userId, { kind, title, body = '', payload = {} }) {
-  await conn.query('INSERT INTO notifications (user_id, kind, title, body, payload) VALUES (?,?,?,?,?)',
+  const [r] = await conn.query('INSERT INTO notifications (user_id, kind, title, body, payload) VALUES (?,?,?,?,?)',
     [userId, kind, title, body, JSON.stringify(payload)]);
+  return Number(r.insertId);
 }
 
-/** Envoie l'alerte push aux appareils de l'utilisateur ; supprime les abonnements expirés. Silencieux en cas d'échec. */
-export async function pushNotification(app, userId, { kind, payload = {} }) {
+/**
+ * Envoie l'alerte push aux appareils de l'utilisateur ; supprime les abonnements expirés. Silencieux en cas d'échec.
+ * [id] (notification enregistrée) : au toucher de l'alerte, l'app ouvre directement cette notification.
+ */
+export async function pushNotification(app, userId, { kind, payload = {}, id }) {
   const send = app.pushSender;
   const fcm = app.fcmSender;
   if (!send && !fcm) return;
@@ -44,7 +48,7 @@ export async function pushNotification(app, userId, { kind, payload = {} }) {
     const [title, body] = pushText(kind, payload);
     if (send) {
       const [subs] = await app.db.query('SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?', [userId]);
-      const message = JSON.stringify({ title, body, url: '/app/' });
+      const message = JSON.stringify({ title, body, kind, id: id ?? null, url: id ? `/app/?notif=${id}` : '/app/' });
       for (const s of subs) {
         try {
           await send({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, message);
@@ -58,7 +62,7 @@ export async function pushNotification(app, userId, { kind, payload = {} }) {
       const [devices] = await app.db.query('SELECT id, token FROM fcm_tokens WHERE user_id = ?', [userId]);
       for (const d of devices) {
         try {
-          await fcm(d.token, { title, body, data: { kind } });
+          await fcm(d.token, { title, body, data: id ? { kind, id: String(id) } : { kind } });
         } catch (e) {
           if (e?.unregistered) await app.db.query('DELETE FROM fcm_tokens WHERE id = ?', [d.id]);
           else app.log.warn({ err: e?.message }, 'alerte Android non envoyée');
