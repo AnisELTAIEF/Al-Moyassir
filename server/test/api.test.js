@@ -557,6 +557,13 @@ test('APK Android hébergé sur le serveur : /download/android et lien dans l’
     assert.equal(res.headers['content-type'], 'application/vnd.android.package-archive');
     assert.match(res.headers['content-disposition'], /Almoyassir\.apk/);
     assert.equal(res.body, 'PK fake apk');
+    // Un APK déposé plus tard (même sous un autre nom) devient automatiquement celui du lien.
+    const { utimes } = await import('node:fs/promises');
+    await writeFile(`${dir}/Almoyassir-0.99.0-arm64.apk`, Buffer.from('PK newer apk'));
+    await utimes(`${dir}/Almoyassir.apk`, new Date(Date.now() - 60_000), new Date(Date.now() - 60_000));
+    const newer = await app.inject({ method: 'GET', url: '/download/android' });
+    assert.equal(newer.body, 'PK newer apk');
+    assert.match(newer.headers['content-disposition'], /0\.99\.0/);
     const r = await call('POST', '/admin/invitations', { token: S.admin.accessToken, body: { email: 'apk@x.io' } });
     assert.match(r.body.message, /https:\/\/quran\.example\.com\/api\/download\/android/);
   } finally {

@@ -97,7 +97,7 @@ et `https://quran.bestconsultingit.com/app/` (version web de l'app).
 | 0.28.0 | « Hifdh global / successif » et étiquette « ضمن النخبة » dans le suivi ; autorisation des parents non exigée après 14 ans ; plusieurs enfants sur un compte de parent ; invocation de l'heure (facultative) dans la barre de notifications ; du‘â’ al-qunût, sayyid al-istighfâr et Nom suprême ; horaires de prière (méthode Tunisie + ajustements) ; connexion Google sur la version web ; couleurs « acquis avec erreur » / « à revoir » inversées. **Migrations 015 et 016** (appliquées par `install.sh` : faire d'abord `sudo /usr/local/bin/hifidh-backup`) |
 | 0.28.1 | App : horaires de prière alignés sur le calendrier officiel tunisien (Dhuhr +7 min, Maghrib +2 min) ; bouton « Activer » des alertes visible sur Android avant la première demande ; barre du bas de la validation lisible sur téléphone. Webapp reconstruite ; aucun changement serveur ni migration |
 | 0.28.2 | App Android : autorisation des notifications demandée au premier lancement, alertes activées d'elles-mêmes une fois connecté (sauf si l'utilisateur les a coupées) ; la cloche indique quand le serveur n'est pas configuré pour les alertes (`FCM_SERVICE_ACCOUNT_FILE`, clés VAPID). Aucun changement serveur ni migration |
-| 0.28.0 (serveur) | Compte existant invité : rien n'est recréé (même mot de passe, même progression), le rôle est appliqué et un e-mail « nouveau rôle » est envoyé ; e-mail d'invitation actualisé (Google, alertes). Serveur seul : `install.sh` suffit |
+| 0.28.0 (serveur) | Le lien Android sert automatiquement le dernier .apk déposé dans le dossier ; Compte existant invité : rien n'est recréé (même mot de passe, même progression), le rôle est appliqué et un e-mail « nouveau rôle » est envoyé ; e-mail d'invitation actualisé (Google, alertes). Serveur seul : `install.sh` suffit |
 
 ## Mettre à jour la version web (côté développement)
 
@@ -171,11 +171,15 @@ Depuis le PC (PowerShell), copier l’APK sur le serveur :
 scp .\Almoyassir-0.17.0-arm64.apk anis@SERVEUR:/tmp/
 ```
 
-Puis sur le serveur (remplace la version précédente ; pas de redémarrage nécessaire) :
+**Automatique (depuis 0.28.0)** : le lien sert toujours le fichier `.apk` le plus récemment ajouté
+dans `/var/lib/hifidh/download/`, quel que soit son nom (ex. `Almoyassir-0.28.0-arm64.apk`). Il suffit
+de déposer le nouvel APK ; les anciens restent dans le dossier (à supprimer à la main si besoin).
+
+Puis sur le serveur (pas de redémarrage nécessaire) :
 
 ```bash
 sudo install -d -m 755 -o root -g hifidh /var/lib/hifidh/download   # déjà fait par install.sh
-sudo install -m 644 /tmp/Almoyassir-0.17.0-arm64.apk /var/lib/hifidh/download/Almoyassir.apk
+sudo install -m 644 /tmp/Almoyassir-0.17.0-arm64.apk /var/lib/hifidh/download/
 rm /tmp/Almoyassir-0.17.0-arm64.apk
 curl -sI https://quran.bestconsultingit.com/api/download/android | head -n 5   # 200 + application/vnd.android.package-archive
 ```
