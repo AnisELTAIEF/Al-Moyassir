@@ -158,6 +158,8 @@ export function createRestApi(baseUrl: string, googleClientId: string | null): A
     studentLinkCode: (o, id) => call('POST', `/orgs/${o}/students/${id}/link-code`, {}),
     unlinkStudent: async (o, id) => { await call('POST', `/orgs/${o}/students/${id}/unlink`, {}); },
     studentSummary: (o, id) => call('GET', `/orgs/${o}/students/${id}/summary`),
+    studentValidation: (o, id) => call('GET', `/orgs/${o}/students/${id}/validation`),
+    putValidation: (o, id, body) => call('PUT', `/orgs/${o}/students/${id}/validation`, body),
     ranking: (o, f) => call('GET', `/orgs/${o}/reports/ranking?period=${f.period}${f.classId ? `&groupId=${f.classId}` : ''}`),
     rhythm: async (o, id, weeks = 12) => (await call<{ weeks: never[] }>('GET', `/orgs/${o}/students/${id}/rhythm?weeks=${weeks}`)).weeks,
     studentResults: (o, id) => call('GET', `/orgs/${o}/students/${id}/results`),

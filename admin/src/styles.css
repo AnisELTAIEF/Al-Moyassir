@@ -193,3 +193,14 @@ fieldset.span-all { border: 1px solid var(--line); border-radius: 10px; padding:
 .cover .c-r, .cover-legend .c-r { background: #c0392b; }
 .rhythm { width: 100%; max-width: 360px; height: 60px; }
 .rhythm .on { fill: var(--zellige); } .rhythm .off { fill: var(--line); }
+
+/* Validation de la mémorisation (BO) */
+.validate .field { display: grid; gap: 4px; margin: 6px 0; }
+.validate .field.inline { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.validate input[type=number] { width: 5em; }
+.val-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 4px; margin: 8px 0; }
+.val { border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 6px 2px; font: inherit; font-size: 0.85rem; cursor: pointer; color: inherit; }
+.val.acquired { background: color-mix(in srgb, var(--zellige) 28%, transparent); border-color: var(--zellige); }
+.val.acquired_error { background: color-mix(in srgb, var(--saffron) 35%, transparent); border-color: var(--saffron); }
+.val.review { background: color-mix(in srgb, var(--madder) 28%, transparent); border-color: var(--madder); }
+span.val { display: inline-block; padding: 0 6px; cursor: default; }

@@ -4,6 +4,7 @@ import type { Api, OrgClass, OrgRole, OrgSummary, OrgType, Student, StudentInput
 import { ORG_TYPE, classWord } from './orgLabels';
 import Follow from './Follow';
 import { CoverageMap, Rhythm, ResultsSection } from './StudentResults';
+import { ValidationSection } from './Validate';
 import { t } from '../i18n';
 
 type Tab = 'students' | 'follow' | 'classes' | 'team' | 'settings';
@@ -228,6 +229,8 @@ function StudentFiche({ api, org, student: s, classes, canEdit, canReward, isGlo
           <CoverageMap pages={summary.data.pages} surahs={summary.data.surahs} />
         </>
       )}
+
+      {s.status === 'active' && <ValidationSection api={api} org={org} student={s} onSaved={summary.reload} />}
 
       <h3>{t('Rythme de mémorisation')}</h3>
       <Rhythm api={api} org={org} student={s} />

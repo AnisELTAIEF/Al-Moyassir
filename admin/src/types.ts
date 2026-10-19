@@ -97,6 +97,9 @@ export interface StudentSummary {
   /** Une lettre par page (604) et par sourate (114) : n rien · p en cours · c complet · r à reprendre. */
   pages: string; surahs: string;
 }
+export type ValResult = 'acquired' | 'acquired_error' | 'review';
+export interface ValidationState { items: { surah: number; ayah: number; result: ValResult; at: string }[]; retakePages: number[]; threshold: number }
+export interface ValidationPut { items?: { surah: number; ayah: number; result: ValResult | 'cleared' }[]; page?: number; result?: ValResult | 'cleared' }
 export type Period = 'month' | 'quarter' | 'semester' | 'year' | 'all';
 export interface RankRow {
   studentId: string; fullName: string; fatherName: string; age: number | null; joinedAt: string | null; hasCompetitions: boolean;
@@ -186,6 +189,10 @@ export interface Api {
   unlinkStudent(orgId: string, id: string): Promise<void>;
   /** حفظ إجمالي / مسترسل en ahzab et sourates entiers, d'après les validations de l'enseignant. */
   studentSummary(orgId: string, id: string): Promise<StudentSummary>;
+  /** Ce que l'enseignant a déjà validé pour cet élève (ayah par ayah). */
+  studentValidation(orgId: string, id: string): Promise<ValidationState>;
+  /** Pose un résultat sur des ayat ou sur une page entière (1..604) ; le dernier résultat gagne. */
+  putValidation(orgId: string, id: string, body: ValidationPut): Promise<{ changed: number; retakePages: number[]; threshold: number }>;
   /** Classement de l'équipe (jamais des élèves) : par classe ou pour tout l'établissement, sur une période civile. */
   ranking(orgId: string, filter: { classId?: string; period: Period }): Promise<Ranking>;
   /** Ayat validés par semaine (les `weeks` dernières semaines, la plus récente en dernier). */

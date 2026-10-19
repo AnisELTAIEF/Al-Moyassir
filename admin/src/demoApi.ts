@@ -27,6 +27,7 @@ function progressFor(i: number): AyahProgress[] {
   return out;
 }
 const progress = new Map<string, AyahProgress[]>();
+const vals = new Map<string, Map<string, 'acquired' | 'acquired_error' | 'review'>>();
 const users: UserStats[] = NAMES.map((name, i) => {
   const items = progressFor(i);
   progress.set(`u${i}`, items);
@@ -204,6 +205,13 @@ export function createDemoApi(): Api {
     },
     studentLinkCode: async () => ({ code: 'K7XQ-M2PA', expiresAt: ago(-7) }),
     unlinkStudent: async (_o, id) => { d.students.find((x) => x.id === id)!.linked = false; },
+    studentValidation: async (_o, id) => ({ items: [...(vals.get(id) ?? new Map()).entries()].map(([k, result]) => { const [surah, ayah] = k.split(':').map(Number); return { surah, ayah, result, at: ago(0) }; }), retakePages: [], threshold: 3 }),
+    putValidation: async (_o, id, body) => {
+      const m = vals.get(id) ?? new Map();
+      vals.set(id, m);
+      for (const it of body.items ?? []) { const k = `${it.surah}:${it.ayah}`; if (it.result === 'cleared') m.delete(k); else m.set(k, it.result); }
+      return { changed: body.items?.length ?? 0, retakePages: [], threshold: 3 };
+    },
     studentSummary: async (_o, id) => {
       const real = id === 'p1';
       // Cartes de démonstration : 604 pages et 114 sourates (n rien · p en cours · c complet · r à reprendre).

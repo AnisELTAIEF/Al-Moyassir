@@ -51,4 +51,9 @@ export const AR: Record<string, string> = {
   'Ayat validés sur la période': 'الآيات المصحَّحة في الفترة', 'Gain': 'الحصيلة', 'Par semaine': 'أسبوعيًا', 'Dernière validation': 'آخر تصحيح', 'Élève d’élite': 'طالب متميّز', 'élite': 'نخبة', 'suite': 'سلسلة',
   'Aucun élève à afficher.': 'لا يوجد طلاب للعرض.', 'Père': 'الأب', 'Ahzab : suite': 'الأحزاب: السلسلة', 'Sourates : suite': 'السور: السلسلة', 'Gain (période)': 'الحصيلة (الفترة)', 'Ayat / semaine': 'آيات / أسبوع',
   'classement': 'ترتيب', 'Ce mois': 'هذا الشهر', 'Ce trimestre': 'هذا الثلث', 'Ce semestre': 'هذا السداسي', 'Cette année': 'هذه السنة', 'Depuis toujours': 'منذ البداية',
+  'Valider la mémorisation': 'اعتماد الحفظ', 'Ouvrir la validation': 'فتح الاعتماد', 'Sourate': 'السورة',
+  'Un clic sur un ayah : acquis → acquis avec erreur → à revoir → effacé.': 'نقرة على الآية: محفوظة ← محفوظة بخطأ ← للمراجعة ← مسح.',
+  'Acquis': 'محفوظة', 'Acquis avec erreur': 'محفوظة بخطأ', 'À revoir': 'للمراجعة', 'Non validé': 'غير معتمدة', 'Effacé': 'ممسوحة',
+  'Toute la sourate : acquise': 'السورة كلها محفوظة', 'Effacer la sourate': 'مسح السورة', 'Page du mushaf': 'صفحة المصحف', 'Résultat': 'النتيجة',
+  'Appliquer à la page': 'تطبيق على الصفحة', '{n} ayat modifiés.': 'تم تعديل {n} آية.', 'seuil : {n} ayat avec erreur par page': 'الحدّ: {n} آيات بخطأ في الصفحة',
 };
