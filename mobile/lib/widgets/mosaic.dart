@@ -6,13 +6,16 @@ import '../theme.dart';
 /// Mosaïque des 114 sourates, lue de droite à gauche comme le mushaf.
 /// Chaque tuile se colore selon la part apprise ; une sourate complète devient safran.
 class KhatmaMosaic extends StatelessWidget {
-  const KhatmaMosaic({super.key, required this.memorized, required this.ayahCounts, this.onTap, this.columns = 12});
+  const KhatmaMosaic({super.key, required this.memorized, required this.ayahCounts, this.onTap, this.columns = 12, this.pages = false});
 
   /// memorized[n] = ayat appris dans la sourate n (index 1..114).
   final List<int> memorized;
   final List<int> ayahCounts;
   final void Function(int surah)? onTap;
   final int columns;
+
+  /// Mode « 604 pages » : [memorized] et [ayahCounts] sont alors indexés par page (1..604).
+  final bool pages;
 
   @override
   Widget build(BuildContext context) {
@@ -27,9 +30,10 @@ class KhatmaMosaic extends StatelessWidget {
           spacing: gap,
           runSpacing: gap,
           children: [
-            for (var n = 1; n <= 114; n++)
+            for (var n = 1; n < ayahCounts.length; n++)
               _Tile(
                 n: n,
+                page: pages,
                 side: side,
                 ratio: ayahCounts[n] == 0 ? 0 : memorized[n] / ayahCounts[n],
                 base: tones.line,
@@ -45,8 +49,9 @@ class KhatmaMosaic extends StatelessWidget {
 }
 
 class _Tile extends StatelessWidget {
-  const _Tile({required this.n, required this.side, required this.ratio, required this.base, required this.fill, required this.gold, this.onTap});
+  const _Tile({required this.n, this.page = false, required this.side, required this.ratio, required this.base, required this.fill, required this.gold, this.onTap});
   final int n;
+  final bool page;
   final double side;
   final double ratio;
   final Color base, fill, gold;
@@ -62,7 +67,7 @@ class _Tile extends StatelessWidget {
     final color = complete ? gold : ratio == 0 ? base : Color.lerp(base, fill, 0.25 + 0.75 * ratio)!;
     return Semantics(
       button: onTap != null,
-      label: tr('Sourate {n}, {p} % apprise', {'n': n, 'p': (ratio * 100).round()}),
+      label: (page ? tr('Page {n}, {p} % apprise') : tr('Sourate {n}, {p} % apprise')).replaceAll('{n}', '$n').replaceAll('{p}', '${(ratio * 100).round()}'),
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
@@ -79,7 +84,7 @@ class _Tile extends StatelessWidget {
               textScaler: TextScaler.noScaling,
               textDirection: TextDirection.ltr,
               style: TextStyle(
-                fontSize: side * 0.4,
+                fontSize: side * (page ? 0.46 : 0.4),
                 height: 1,
                 fontWeight: ratio > 0 ? FontWeight.w600 : FontWeight.w500,
                 fontFeatures: const [FontFeature.tabularFigures()],

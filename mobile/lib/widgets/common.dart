@@ -47,7 +47,7 @@ String pct(num part, num total) {
 void snack(BuildContext context, String msg, {SnackBarAction? action}) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(msg), action: action, duration: Duration(seconds: action == null ? 3 : 6)));
+    ..showSnackBar(SnackBar(content: Text(msg), action: action, persist: false, duration: Duration(seconds: action == null ? 3 : 6)));
 }
 
 Future<bool> confirm(BuildContext context, {required String title, required String body, String? ok, bool danger = false}) async =>

@@ -568,6 +568,7 @@ class _AyahSheet extends StatelessWidget {
                   ..showSnackBar(SnackBar(
                     content: Text(tr('Ayat 1 à {n} marqués appris', {'n': ayah})),
                     action: SnackBarAction(label: tr('Annuler'), onPressed: () => store.restoreSurah(surah, before)),
+                    persist: false,
                     duration: const Duration(seconds: 6),
                   ));
               },

@@ -40,6 +40,7 @@ void main() {
       expect(r.audioUri(36).toString(), 'https://quran.bestconsultingit.com/audio/${r.id}/036.mp3');
       expect(r.surahs.every((s) => s >= 1 && s <= 114), isTrue);
     }
+    expect(repo.reciter('kamel_smida').surahs.length, 104, reason: '10 sourates encore manquantes : 37, 48, 51 à 58');
     expect(repo.reciter('nooreddine_almeslati_khatma').surahs.length, 113, reason: 'sourate 33 absente du dossier');
     expect(repo.reciter('mp3quran_201_199').timed, isTrue, reason: 'par défaut : minutages');
   });

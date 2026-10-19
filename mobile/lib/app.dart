@@ -88,6 +88,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     context.read<ValidationStore>().refresh();
     final text = [a.title, a.body].where((t) => t != null && t.isNotEmpty).join('\n');
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+      persist: false,
       duration: const Duration(seconds: 8),
       content: Text(text.isEmpty ? tr('Nouvelle notification') : text),
       action: SnackBarAction(label: tr('Voir'), onPressed: () => _openNotification(a.id)),
@@ -134,6 +135,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     final m = ScaffoldMessenger.maybeOf(context);
     final name = I18n.isAr ? s.ar : s.fr;
     m?.showSnackBar(SnackBar(
+      persist: false,
       duration: const Duration(seconds: 6),
       content: Text(tr('C’est l’heure de la prière ({name})', {'name': name})),
       action: SnackBarAction(label: tr('Horaires'), onPressed: () => go(3)),

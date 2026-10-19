@@ -48,4 +48,13 @@ void main() {
     expect(s.validationIntroduced, isFalse, reason: 'l’information est propre à chaque compte');
     expect(s.hasColoringChoice(ReadingMode.mushaf), isFalse, reason: 'choix de colorisation propre à chaque compte');
   });
+
+  test('« Votre khatma » : 114 sourates par défaut, 604 pages au choix, propre à chaque compte', () async {
+    final s = await _settings({});
+    expect(s.khatmaByPage, isFalse);
+    s.khatmaByPage = true;
+    expect(s.khatmaByPage, isTrue);
+    s.owner = 'autre-compte';
+    expect(s.khatmaByPage, isFalse);
+  });
 }

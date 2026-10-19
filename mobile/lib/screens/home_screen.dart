@@ -29,7 +29,11 @@ class HomeScreen extends StatelessWidget {
     final store = context.watch<ProgressStore>();
     final auth = context.watch<AuthService>();
     final memorized = store.memorizedCount;
-    final counts = [0, for (final s in repo.surahs) s.ayahCount];
+    final byPage = context.select<Settings, bool>((s) => s.khatmaByPage);
+    final counts = byPage
+        ? [0, for (var p = 1; p <= repo.mushafPages.length; p++) repo.ayahsOfMushafPage(p).length]
+        : [0, for (final s in repo.surahs) s.ayahCount];
+    final memorizedTiles = byPage ? _memorizedPerPage(repo, store) : store.memorizedPerSurah();
     final toReview = store.all.where((p) => p.status == AyahStatus.memorized && (p.needsReview || p.isDue())).length;
     final name = auth.user?.displayName.split(' ').first;
 
@@ -82,14 +86,31 @@ class HomeScreen extends StatelessWidget {
                       TextSpan(text: '$memorized', style: TextStyle(fontWeight: FontWeight.w700, color: context.colors.primary)),
                       TextSpan(text: tr(' ayat appris sur {total} · {p}', {'total': QuranRepository.totalAyahs, 'p': pct(memorized, QuranRepository.totalAyahs)})),
                     ]), style: TextStyle(color: context.tones.muted)),
+                    const SizedBox(height: 12),
+                    SegmentedButton<bool>(
+                      showSelectedIcon: false,
+                      segments: [
+                        ButtonSegment(value: false, label: Text(tr('114 sourates'))),
+                        ButtonSegment(value: true, label: Text(tr('604 pages'))),
+                      ],
+                      selected: {byPage},
+                      onSelectionChanged: (v) => context.read<Settings>().khatmaByPage = v.first,
+                    ),
                     const SizedBox(height: 16),
                     KhatmaMosaic(
-                      memorized: store.memorizedPerSurah(),
+                      memorized: memorizedTiles,
                       ayahCounts: counts,
-                      onTap: (n) => _open(context, n, 1),
+                      pages: byPage,
+                      columns: byPage ? 20 : 12,
+                      onTap: (n) {
+                        if (!byPage) return _open(context, n, 1);
+                        final start = repo.mushafPages[n - 1];
+                        context.read<Settings>().readingMode = ReadingMode.mushaf;
+                        _open(context, start.$1, start.$2);
+                      },
                     ),
                     const SizedBox(height: 12),
-                    _Legend(),
+                    _Legend(byPage: byPage),
                   ]),
                 ),
               ),
@@ -138,6 +159,13 @@ class HomeScreen extends StatelessWidget {
 
   void _open(BuildContext context, int surah, int ayah) =>
       Navigator.push(context, MaterialPageRoute(builder: (_) => ReaderScreen(surah: surah, initialAyah: ayah)));
+
+  /// Ayat appris par page du mushaf (index 1..604).
+  static List<int> _memorizedPerPage(QuranRepository repo, ProgressStore store) => [
+        0,
+        for (var p = 1; p <= repo.mushafPages.length; p++)
+          repo.ayahsOfMushafPage(p).where((r) => store.statusOf(r.$1, r.$2) == AyahStatus.memorized).length,
+      ];
 }
 
 /// Raccourci « Valider la mémorisation » (sinon : Compte → Mes établissements → Valider).
@@ -185,6 +213,9 @@ class _ValidateCard extends StatelessWidget {
 }
 
 class _Legend extends StatelessWidget {
+  const _Legend({this.byPage = false});
+  final bool byPage;
+
   @override
   Widget build(BuildContext context) {
     Widget dot(Color c, String l) => Row(mainAxisSize: MainAxisSize.min, children: [
@@ -195,7 +226,7 @@ class _Legend extends StatelessWidget {
     return Wrap(spacing: 16, runSpacing: 6, children: [
       dot(context.tones.line, tr('À commencer')),
       dot(Color.lerp(context.tones.line, context.colors.primary, 0.6)!, tr('En partie')),
-      dot(context.tones.gold, tr('Sourate complète')),
+      dot(context.tones.gold, byPage ? tr('Page complète') : tr('Sourate complète')),
     ]);
   }
 }

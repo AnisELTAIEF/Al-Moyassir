@@ -98,6 +98,13 @@ class Settings extends ChangeNotifier {
   bool get validationIntroduced => _prefs.getBool('validation_intro_$_owner') ?? false;
   set validationIntroduced(bool v) => _prefs.setBool('validation_intro_$_owner', v);
 
+  /// « Votre khatma » de l'accueil : mosaïque des 114 sourates (défaut) ou des 604 pages du mushaf.
+  bool get khatmaByPage => _prefs.getBool('khatma_pages_$_owner') ?? false;
+  set khatmaByPage(bool v) {
+    _prefs.setBool('khatma_pages_$_owner', v);
+    notifyListeners();
+  }
+
   /// Palette adaptée au daltonisme (bleu / orange / vermillon, d'après Okabe et Ito).
   bool get colorBlind => _prefs.getBool('coloring_cb_$_owner') ?? false;
   set colorBlind(bool v) {
