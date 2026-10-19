@@ -54,6 +54,46 @@ class ValidationStore extends ChangeNotifier implements ValidationView {
   List<AppNotification> _notifications = const [];
   int _unread = 0;
 
+  // Un compte (parent) peut être relié à plusieurs enfants : un bloc par fiche, regroupées par nom d'enfant.
+  final List<Map<String, dynamic>> _blocks = [];
+  String? _child;
+
+  /// Noms des enfants reliés à ce compte (vide ou un seul : tout est fusionné comme avant).
+  List<String> get children => {for (final b in _blocks) if ('${b['studentName'] ?? ''}'.isNotEmpty) '${b['studentName']}'}.toList()..sort();
+
+  /// Enfant affiché (le premier par défaut) quand plusieurs sont reliés.
+  String? get child => children.length > 1 ? (children.contains(_child) ? _child : children.first) : null;
+
+  void selectChild(String name) {
+    _child = name;
+    _rebuild();
+    notifyListeners();
+  }
+
+  void _rebuild() {
+    final only = child;
+    final items = <String, (ValResult, DateTime)>{};
+    final retake = <int>{};
+    for (final org in _blocks) {
+      if (only != null && '${org['studentName']}' != only) continue;
+      retake.addAll([for (final p in (org['retakePages'] as List? ?? const [])) (p as num).toInt()]);
+      for (final i in (org['items'] as List? ?? const [])) {
+        final m = i as Map<String, dynamic>;
+        final r = ValResult.parse(m['result'] as String?);
+        if (r == null) continue;
+        final at = DateTime.tryParse(m['at'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final key = '${m['surah']}:${m['ayah']}';
+        // Plusieurs établissements : pour chaque ayah, la validation la plus récente l'emporte.
+        final prev = items[key];
+        if (prev == null || at.isAfter(prev.$2)) items[key] = (r, at);
+      }
+    }
+    _items
+      ..clear()
+      ..addAll(items);
+    _retake = retake;
+  }
+
   bool get hasAny => _items.isNotEmpty;
   @override
   ValResult? of(int surah, int ayah) => _items['$surah:$ayah']?.$1;
@@ -80,6 +120,7 @@ class ValidationStore extends ChangeNotifier implements ValidationView {
   void clear() {
     if (_items.isEmpty && _retake.isEmpty && _notifications.isEmpty && _unread == 0) return;
     _items.clear();
+    _blocks.clear();
     _retake = {};
     _notifications = const [];
     _unread = 0;
@@ -103,26 +144,10 @@ class ValidationStore extends ChangeNotifier implements ValidationView {
     try {
       final v = await api.get('/me/validations') as Map<String, dynamic>;
       final n = await api.get('/me/notifications') as Map<String, dynamic>;
-      final items = <String, (ValResult, DateTime)>{};
-      final retake = <int>{};
-      for (final o in (v['organizations'] as List? ?? const [])) {
-        final org = o as Map<String, dynamic>;
-        retake.addAll([for (final p in (org['retakePages'] as List? ?? const [])) (p as num).toInt()]);
-        for (final i in (org['items'] as List? ?? const [])) {
-          final m = i as Map<String, dynamic>;
-          final r = ValResult.parse(m['result'] as String?);
-          if (r == null) continue;
-          final at = DateTime.tryParse(m['at'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final key = '${m['surah']}:${m['ayah']}';
-          // Plusieurs établissements : pour chaque ayah, la validation la plus récente l'emporte.
-          final prev = items[key];
-          if (prev == null || at.isAfter(prev.$2)) items[key] = (r, at);
-        }
-      }
-      _items
+      _blocks
         ..clear()
-        ..addAll(items);
-      _retake = retake;
+        ..addAll([for (final o in (v['organizations'] as List? ?? const [])) o as Map<String, dynamic>]);
+      _rebuild();
       _notifications = [for (final x in (n['notifications'] as List? ?? const [])) AppNotification.fromJson(x as Map<String, dynamic>)];
       _unread = (n['unread'] as num?)?.toInt() ?? 0;
       notifyListeners();

@@ -47,6 +47,22 @@ export default async function pushRoutes(app) {
     return { ok: true };
   });
 
+  // Invocation de l'heure (facultative) : préférence et décalage horaire de l'appareil, remis à jour à chaque ouverture.
+  app.get('/push/dua', async (req) => {
+    const [[r]] = await db.query('SELECT hourly, utc_offset_min FROM dua_prefs WHERE user_id = ?', [req.user.id]);
+    return { hourly: Boolean(r?.hourly), utcOffsetMinutes: r?.utc_offset_min ?? 0 };
+  });
+  app.put('/push/dua', {
+    schema: { body: { type: 'object', required: ['hourly', 'utcOffsetMinutes'], properties: { hourly: { type: 'boolean' }, utcOffsetMinutes: { type: 'integer', minimum: -840, maximum: 840 } } } },
+  }, async (req) => {
+    const { hourly, utcOffsetMinutes } = req.body;
+    await db.query(
+      `INSERT INTO dua_prefs (user_id, hourly, utc_offset_min) VALUES (?,?,?)
+       ON DUPLICATE KEY UPDATE hourly = VALUES(hourly), utc_offset_min = VALUES(utc_offset_min)`,
+      [req.user.id, hourly ? 1 : 0, utcOffsetMinutes]);
+    return { hourly, utcOffsetMinutes };
+  });
+
   app.post('/push/unsubscribe', { schema: { body: { type: 'object', required: ['endpoint'], properties: { endpoint: { type: 'string', maxLength: 2000 } } } } }, async (req) => {
     const hash = createHash('sha256').update(req.body.endpoint).digest('hex');
     await db.query('DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint_hash = ?', [req.user.id, hash]);

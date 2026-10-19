@@ -5,7 +5,7 @@ import { HttpError } from './errors.js';
 export const STUDENT_COLS = `p.id, p.organization_id, p.user_id, p.full_name, p.father_name,
   DATE_FORMAT(p.birth_date, '%Y-%m-%d') AS birth_date, p.gender, p.phone, p.phone_verified_at,
   DATE_FORMAT(p.joined_at, '%Y-%m-%d') AS joined_at, DATE_FORMAT(p.hifdh_started_at, '%Y-%m-%d') AS hifdh_started_at,
-  p.past_competitions, p.guardian_consent_at, p.status,
+  p.past_competitions, p.guardian_consent_at, p.status, p.elite_tag,
   DATE_FORMAT(p.left_at, '%Y-%m-%d') AS left_at, DATE_FORMAT(p.retain_until, '%Y-%m-%d') AS retain_until, p.created_at`;
 
 

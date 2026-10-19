@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><title>Connexion</title></head>
+<body>
+<p style="font-family:sans-serif;text-align:center;margin-top:3em">…</p>
+<script>
+  // Google renvoie le jeton dans le fragment de l'adresse (#id_token=…&state=…) : on le transmet à la fenêtre principale.
+  var p = new URLSearchParams(location.hash.slice(1));
+  if (window.opener) {
+    window.opener.postMessage({ hifidhGoogle: true, idToken: p.get('id_token'), state: p.get('state'), error: p.get('error') }, location.origin);
+  }
+  window.close();
+</script>
+</body></html>

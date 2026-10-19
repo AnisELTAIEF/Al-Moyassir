@@ -76,7 +76,7 @@ Color? masteryBackground(Mastery m, {required Color paper, required Brightness b
 /// personnelle (il n'y a jamais deux séries de couleurs superposées) : la marque de l'élève passe sur le médaillon.
 Color? validationBackground(ValResult? r, {required Color paper, required Brightness brightness, required bool colorBlind}) {
   if (r == null) return null;
-  final m = switch (r) { ValResult.acquired => Mastery.acquired, ValResult.acquiredError => Mastery.learning, ValResult.review => Mastery.review };
+  final m = switch (r) { ValResult.acquired => Mastery.acquired, ValResult.acquiredError => Mastery.review, ValResult.review => Mastery.learning };
   return masteryBackground(m, paper: paper, brightness: brightness, colorBlind: colorBlind);
 }
 

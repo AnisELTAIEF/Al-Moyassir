@@ -82,11 +82,13 @@ export interface Student {
   id: string; organizationId: string; fullName: string; fatherName: string; birthDate: string | null; age: number | null;
   gender: 'm' | 'f' | null; phone: string | null; phoneVerified: boolean; joinedAt: string | null; hifdhStartedAt: string | null;
   pastCompetitions: string; guardianConsentAt: string | null; status: 'active' | 'left'; leftAt: string | null;
-  retainUntil: string | null; linked: boolean; classes: { id: string; name: string }[]; createdAt: string;
+  eliteTag: boolean; retainUntil: string | null; linked: boolean; classes: { id: string; name: string }[]; createdAt: string;
 }
 export interface StudentInput {
   fullName: string; fatherName?: string; birthDate?: string | null; gender?: 'm' | 'f' | null; phone?: string | null;
   joinedAt?: string | null; hifdhStartedAt?: string | null; pastCompetitions?: string | null;
+  /** Autorisation des parents recueillie (obligatoire jusqu'à 14 ans ou si l'âge est inconnu). */
+  guardianConsent?: boolean;
 }
 export interface DuplicateStudent { id: string; fullName: string; fatherName: string; status: 'active' | 'left' }
 /** Mémorisation VALIDÉE par l'enseignant (jamais l'auto-marquage de l'élève) : global et successif en unités entières. */
@@ -104,7 +106,7 @@ export type Period = 'month' | 'quarter' | 'semester' | 'year' | 'all';
 export interface RankRow {
   studentId: string; fullName: string; fatherName: string; age: number | null; joinedAt: string | null; hasCompetitions: boolean;
   classes: string[]; ahzab: UnitStats; surahs: UnitStats; ayat: number; retakeCount: number;
-  gain: number; perWeek: number; lastValidationAt: string | null; rank: number; elite: boolean;
+  gain: number; perWeek: number; lastValidationAt: string | null; rank: number; elite: boolean; eliteTag: boolean;
 }
 export interface Ranking { period: Period; since: string | null; threshold: number; rows: RankRow[] }
 export interface Assessment { id: string; kind: 'exam' | 'competition'; title: string; heldOn: string; score: string | null; rank: string | null }
@@ -177,6 +179,8 @@ export interface Api {
   orgStudents(orgId: string, filter?: { q?: string; classId?: string; status?: 'active' | 'left' | 'all' }): Promise<Student[]>;
   /** Consentement des parents obligatoire. Renvoie `duplicates` si un élève porte déjà ce nom + prénom du père (à confirmer). */
   createStudent(orgId: string, input: StudentInput, classIds: string[], confirmDuplicate: boolean): Promise<CreateStudentResult>;
+  /** Pose ou retire l'étiquette « ضمن النخبة » (équipe). */
+  setStudentElite(orgId: string, id: string, elite: boolean): Promise<Student>;
   updateStudent(orgId: string, id: string, patch: Partial<StudentInput>): Promise<Student>;
   leaveStudent(orgId: string, id: string): Promise<Student>;
   restoreStudent(orgId: string, id: string): Promise<Student>;

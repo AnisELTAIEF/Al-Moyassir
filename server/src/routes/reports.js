@@ -58,7 +58,7 @@ export default async function reportRoutes(app) {
     }
     const [students] = await db.query(
       `SELECT p.id, p.full_name, p.father_name, DATE_FORMAT(p.birth_date, '%Y-%m-%d') AS birth_date, DATE_FORMAT(p.joined_at, '%Y-%m-%d') AS joined_at,
-              (p.past_competitions IS NOT NULL AND p.past_competitions <> '') AS competitions
+              (p.past_competitions IS NOT NULL AND p.past_competitions <> '') AS competitions, p.elite_tag
        FROM student_profiles p WHERE ${where.join(' AND ')} ORDER BY p.full_name LIMIT 2000`, args);
     if (!students.length) return { period, since: since?.toISOString() ?? null, threshold, rows: [] };
     const ids = students.map((s) => s.id);
@@ -91,7 +91,7 @@ export default async function reportRoutes(app) {
         studentId: s.id, fullName: s.full_name, fatherName: s.father_name, age: ageOf(s.birth_date), joinedAt: s.joined_at,
         hasCompetitions: !!s.competitions, classes: classes.get(s.id) ?? [],
         ahzab: stats.ahzab, surahs: stats.surahs, ayat: stats.ayat, retakeCount: retakePages(ref, c, threshold).length,
-        gain: g, perWeek: Math.round((g / weeks) * 10) / 10, lastValidationAt: iso(t?.last), rank: 0, elite: false,
+        gain: g, perWeek: Math.round((g / weeks) * 10) / 10, lastValidationAt: iso(t?.last), rank: 0, elite: false, eliteTag: !!s.elite_tag,
       };
     });
     rankRows(rows);

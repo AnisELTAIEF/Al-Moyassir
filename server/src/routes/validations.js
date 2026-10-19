@@ -173,7 +173,7 @@ export async function myValidationRoutes(app) {
   // Un bloc par établissement qui suit cet élève (D5) ; l'app garde, pour chaque ayah, la validation la plus récente (D19).
   app.get('/validations', async (req) => {
     const [profiles] = await db.query(
-      `SELECT p.id, p.organization_id, o.name, o.error_threshold
+      `SELECT p.id, p.organization_id, p.full_name, o.name, o.error_threshold
        FROM student_profiles p JOIN organizations o ON o.id = p.organization_id
        WHERE p.user_id = ? AND p.status = 'active' ORDER BY o.name`, [req.user.id]);
     const organizations = [];
@@ -183,6 +183,7 @@ export async function myValidationRoutes(app) {
         organizationId: p.organization_id,
         organizationName: p.name,
         profileId: p.id,
+        studentName: p.full_name,
         items,
         retakePages: retakePages(ref, codes, Number(p.error_threshold)),
         threshold: Number(p.error_threshold),

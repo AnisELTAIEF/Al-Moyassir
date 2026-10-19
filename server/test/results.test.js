@@ -220,6 +220,12 @@ test('push : clé publique, adresses contrôlées, alerte envoyée aux appareils
 
   await sub('https://fcm.googleapis.com/fcm/send/BBB');
   assert.equal((await call('POST', '/me/push/unsubscribe', { ...T('parent'), body: { endpoint: 'https://fcm.googleapis.com/fcm/send/BBB' } })).status, 200);
+  // Invocation de l'heure : désactivée par défaut, activable avec le décalage horaire de l'appareil.
+  assert.deepEqual((await call('GET', '/me/push/dua', T('parent'))).body, { hourly: false, utcOffsetMinutes: 0 });
+  assert.equal((await call('PUT', '/me/push/dua', { ...T('parent'), body: { hourly: true, utcOffsetMinutes: 60 } })).status, 200);
+  assert.deepEqual((await call('GET', '/me/push/dua', T('parent'))).body, { hourly: true, utcOffsetMinutes: 60 });
+  assert.equal((await call('PUT', '/me/push/dua', { ...T('parent'), body: { hourly: true, utcOffsetMinutes: 5000 } })).status, 400);
+  assert.equal((await call('GET', '/me/push/dua')).status, 401);
   assert.equal(Number((await pool.query('SELECT COUNT(*) n FROM push_subscriptions'))[0][0].n), 0);
   await call('PUT', stUrl('/validation'), { ...T('teacher'), body: { items: ayat(5, 7, 'cleared') } });
 });

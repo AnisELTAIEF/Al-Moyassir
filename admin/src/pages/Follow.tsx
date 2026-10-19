@@ -38,23 +38,26 @@ export default function Follow({ api, org, onOpen }: { api: Api; org: OrgSummary
       <div className="card table-wrap">
         <table>
           <thead><tr>
-            <th>#</th><th>{t('Élève')}</th><th>{t('Âge')}</th><th title={t('Ahzab entiers · suite continue')}>{t('Ahzab')}</th><th title={t('Sourates entières · suite continue')}>{t('Sourates')}</th>
+            <th>#</th><th>{t('Élève')}</th><th>{t('Âge')}</th><th title={t('Ahzab entiers (حفظ إجمالي)')}>{t('Ahzab')}<br /><span className="muted small">{t('Hifdh global')}</span></th><th title={t('Sourates entières (حفظ إجمالي)')}>{t('Sourates')}<br /><span className="muted small">{t('Hifdh global')}</span></th>
+            <th title={t('Plus longue suite continue de ahzab entiers')}>{t('Ahzab')}<br /><span className="muted small">{t('Hifdh successif')}</span></th><th title={t('Plus longue suite continue de sourates entières')}>{t('Sourates')}<br /><span className="muted small">{t('Hifdh successif')}</span></th>
             <th>{t('Ayat')}</th><th title={t('Ayat validés sur la période')}>{t('Gain')}</th><th>{t('Par semaine')}</th><th>{t('Dernière validation')}</th>
           </tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.studentId}>
                 <td className="num">{r.rank}</td>
-                <td><button className="link" onClick={() => onOpen(r.studentId)}>{r.fullName}</button>{r.elite && <span className="chip ok" title={t('Élève d’élite')}> ★ {t('élite')}</span>}
+                <td><button className="link" onClick={() => onOpen(r.studentId)}>{r.fullName}</button>{r.eliteTag && <span className="chip ok" title={t('Étiquette posée par l’équipe')}> ★ {t('ضمن النخبة')}</span>}{r.elite && !r.eliteTag && <span className="chip ok" title={t('Élève d’élite')}> ★ {t('élite')}</span>}
                   {r.retakeCount > 0 && <span className="chip wait" title={t('Pages à reprendre')}> {r.retakeCount}</span>}
                   <br /><span className="muted small">{r.classes.join(' · ')}</span></td>
                 <td className="num">{r.age ?? '—'}</td>
-                <td className="nowrap"><strong>{r.ahzab.complete}</strong> <span className="muted small">/ {t('suite')} {r.ahzab.longestRun}</span></td>
-                <td className="nowrap"><strong>{r.surahs.complete}</strong> <span className="muted small">/ {t('suite')} {r.surahs.longestRun}</span></td>
+                <td className="num"><strong>{r.ahzab.complete}</strong></td>
+                <td className="num"><strong>{r.surahs.complete}</strong></td>
+                <td className="num">{r.ahzab.longestRun}</td>
+                <td className="num">{r.surahs.longestRun}</td>
                 <td className="num">{r.ayat}</td><td className="num">{r.gain}</td><td className="num">{r.perWeek}</td><td className="nowrap">{fmtDate(r.lastValidationAt)}</td>
               </tr>
             ))}
-            {rank.data && rows.length === 0 && <tr><td colSpan={9} className="muted">{t('Aucun élève à afficher.')}</td></tr>}
+            {rank.data && rows.length === 0 && <tr><td colSpan={11} className="muted">{t('Aucun élève à afficher.')}</td></tr>}
           </tbody>
         </table>
       </div>

@@ -53,6 +53,14 @@ interface Form {
   fullName: string; fatherName: string; birthDate: string; gender: '' | 'm' | 'f'; phone: string;
   joinedAt: string; hifdhStartedAt: string; pastCompetitions: string;
 }
+/** L'autorisation des parents n'est exigée que jusqu'à 14 ans inclus, ou si l'âge est inconnu. */
+function needsConsent(birthDate: string): boolean {
+  if (!birthDate) return true;
+  const b = new Date(`${birthDate}T00:00:00Z`), n = new Date();
+  let age = n.getUTCFullYear() - b.getUTCFullYear();
+  if (n.getUTCMonth() < b.getUTCMonth() || (n.getUTCMonth() === b.getUTCMonth() && n.getUTCDate() < b.getUTCDate())) age--;
+  return age <= 14;
+}
 const emptyForm: Form = { fullName: '', fatherName: '', birthDate: '', gender: '', phone: '', joinedAt: today(), hifdhStartedAt: '', pastCompetitions: '' };
 const formOf = (s: Student): Form => ({
   fullName: s.fullName, fatherName: s.fatherName, birthDate: s.birthDate ?? '', gender: s.gender ?? '', phone: s.phone ?? '',
@@ -99,11 +107,11 @@ function StudentsTab({ api, org, canEdit, canReward, isGlobalAdmin, selected, se
   async function add(e: FormEvent) {
     e.preventDefault();
     try {
-      let r = await api.createStudent(org.id, inputOf(form), newClasses, false);
+      let r = await api.createStudent(org.id, { ...inputOf(form), guardianConsent: needsConsent(form.birthDate) }, newClasses, false);
       if ('duplicates' in r) {
         const names = r.duplicates.map((d) => `${d.fullName} (fils de ${d.fatherName || '—'})${d.status === 'left' ? ' — sorti' : ''}`).join('\n');
         if (!window.confirm(`Un élève porte déjà ce nom et ce prénom du père :\n\n${names}\n\nCréer quand même une nouvelle fiche ?`)) return;
-        r = await api.createStudent(org.id, inputOf(form), newClasses, true);
+        r = await api.createStudent(org.id, { ...inputOf(form), guardianConsent: needsConsent(form.birthDate) }, newClasses, true);
       }
       if ('student' in r) {
         setMsg(`Fiche de ${r.student.fullName} créée.`);
@@ -136,8 +144,12 @@ function StudentsTab({ api, org, canEdit, canReward, isGlobalAdmin, selected, se
                 ))}
               </fieldset>
             )}
-            <label className="check span-all"><input type="checkbox" required checked={consent} onChange={(e) => setConsent(e.target.checked)} /> {t('Les parents ont autorisé l’enregistrement des informations de l’enfant (nom, âge, téléphone, résultats).')}</label>
-            <button className="btn" disabled={!consent}>{t('Créer la fiche')}</button>
+            {needsConsent(form.birthDate) ? (
+              <label className="check span-all"><input type="checkbox" required checked={consent} onChange={(e) => setConsent(e.target.checked)} /> {t('Les parents ont autorisé l’enregistrement des informations de l’enfant (nom, âge, téléphone, résultats).')}</label>
+            ) : (
+              <p className="muted small span-all">{t('Plus de 14 ans : l’autorisation des parents n’est pas requise.')}</p>
+            )}
+            <button className="btn" disabled={needsConsent(form.birthDate) && !consent}>{t('Créer la fiche')}</button>
           </form>
         )}
         {msg && <p className="error" role="alert">{msg}</p>}
@@ -197,7 +209,8 @@ function StudentFiche({ api, org, student: s, classes, canEdit, canReward, isGlo
         <button className="btn ghost icon" onClick={onClose} aria-label={t('Fermer')}>✕</button>
       </div>
       {msg && <p className="error" role="alert">{msg}</p>}
-      <p className="muted small">Autorisation des parents : {s.guardianConsentAt ? `recueillie le ${new Date(s.guardianConsentAt).toLocaleDateString('fr-FR')}` : 'non enregistrée'}</p>
+      <p className="muted small">Autorisation des parents : {s.guardianConsentAt ? `recueillie le ${new Date(s.guardianConsentAt).toLocaleDateString('fr-FR')}` : s.age != null && s.age > 14 ? 'non requise (plus de 14 ans)' : 'non enregistrée'}</p>
+      <label className="check"><input type="checkbox" checked={s.eliteTag} onChange={(e) => run(() => api.setStudentElite(org.id, s.id, e.target.checked))} /> ★ {t('ضمن النخبة')} <span className="muted small">({t('étiquette posée par l’équipe')})</span></label>
 
       {canEdit ? (
         <form className="invite-form" onSubmit={save}>

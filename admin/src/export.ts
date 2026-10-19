@@ -3,11 +3,10 @@
 import type { RankRow } from './types';
 import { isRtl, t } from './i18n';
 
-const header = () => [t('Rang'), t('Élève'), t('Père'), t('Âge'), t('Classes'), t('Ahzab entiers'), t('Ahzab : suite'), t('Sourates entières'), t('Sourates : suite'),
+const header = () => [t('Rang'), t('Élève'), t('Père'), t('Âge'), t('Classes'), t('Ahzab entiers (حفظ إجمالي)'), t('Sourates entières (حفظ إجمالي)'), t('Ahzab : suite (حفظ مسترسل)'), t('Sourates : suite (حفظ مسترسل)'), t('Étiquette النخبة'),
   t('Ayat'), t('Gain (période)'), t('Ayat / semaine'), t('Dernière validation')];
 
-const cells = (r: RankRow): (string | number)[] => [r.rank, r.fullName, r.fatherName, r.age ?? '', r.classes.join(' / '), r.ahzab.complete, r.ahzab.longestRun,
-  r.surahs.complete, r.surahs.longestRun, r.ayat, r.gain, r.perWeek, r.lastValidationAt ? r.lastValidationAt.slice(0, 10) : ''];
+const cells = (r: RankRow): (string | number)[] => [r.rank, r.fullName, r.fatherName, r.age ?? '', r.classes.join(' / '), r.ahzab.complete, r.surahs.complete, r.ahzab.longestRun, r.surahs.longestRun, r.eliteTag ? '★' : '', r.ayat, r.gain, r.perWeek, r.lastValidationAt ? r.lastValidationAt.slice(0, 10) : ''];
 
 export const fileStem = (org: string, period: string) =>
   `${t('classement')}-${org}-${period}-${new Date().toISOString().slice(0, 10)}`.replace(/[^\p{L}\p{N}_-]+/gu, '_');

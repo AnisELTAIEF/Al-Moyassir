@@ -201,6 +201,6 @@ fieldset.span-all { border: 1px solid var(--line); border-radius: 10px; padding:
 .val-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 4px; margin: 8px 0; }
 .val { border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 6px 2px; font: inherit; font-size: 0.85rem; cursor: pointer; color: inherit; }
 .val.acquired { background: color-mix(in srgb, var(--zellige) 28%, transparent); border-color: var(--zellige); }
-.val.acquired_error { background: color-mix(in srgb, var(--saffron) 35%, transparent); border-color: var(--saffron); }
-.val.review { background: color-mix(in srgb, var(--madder) 28%, transparent); border-color: var(--madder); }
+.val.acquired_error { background: color-mix(in srgb, var(--madder) 28%, transparent); border-color: var(--madder); }
+.val.review { background: color-mix(in srgb, var(--saffron) 35%, transparent); border-color: var(--saffron); }
 span.val { display: inline-block; padding: 0 6px; cursor: default; }

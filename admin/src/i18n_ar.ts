@@ -56,4 +56,9 @@ export const AR: Record<string, string> = {
   'Acquis': 'محفوظة', 'Acquis avec erreur': 'محفوظة بخطأ', 'À revoir': 'للمراجعة', 'Non validé': 'غير معتمدة', 'Effacé': 'ممسوحة',
   'Toute la sourate : acquise': 'السورة كلها محفوظة', 'Effacer la sourate': 'مسح السورة', 'Page du mushaf': 'صفحة المصحف', 'Résultat': 'النتيجة',
   'Appliquer à la page': 'تطبيق على الصفحة', '{n} ayat modifiés.': 'تم تعديل {n} آية.', 'seuil : {n} ayat avec erreur par page': 'الحدّ: {n} آيات بخطأ في الصفحة',
+  'Hifdh global': 'حفظ إجمالي', 'Hifdh successif': 'حفظ مسترسل', 'Ahzab entiers (حفظ إجمالي)': 'الأحزاب الكاملة (حفظ إجمالي)', 'Sourates entières (حفظ إجمالي)': 'السور الكاملة (حفظ إجمالي)',
+  'Plus longue suite continue de ahzab entiers': 'أطول سلسلة متصلة من الأحزاب الكاملة', 'Plus longue suite continue de sourates entières': 'أطول سلسلة متصلة من السور الكاملة',
+  'Ahzab : suite (حفظ مسترسل)': 'الأحزاب: مسترسل', 'Sourates : suite (حفظ مسترسل)': 'السور: مسترسل', 'Étiquette النخبة': 'وسم النخبة',
+  'Étiquette posée par l’équipe': 'وسم وضعه الفريق', 'étiquette posée par l’équipe': 'وسم يضعه الفريق',
+  'Plus de 14 ans : l’autorisation des parents n’est pas requise.': 'أكثر من 14 سنة: إذن الأولياء غير مطلوب.',
 };

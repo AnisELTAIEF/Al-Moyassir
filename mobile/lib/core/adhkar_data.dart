@@ -136,4 +136,65 @@ final kAdhkar = <DhikrSet>[
       Dhikr('رَبِّ اغْفِرْ لِي وَلِوَالِدَيَّ وَارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا', translation: 'Seigneur, pardonne-moi ainsi qu’à mes parents, et fais-leur miséricorde comme ils m’ont élevé petit.'),
     ],
   ),
+  DhikrSet(
+    id: 'istighfar',
+    ar: 'سيد الاستغفار',
+    fr: 'Sayyid al-istighfâr',
+    icon: Icons.favorite_border,
+    items: const [
+      Dhikr(
+        _istighfar,
+        translation: 'Le maître des demandes de pardon. « Celui qui le dit avec foi le jour et meurt avant le soir est des gens du Paradis ; de même la nuit. »',
+        source: 'Al-Bukhârî',
+      ),
+      Dhikr('أَسْتَغْفِرُ اللَّهَ الْعَظِيمَ الَّذِي لَا إِلَٰهَ إِلَّا هُوَ الْحَيَّ الْقَيُّومَ وَأَتُوبُ إِلَيْهِ', translation: 'Je demande pardon à Allah l’Immense, nulle divinité sauf Lui, le Vivant, Celui qui subsiste par Lui-même, et je me repens à Lui (×3).', count: 3, source: 'Abû Dâwûd, at-Tirmidhî'),
+      Dhikr('رَبِّ اغْفِرْ لِي وَتُبْ عَلَيَّ إِنَّكَ أَنْتَ التَّوَّابُ الرَّحِيمُ', translation: 'Seigneur, pardonne-moi et accepte mon repentir : Tu es Celui qui accepte le repentir, le Miséricordieux (×100 dans la journée).', count: 100, source: 'Abû Dâwûd, at-Tirmidhî'),
+    ],
+  ),
+  DhikrSet(
+    id: 'qunut',
+    ar: 'دعاء القنوت',
+    fr: 'Du‘â’ al-qunût',
+    icon: Icons.back_hand_outlined,
+    items: const [
+      Dhikr(
+        'اللَّهُمَّ إِنَّا نَسْتَعِينُكَ وَنَسْتَغْفِرُكَ وَنُؤْمِنُ بِكَ وَنَخْضَعُ لَكَ وَنَخْلَعُ وَنَتْرُكُ مَنْ يَكْفُرُكَ، اللَّهُمَّ إِيَّاكَ نَعْبُدُ وَلَكَ نُصَلِّي وَنَسْجُدُ وَإِلَيْكَ نَسْعَى وَنَحْفِدُ، نَرْجُو رَحْمَتَكَ وَنَخْشَى عَذَابَكَ إِنَّ عَذَابَكَ بِالْكَافِرِينَ مُلْحَقٌ',
+        translation: 'Qunût de la prière du Fajr, tel que le récitent les malikites (invocation rapportée de ‘Umar ibn al-Khattâb).',
+        source: 'Al-Bayhaqî, Ibn Abî Shayba',
+      ),
+      Dhikr(
+        'اللَّهُمَّ اهْدِنِي فِيمَنْ هَدَيْتَ، وَعَافِنِي فِيمَنْ عَافَيْتَ، وَتَوَلَّنِي فِيمَنْ تَوَلَّيْتَ، وَبَارِكْ لِي فِيمَا أَعْطَيْتَ، وَقِنِي شَرَّ مَا قَضَيْتَ، فَإِنَّكَ تَقْضِي وَلَا يُقْضَى عَلَيْكَ، وَإِنَّهُ لَا يَذِلُّ مَنْ وَالَيْتَ، وَلَا يَعِزُّ مَنْ عَادَيْتَ، تَبَارَكْتَ رَبَّنَا وَتَعَالَيْتَ',
+        translation: 'Qunût du Witr, enseigné par le Prophète ﷺ à al-Hasan ibn ‘Alî.',
+        source: 'Abû Dâwûd, at-Tirmidhî, an-Nasâ’î',
+      ),
+    ],
+  ),
+  DhikrSet(
+    id: 'ism_azam',
+    ar: 'الدعاء باسم الله الأعظم',
+    fr: 'Invoquer par le Nom suprême d’Allah',
+    icon: Icons.auto_awesome_outlined,
+    items: const [
+      Dhikr(
+        'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ، حَمْدًا كَثِيرًا طَيِّبًا مُبَارَكًا فِيهِ، اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ كَمَا صَلَّيْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ إِنَّكَ حَمِيدٌ مَجِيدٌ، اللَّهُمَّ بَارِكْ عَلَى مُحَمَّدٍ وَعَلَى آلِ مُحَمَّدٍ كَمَا بَارَكْتَ عَلَى إِبْرَاهِيمَ وَعَلَى آلِ إِبْرَاهِيمَ إِنَّكَ حَمِيدٌ مَجِيدٌ',
+        translation: '1. COMMENCER : le Prophète ﷺ a enseigné de débuter l’invocation par la louange d’Allah et Son éloge, puis la prière sur le Prophète ﷺ, et seulement ensuite de demander (at-Tirmidhî). Placez-vous en état de pureté, face à la qibla si possible, mains levées, avec humilité et certitude d’être exaucé.',
+        source: 'At-Tirmidhî, Abû Dâwûd',
+      ),
+      Dhikr(
+        'اللَّهُمَّ إِنِّي أَسْأَلُكَ بِأَنِّي أَشْهَدُ أَنَّكَ أَنْتَ اللَّهُ لَا إِلَٰهَ إِلَّا أَنْتَ الْأَحَدُ الصَّمَدُ الَّذِي لَمْ يَلِدْ وَلَمْ يُولَدْ وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ',
+        translation: '2. INVOQUER : « Il a demandé à Allah par Son Nom le plus grand, celui par lequel, si on Le prie, Il exauce, et si on L’invoque, Il répond. » Puis formulez votre demande.',
+        source: 'Abû Dâwûd, at-Tirmidhî, Ibn Mâja',
+      ),
+      Dhikr(
+        'اللَّهُمَّ إِنِّي أَسْأَلُكَ بِأَنَّ لَكَ الْحَمْدَ لَا إِلَٰهَ إِلَّا أَنْتَ الْمَنَّانُ بَدِيعُ السَّمَاوَاتِ وَالْأَرْضِ ذُو الْجَلَالِ وَالْإِكْرَامِ يَا حَيُّ يَا قَيُّومُ',
+        translation: 'Autre formule rapportée comme étant le Nom suprême (les savants divergent sur sa désignation précise : aucun ne l’affirme de façon certaine).',
+        source: 'Abû Dâwûd, at-Tirmidhî, an-Nasâ’î',
+      ),
+      Dhikr('لَا إِلَٰهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنتُ مِنَ الظَّالِمِينَ', translation: 'Du‘â’ de Dhû-n-Nûn : aucun musulman ne le prononce pour une demande sans qu’Allah l’exauce.', source: 'At-Tirmidhî'),
+      Dhikr(
+        'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ، وَصَلَّى اللَّهُ عَلَى سَيِّدِنَا مُحَمَّدٍ وَعَلَى آلِهِ وَصَحْبِهِ وَسَلَّمَ، وَالْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ',
+        translation: '3. TERMINER : par la prière sur le Prophète ﷺ, la louange d’Allah, puis « Âmîn ».',
+      ),
+    ],
+  ),
 ];

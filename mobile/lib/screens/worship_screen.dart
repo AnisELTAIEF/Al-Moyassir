@@ -379,6 +379,20 @@ class _PrayerSettingsSheetState extends State<_PrayerSettingsSheet> {
             },
           ),
           const SizedBox(height: 8),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(tr('Ajuster les horaires (minutes)')),
+            subtitle: Text(tr('Pour coller au calendrier de votre mosquée')),
+            children: [
+              for (final s in Salat.values)
+                Row(children: [
+                  Expanded(child: Text(I18n.isAr ? s.ar : s.fr)),
+                  IconButton(onPressed: () => context.read<PrayerService>().setAdjustment(s, p.adjustment(s) - 1), icon: const Icon(Icons.remove_circle_outline)),
+                  SizedBox(width: 36, child: Text('${p.adjustment(s) > 0 ? '+' : ''}${p.adjustment(s)}', textAlign: TextAlign.center)),
+                  IconButton(onPressed: () => context.read<PrayerService>().setAdjustment(s, p.adjustment(s) + 1), icon: const Icon(Icons.add_circle_outline)),
+                ]),
+            ],
+          ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(tr('‘Asr selon l’école hanafite')),

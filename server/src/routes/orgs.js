@@ -69,6 +69,7 @@ const studentDto = (r, classes = []) => ({
   pastCompetitions: r.past_competitions ?? '',
   guardianConsentAt: iso(r.guardian_consent_at),
   status: r.status,
+  eliteTag: !!r.elite_tag,
   leftAt: r.left_at,
   retainUntil: r.retain_until,
   linked: !!r.user_id,
@@ -362,7 +363,7 @@ export default async function orgRoutes(app) {
       params: idParam,
       body: {
         type: 'object',
-        required: ['fullName', 'guardianConsent'],
+        required: ['fullName'],
         properties: {
           fullName: { type: 'string', minLength: 2, maxLength: 120 },
           fatherName: { type: 'string', maxLength: 80 },
@@ -381,12 +382,14 @@ export default async function orgRoutes(app) {
   }, async (req, reply) => {
     const { org } = await access(req, req.params.id, ['admin']);
     const b = req.body;
-    if (b.guardianConsent !== true) {
-      throw new HttpError(400, 'consent_required', 'L’autorisation des parents est obligatoire pour inscrire un élève.');
-    }
     const fullName = cleanName(b.fullName), father = cleanName(b.fatherName);
     const phone = normalizePhone(b.phone);
     const birth = validDate(b.birthDate, { notFuture: true });
+    // L'autorisation des parents n'est exigée que pour un mineur de 14 ans ou moins, ou d'âge inconnu.
+    const age = ageOf(birth);
+    if ((age == null || age <= 14) && b.guardianConsent !== true) {
+      throw new HttpError(400, 'consent_required', 'L’autorisation des parents est obligatoire pour inscrire un élève de 14 ans ou moins (ou d’âge inconnu).');
+    }
     const joined = validDate(b.joinedAt);
     const started = validDate(b.hifdhStartedAt);
 
@@ -410,7 +413,7 @@ export default async function orgRoutes(app) {
       await c.query(
         `INSERT INTO student_profiles (id, organization_id, full_name, father_name, birth_date, gender, phone, joined_at, hifdh_started_at,
                                        past_competitions, guardian_consent_at, created_by)
-         VALUES (?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(3),?)`,
+         VALUES (?,?,?,?,?,?,?,?,?,?,${b.guardianConsent === true ? 'UTC_TIMESTAMP(3)' : 'NULL'},?)`,
         [id, org.id, fullName, father, birth, b.gender ?? null, phone, joined, started, b.pastCompetitions ?? null, req.user.id]);
       for (const gid of groupIds) await c.query('INSERT INTO group_students (group_id, profile_id) VALUES (?,?)', [gid, id]);
     });
@@ -471,6 +474,17 @@ export default async function orgRoutes(app) {
   });
 
   // Sortie d'un élève : archivage (jamais de suppression d'office), conservation 5 ans au moins (D20).
+  // Étiquette « ضمن النخبة » : posée ou retirée par l'équipe (administratif ou enseignant).
+  app.put('/:id/students/:pid/elite', {
+    schema: { params: idPidParam, body: { type: 'object', required: ['elite'], properties: { elite: { type: 'boolean' } } } },
+  }, async (req) => {
+    const ctx = await access(req, req.params.id, ['admin', 'teacher']);
+    const cur = await studentOf(req, ctx, req.params.pid);
+    await db.query('UPDATE student_profiles SET elite_tag = ? WHERE id = ?', [req.body.elite ? 1 : 0, cur.id]);
+    const [[row]] = await db.query(`SELECT ${STUDENT_COLS} FROM student_profiles p WHERE p.id = ?`, [cur.id]);
+    return { student: studentDto(row, (await classesOfStudents([cur.id])).get(cur.id) ?? []) };
+  });
+
   app.post('/:id/students/:pid/leave', { schema: { params: idPidParam } }, async (req) => {
     // Corps facultatif : { leftAt: 'YYYY-MM-DD' } (sinon aujourd'hui). La date est validée par validDate.
     if (req.body != null && typeof req.body !== 'object') throw new HttpError(400, 'invalid_request', 'Corps invalide.');

@@ -60,6 +60,18 @@ class PushService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Une invocation par heure dans la barre de notifications (8 h – 21 h), facultative.
+  bool get hourlyDua => _prefs.getBool('dua_hourly_${_auth.userId}') ?? false;
+
+  Future<void> setHourlyDua(bool v) async {
+    await _putDua(v);
+    await _prefs.setBool('dua_hourly_${_auth.userId}', v);
+    notifyListeners();
+  }
+
+  /// Envoie la préférence et le décalage horaire de l'appareil (pour n'envoyer qu'en journée).
+  Future<void> _putDua(bool hourly) => _auth.api!.put('/me/push/dua', {'hourly': hourly, 'utcOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes});
+
   /// Vrai sur l'app Android (alertes natives) ; faux sur le web.
   bool get native => native_.nativePushSupported();
 
@@ -121,6 +133,7 @@ class PushService extends ChangeNotifier {
       }
     }
     notifyListeners();
+    if (state == PushState.on && hourlyDua) _putDua(true).catchError((Object e) => debugPrint('invocation horaire : $e')); // heure d'été, voyage…
   }
 
   /// À appeler depuis un geste de l'utilisateur (le navigateur, comme Android 13+, demande l'autorisation).

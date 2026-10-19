@@ -40,12 +40,12 @@ export async function addNotification(conn, userId, { kind, title, body = '', pa
  * Envoie l'alerte push aux appareils de l'utilisateur ; supprime les abonnements expirés. Silencieux en cas d'échec.
  * [id] (notification enregistrée) : au toucher de l'alerte, l'app ouvre directement cette notification.
  */
-export async function pushNotification(app, userId, { kind, payload = {}, id }) {
+export async function pushNotification(app, userId, { kind, payload = {}, id, text }) {
   const send = app.pushSender;
   const fcm = app.fcmSender;
   if (!send && !fcm) return;
   try {
-    const [title, body] = pushText(kind, payload);
+    const [title, body] = text ?? pushText(kind, payload);
     if (send) {
       const [subs] = await app.db.query('SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?', [userId]);
       const message = JSON.stringify({ title, body, kind, id: id ?? null, url: id ? `/app/?notif=${id}` : '/app/' });

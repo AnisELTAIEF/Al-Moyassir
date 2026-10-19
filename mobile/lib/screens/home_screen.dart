@@ -79,6 +79,7 @@ class HomeScreen extends StatelessWidget {
               ],
               _DuaCard(name: firstName(auth.user?.displayName)),
               const SizedBox(height: 14),
+              const _ChildPicker(),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(18),
@@ -246,6 +247,25 @@ class _NotificationsBell extends StatelessWidget {
       iconSize: 26,
       onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
       icon: Badge(isLabelVisible: unread > 0, label: Text('$unread'), child: const Icon(Icons.notifications_outlined)),
+    );
+  }
+}
+
+/// Compte de parent relié à plusieurs enfants : choisir celui dont on voit les validations de l'enseignant.
+class _ChildPicker extends StatelessWidget {
+  const _ChildPicker();
+
+  @override
+  Widget build(BuildContext context) {
+    final v = context.watch<ValidationStore>();
+    if (v.children.length < 2) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+        Text(tr('Enfant :'), style: TextStyle(color: context.tones.muted)),
+        for (final c in v.children)
+          ChoiceChip(label: Text(c), selected: v.child == c, onSelected: (_) => v.selectChild(c)),
+      ]),
     );
   }
 }

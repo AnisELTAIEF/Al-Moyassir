@@ -275,3 +275,25 @@ test('retrait d’un enseignant : il quitte aussi ses classes', async () => {
   assert.equal(rows.length, 0);
   assert.equal((await call('GET', orgUrl('/students'), T('teacher'))).status, 404, 'plus aucun rôle ici');
 });
+
+test('étiquette « ضمن النخبة » : posée par l’équipe, visible sur la fiche', async () => {
+  const st = (await call('POST', orgUrl('/students'), { ...T('orgadmin'), body: { fullName: 'Élève Étiqueté', fatherName: 'أب', guardianConsent: true } })).body.student;
+  assert.equal(st.eliteTag, false);
+  const on = await call('PUT', orgUrl(`/students/${st.id}/elite`), { ...T('orgadmin'), body: { elite: true } });
+  assert.equal(on.status, 200);
+  assert.equal(on.body.student.eliteTag, true);
+  assert.equal((await call('PUT', orgUrl(`/students/${st.id}/elite`), { ...T('orgadmin'), body: { elite: false } })).body.student.eliteTag, false);
+  assert.equal((await call('PUT', orgUrl(`/students/${st.id}/elite`), { ...T('orgadmin'), body: {} })).status, 400);
+});
+
+test('autorisation des parents : exigée jusqu’à 14 ans ou âge inconnu, plus au-delà', async () => {
+  const post = (b) => call('POST', orgUrl('/students'), { ...T('orgadmin'), body: b });
+  // Plus de 14 ans : l'autorisation des parents n'est plus exigée ; âge inconnu ou ≤ 14 ans : elle l'est.
+  const old = new Date(); old.setUTCFullYear(old.getUTCFullYear() - 20);
+  const grown = await post({ fullName: 'Adulte Sans Accord', birthDate: old.toISOString().slice(0, 10) });
+  assert.equal(grown.status, 200);
+  assert.equal(grown.body.student.guardianConsentAt, null);
+  const kid = new Date(); kid.setUTCFullYear(kid.getUTCFullYear() - 10);
+  assert.equal((await post({ fullName: 'Enfant Sans Accord', birthDate: kid.toISOString().slice(0, 10) })).body.error, 'consent_required');
+  assert.equal((await post({ fullName: 'Age Inconnu' })).body.error, 'consent_required');
+});

@@ -202,19 +202,39 @@ class _PushBannerState extends State<_PushBanner> {
     final denied = push.state == PushState.denied;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Card(
-        child: SwitchListTile(
-          secondary: Icon(Icons.notifications_active_outlined, color: context.colors.primary),
-          title: Text(tr('Alertes quand l’app est fermée')),
-          subtitle: Text(denied
-              ? (push.native
-                  ? tr('Refusées sur ce téléphone : autorisez les notifications de l’app dans les réglages Android.')
-                  : tr('Refusées dans le navigateur : autorisez les notifications dans ses réglages.'))
-              : tr('Recevez un message sur cet appareil quand votre enseignant valide ou envoie un certificat.')),
-          value: push.state == PushState.on,
-          onChanged: _busy || denied ? null : (v) => _toggle(push, v),
+      child: Column(children: [
+        Card(
+          child: SwitchListTile(
+            secondary: Icon(Icons.notifications_active_outlined, color: context.colors.primary),
+            title: Text(tr('Alertes quand l’app est fermée')),
+            subtitle: Text(denied
+                ? (push.native
+                    ? tr('Refusées sur ce téléphone : autorisez les notifications de l’app dans les réglages Android.')
+                    : tr('Refusées dans le navigateur : autorisez les notifications dans ses réglages.'))
+                : tr('Recevez un message sur cet appareil quand votre enseignant valide ou envoie un certificat.')),
+            value: push.state == PushState.on,
+            onChanged: _busy || denied ? null : (v) => _toggle(push, v),
+          ),
         ),
-      ),
+        if (push.state == PushState.on)
+          Card(
+            child: SwitchListTile(
+              secondary: Icon(Icons.schedule, color: context.colors.primary),
+              title: Text(tr('Une invocation par heure')),
+              subtitle: Text(tr('Un du‘â’ court dans la barre de notifications, de 8 h à 21 h. Désactivé par défaut.')),
+              value: push.hourlyDua,
+              onChanged: _busy
+                  ? null
+                  : (v) async {
+                      try {
+                        await push.setHourlyDua(v);
+                      } catch (_) {
+                        if (context.mounted) snack(context, tr('Impossible de modifier les alertes pour le moment.'));
+                      }
+                    },
+            ),
+          ),
+      ]),
     );
   }
 }

@@ -67,7 +67,7 @@ function demoOrgs() {
   ];
   const mk = (n: number, fullName: string, fatherName: string, age: number, classIds: string[], over: Partial<Student> = {}): Student => ({
     id: `p${n}`, organizationId: 'o1', fullName, fatherName, birthDate: `${2026 - age}-01-01`, age, gender: 'm', phone: `+21891000000${n}`,
-    phoneVerified: n === 1, joinedAt: '2025-09-01', hifdhStartedAt: '2025-09-15', pastCompetitions: '', guardianConsentAt: ago(100),
+    phoneVerified: n === 1, joinedAt: '2025-09-01', hifdhStartedAt: '2025-09-15', pastCompetitions: '', guardianConsentAt: ago(100), eliteTag: n === 2,
     status: 'active', leftAt: null, retainUntil: null, linked: n === 1, classes: classes.filter((c) => classIds.includes(c.id)).map(({ id, name }) => ({ id, name })),
     createdAt: ago(100), ...over,
   });
@@ -185,7 +185,7 @@ export function createDemoApi(): Api {
       const s: Student = { id: `p${n}`, organizationId: 'o1', fullName: input.fullName.trim(), fatherName: (input.fatherName ?? '').trim(),
         birthDate: input.birthDate ?? null, age: null, gender: input.gender ?? null, phone: input.phone ?? null, phoneVerified: false,
         joinedAt: input.joinedAt ?? null, hifdhStartedAt: input.hifdhStartedAt ?? null, pastCompetitions: input.pastCompetitions ?? '',
-        guardianConsentAt: new Date().toISOString(), status: 'active', leftAt: null, retainUntil: null, linked: false,
+        guardianConsentAt: input.guardianConsent === false ? null : new Date().toISOString(), eliteTag: false, status: 'active', leftAt: null, retainUntil: null, linked: false,
         classes: d.classes.filter((c) => classIds.includes(c.id)).map(({ id, name }) => ({ id, name })), createdAt: new Date().toISOString() };
       d.students.push(s);
       return { student: s };
@@ -205,6 +205,7 @@ export function createDemoApi(): Api {
     },
     studentLinkCode: async () => ({ code: 'K7XQ-M2PA', expiresAt: ago(-7) }),
     unlinkStudent: async (_o, id) => { d.students.find((x) => x.id === id)!.linked = false; },
+    setStudentElite: async (_o, id, elite) => { const s = d.students.find((x) => x.id === id)!; s.eliteTag = elite; return s; },
     studentValidation: async (_o, id) => ({ items: [...(vals.get(id) ?? new Map()).entries()].map(([k, result]) => { const [surah, ayah] = k.split(':').map(Number); return { surah, ayah, result, at: ago(0) }; }), retakePages: [], threshold: 3 }),
     putValidation: async (_o, id, body) => {
       const m = vals.get(id) ?? new Map();
@@ -225,7 +226,7 @@ export function createDemoApi(): Api {
       const rows: RankRow[] = d.students.filter((s) => s.status === 'active').map((s, i) => ({
         studentId: s.id, fullName: s.fullName, fatherName: s.fatherName, age: s.age, joinedAt: s.joinedAt, hasCompetitions: i === 0, classes: s.classes.map((c) => c.name),
         ahzab: { complete: 3 - i, longestRun: 2 - (i > 0 ? 1 : 0) }, surahs: { complete: 12 - 4 * i, longestRun: 6 - 2 * i }, ayat: 600 - 220 * i,
-        retakeCount: i, gain: f.period === 'all' ? 600 - 220 * i : 60 - 20 * i, perWeek: 12 - 4 * i, lastValidationAt: ago(i + 1), rank: i + 1, elite: i === 0,
+        retakeCount: i, gain: f.period === 'all' ? 600 - 220 * i : 60 - 20 * i, perWeek: 12 - 4 * i, lastValidationAt: ago(i + 1), rank: i + 1, elite: i === 0, eliteTag: i === 1,
       })).filter((r) => !f.classId || d.students.find((s) => s.id === r.studentId)?.classes.some((c) => c.id === f.classId));
       return { period: f.period, since: null, threshold: 3, rows };
     },

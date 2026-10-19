@@ -159,6 +159,31 @@ void main() {
       expect(passagesOfRefs([]), isEmpty);
     });
 
+    test('parent relié à plusieurs enfants : on choisit l’enfant, ses validations ne se mélangent pas à celles de l’autre', () async {
+      final (auth, server) = await setup();
+      server.handler = (req) => req.url.path == '/me/notifications'
+          ? json({'unread': 0, 'notifications': <Object>[]})
+          : json({
+              'organizations': [
+                {'organizationId': 'o1', 'studentName': 'ليلى', 'items': [{'surah': 2, 'ayah': 5, 'result': 'acquired', 'at': '2026-10-01T10:00:00Z'}], 'retakePages': [3]},
+                {'organizationId': 'o1', 'studentName': 'يوسف', 'items': [{'surah': 2, 'ayah': 6, 'result': 'review', 'at': '2026-10-01T10:00:00Z'}], 'retakePages': <int>[]},
+              ],
+            });
+      final v = ValidationStore(auth);
+      await v.refresh();
+      expect(v.children, ['ليلى', 'يوسف']..sort());
+      final first = v.child!;
+      v.selectChild('يوسف');
+      expect(v.of(2, 6), ValResult.review);
+      expect(v.of(2, 5), isNull, reason: 'validation de l’autre enfant');
+      expect(v.isRetake(3), isFalse);
+      v.selectChild('ليلى');
+      expect(v.of(2, 5), ValResult.acquired);
+      expect(v.of(2, 6), isNull);
+      expect(v.isRetake(3), isTrue);
+      expect(first, isNotEmpty);
+    });
+
     test('hors ligne : on garde ce qu’on avait ; déconnexion : tout est vidé', () async {
       final (auth, server) = await setup();
       server.handler = (req) => req.url.path == '/me/notifications'

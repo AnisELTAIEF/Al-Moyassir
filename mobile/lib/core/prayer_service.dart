@@ -82,6 +82,7 @@ const kCities = <City>[
 
 /// Méthodes de calcul proposées (clé = nom de l'enum [CalculationMethod]).
 const kMethods = <String, String>{
+  'tunisia': 'Tunisie (Fajr 18° · ‘Ichâ’ 18°)',
   'muslim_world_league': 'Ligue islamique mondiale',
   'umm_al_qura': 'Umm al-Qura (La Mecque)',
   'egyptian': 'Autorité générale d’Égypte',
@@ -103,7 +104,7 @@ class PrayerService extends ChangeNotifier {
       : _lat = _prefs.getDouble('pr_lat') ?? kCities.first.lat,
         _lng = _prefs.getDouble('pr_lng') ?? kCities.first.lng,
         _place = _prefs.getString('pr_place') ?? kCities.first.label,
-        _method = _prefs.getString('pr_method') ?? 'muslim_world_league',
+        _method = _prefs.getString('pr_method') ?? 'tunisia', // lieu par défaut : Tunis
         _hanafi = _prefs.getBool('pr_hanafi') ?? false,
         _remind = _prefs.getBool('pr_remind') ?? true,
         _source = _prefs.getString('pr_src') ?? (_prefs.containsKey('pr_lat') ? 'manual' : 'default') {
@@ -147,10 +148,35 @@ class PrayerService extends ChangeNotifier {
   CalculationMethod get _calcMethod =>
       CalculationMethod.values.asNameMap()[_method] ?? CalculationMethod.muslim_world_league;
 
+  /// Ajustement manuel (en minutes, de −15 à +15) ajouté à chaque horaire : pour coller au calendrier de la mosquée.
+  int adjustment(Salat s) => _prefs.getInt('pr_adj_${s.name}') ?? 0;
+
+  Future<void> setAdjustment(Salat s, int minutes) async {
+    await _prefs.setInt('pr_adj_${s.name}', minutes.clamp(-15, 15));
+    _recompute();
+  }
+
   CalculationParameters _params() {
-    final p = _calcMethod.getParameters();
+    final p = _method == 'tunisia' ? _tunisia() : _calcMethod.getParameters();
+    p.adjustments = PrayerAdjustments(
+      fajr: p.adjustments.fajr + adjustment(Salat.fajr),
+      sunrise: p.adjustments.sunrise + adjustment(Salat.sunrise),
+      dhuhr: p.adjustments.dhuhr + adjustment(Salat.dhuhr),
+      asr: p.adjustments.asr + adjustment(Salat.asr),
+      maghrib: p.adjustments.maghrib + adjustment(Salat.maghrib),
+      isha: p.adjustments.isha + adjustment(Salat.isha),
+    );
     p.madhab = _hanafi ? Madhab.hanafi : Madhab.shafi;
     p.highLatitudeRule = HighLatitudeRule.twilight_angle; // villes à haute latitude (Europe du Nord…)
+    return p;
+  }
+
+  /// Tunisie : Fajr et ‘Ichâ’ à 18°, Dhuhr +1 min de précaution.
+  static CalculationParameters _tunisia() {
+    final p = CalculationMethod.other.getParameters();
+    p.fajrAngle = 18;
+    p.ishaAngle = 18;
+    p.adjustments = PrayerAdjustments(dhuhr: 1);
     return p;
   }
 

@@ -1,4 +1,4 @@
-import type { Api, User } from './types';
+import type { Api, Student, User } from './types';
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public data?: unknown) { super(message); }
@@ -142,7 +142,7 @@ export function createRestApi(baseUrl: string, googleClientId: string | null): A
     },
     createStudent: async (o, input, classIds, confirmDuplicate) => {
       try {
-        const r = await call<{ student: never }>('POST', `/orgs/${o}/students`, { ...input, guardianConsent: true, groupIds: classIds, confirmDuplicate });
+        const r = await call<{ student: never }>('POST', `/orgs/${o}/students`, { ...input, guardianConsent: input.guardianConsent ?? true, groupIds: classIds, confirmDuplicate });
         return { student: r.student };
       } catch (e) {
         if (e instanceof ApiError && e.status === 409 && e.code === 'duplicate') return { duplicates: (e.data as { duplicates: never[] }).duplicates };
@@ -158,6 +158,7 @@ export function createRestApi(baseUrl: string, googleClientId: string | null): A
     studentLinkCode: (o, id) => call('POST', `/orgs/${o}/students/${id}/link-code`, {}),
     unlinkStudent: async (o, id) => { await call('POST', `/orgs/${o}/students/${id}/unlink`, {}); },
     studentSummary: (o, id) => call('GET', `/orgs/${o}/students/${id}/summary`),
+    setStudentElite: async (o, id, elite) => (await call<{ student: Student }>('PUT', `/orgs/${o}/students/${id}/elite`, { elite })).student,
     studentValidation: (o, id) => call('GET', `/orgs/${o}/students/${id}/validation`),
     putValidation: (o, id, body) => call('PUT', `/orgs/${o}/students/${id}/validation`, body),
     ranking: (o, f) => call('GET', `/orgs/${o}/reports/ranking?period=${f.period}${f.classId ? `&groupId=${f.classId}` : ''}`),

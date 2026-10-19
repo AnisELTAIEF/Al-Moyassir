@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'google_stub.dart' if (dart.library.js_interop) 'google_web.dart' as web_google;
 
 import '../env.dart';
 import 'api_client.dart';
@@ -53,7 +54,7 @@ class AuthService extends ChangeNotifier {
   }
 
   /// Pas sur la version web : google_sign_in y exige un bouton propre à Google (non intégré).
-  bool get googleEnabled => !kIsWeb && api != null && Env.googleServerClientId.isNotEmpty;
+  bool get googleEnabled => api != null && (kIsWeb ? Env.googleWebClientId.isNotEmpty : Env.googleServerClientId.isNotEmpty);
 
   void _saveRefresh(String? t) {
     if (t == null) {
@@ -157,6 +158,7 @@ class AuthService extends ChangeNotifier {
   /// Connexion Google. Renvoie false si l'utilisateur a annulé.
   Future<bool> signInWithGoogle({String? invitationCode}) async {
     if (!googleEnabled) throw ApiException(0, 'google_not_configured', tr('La connexion Google n’est pas configurée dans cette version.'));
+    if (kIsWeb) return _signInWithGoogleWeb(invitationCode);
     if (!_googleReady) {
       await GoogleSignIn.instance.initialize(
         serverClientId: Env.googleServerClientId,
@@ -182,6 +184,22 @@ class AuthService extends ChangeNotifier {
       await GoogleSignIn.instance.signOut();
       rethrow;
     }
+    return true;
+  }
+
+  /// Version web : fenêtre Google (flux id_token), puis le même échange avec le serveur que sur mobile.
+  Future<bool> _signInWithGoogleWeb(String? invitationCode) async {
+    final String? idToken;
+    try {
+      idToken = await web_google.googleWebSignIn(Env.googleWebClientId);
+    } catch (_) {
+      throw ApiException(0, 'google_failed', tr('La fenêtre Google a été bloquée ou a échoué. Autorisez les fenêtres pop-up pour ce site, puis réessayez.'));
+    }
+    if (idToken == null) return false; // fenêtre fermée par l'utilisateur
+    await _applySession(await api!.public('POST', '/auth/google', {
+      'idToken': idToken,
+      if (invitationCode != null && invitationCode.isNotEmpty) 'invitationCode': invitationCode,
+    }) as Map<String, dynamic>);
     return true;
   }
 
