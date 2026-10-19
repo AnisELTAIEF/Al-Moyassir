@@ -84,7 +84,7 @@ export function buildInvitationMail(cfg, { email, code, role, groupId, groupRole
       title: 'Créer votre compte',
       items: [
         `Touchez « Créer un compte avec un code » et saisissez ${code} : votre e-mail${groupName ? ' et votre groupe' : ''} s’affichent tout seuls.`,
-        'Choisissez le nom affiché et un mot de passe (8 caractères au moins).',
+        'Choisissez le nom affiché et un mot de passe (8 caractères au moins), ou touchez « Continuer avec Google » si votre adresse est une adresse Google.',
         `Le code est personnel, valable jusqu’au ${until}, pour l’adresse ${email}.`,
       ],
     },
@@ -94,6 +94,8 @@ export function buildInvitationMail(cfg, { email, code, role, groupId, groupRole
         'Qira’a : lisez les pages du mushaf ; touchez un ayah pour indiquer où vous en êtes (en cours, acquis…).',
         'Tahfidh : écoutez et répétez ayah par ayah pour mémoriser.',
         'Révision (المراجعة) : l’app vous rappelle ce qu’il faut réviser, au bon moment, pour ne pas oublier.',
+        'Alertes : activez-les (Notifications) pour être prévenu dans la barre de notifications du téléphone quand votre enseignant valide votre mémorisation, et recevoir si vous le souhaitez une invocation par heure. Sur iPhone, ajoutez d’abord l’app à l’écran d’accueil.',
+        'Déjà un compte ? Ne créez rien : connectez-vous avec votre compte habituel, votre nouveau rôle s’applique tout seul.',
       ],
     },
     ...(kind === 'groupAdmin' ? [{
@@ -185,5 +187,54 @@ export function buildInvitationMail(cfg, { email, code, role, groupId, groupRole
 <p style="font-size:11px;color:#8A9893;text-align:center;margin:14px 0 0">Vous recevez ce message parce qu’une invitation a été créée pour ${esc(email)}. Si vous ne la connaissez pas, ignorez-le.</p>
 </div></body></html>`;
 
+  return { subject, text, html };
+}
+
+/**
+ * E-mail adressé à quelqu'un qui a DÉJÀ un compte et dont le rôle change (ajout à un groupe, admin du
+ * groupe, admin général). Rien n'est à recréer : même compte, même mot de passe, même progression.
+ * @returns {{ subject: string, text: string, html: string }}
+ */
+export function buildAccessMail(cfg, { displayName = null, globalRole = null, groupName = null, groupRole = null, inviterName = null }) {
+  const base = cfg.publicUrl;
+  const android = androidApkLink(cfg);
+  const isAdmin = globalRole === 'admin';
+  const isGroupAdmin = Boolean(groupName) && groupRole === 'admin';
+  const hello = displayName ? `Assalamou alaykoum ${displayName}` : 'Assalamou alaykoum';
+  const by = inviterName ? ` par ${inviterName}` : '';
+  const change = isAdmin
+    ? `Vous êtes maintenant administrateur général d’Almoyassir (الميسّر)${by}.`
+    : isGroupAdmin
+      ? `Vous êtes maintenant admin du groupe « ${groupName} » sur Almoyassir (الميسّر)${by}.`
+      : `Vous avez été ajouté(e) au groupe « ${groupName} » sur Almoyassir (الميسّر)${by}.`;
+  const subject = isAdmin
+    ? 'Almoyassir (الميسّر) : vous êtes administrateur général'
+    : isGroupAdmin
+      ? `Almoyassir (الميسّر) : vous êtes admin du groupe « ${groupName} »`
+      : `Almoyassir (الميسّر) : vous avez rejoint le groupe « ${groupName} »`;
+  const what = isAdmin
+    ? 'Depuis l’admin web (sur ordinateur) vous gérez les utilisateurs, les groupes, les invitations et les rôles.'
+    : isGroupAdmin
+      ? 'Dans l’app (onglet « Suivi ») ou dans l’admin web, vous suivez la progression des membres et vous faites entrer de nouveaux membres.'
+      : 'Votre progression est désormais aussi suivie par les responsables de ce groupe.';
+  const rows = [
+    ['Application', base ? `${base}/app/` : null],
+    ['Android', android],
+    ...(isAdmin || isGroupAdmin ? [['Admin web (ordinateur)', base ? `${base}/` : null]] : []),
+    ['Guide détaillé', base ? `${base}/guide/${isAdmin ? '#admin-general' : isGroupAdmin ? '#admin-groupe' : '#membre'}` : null],
+  ].filter(([, v]) => v);
+  const keep = 'Rien à refaire : connectez-vous comme d’habitude avec votre compte et votre mot de passe actuels. Votre progression et vos réglages sont conservés.';
+  const text = [hello + ' — السلام عليكم ورحمة الله', '', change, what, '', keep, '', ...rows.map(([k, v]) => `• ${k} : ${v}`), '', 'Qu’Allah vous facilite.', ...(inviterName ? [inviterName] : [])].join('\n');
+  const html = `<!doctype html><html lang="fr"><body style="margin:0;background:#F5F6F2;font-family:Segoe UI,Roboto,Arial,sans-serif;color:#1E2A26">
+<div style="max-width:620px;margin:0 auto;padding:24px 16px">
+<div style="background:#0D5C4B;color:#ffffff;border-radius:16px 16px 0 0;padding:22px 24px"><div style="font-size:30px;font-family:'Traditional Arabic',serif;direction:rtl;text-align:right">الميسّر</div><div style="font-size:14px;opacity:.85">Almoyassir</div></div>
+<div style="background:#ffffff;border-radius:0 0 16px 16px;padding:22px 24px;line-height:1.55">
+<p style="margin:0 0 4px">${esc(hello)} — <span dir="rtl">السلام عليكم ورحمة الله</span></p>
+<p style="margin:0 0 12px"><strong>${esc(change)}</strong></p>
+<p style="margin:0 0 12px">${esc(what)}</p>
+<p style="margin:0 0 12px;padding:12px 14px;background:#FBF6E6;border-radius:10px">${esc(keep)}</p>
+<ul style="padding-left:18px;margin:8px 0 0">${rows.map(([k, v]) => `<li>${esc(k)} : <a href="${esc(v)}" style="color:#0D5C4B">${esc(v)}</a></li>`).join('')}</ul>
+<p style="margin:22px 0 0">Qu’Allah vous facilite.${inviterName ? `<br>${esc(inviterName)}` : ''}</p>
+</div></div></body></html>`;
   return { subject, text, html };
 }

@@ -11,7 +11,7 @@
 import { HttpError } from './errors.js';
 import { uuid } from './security.js';
 import { assignGroupCode } from './groupCodes.js';
-import { createInvitation, sendInvitationMail } from './invitations.js';
+import { createInvitation, sendInvitationMail, notifyAccessChange } from './invitations.js';
 import { mailEnabled } from './mailer.js';
 
 export const MAX_IMPORT_LINES = 1000;
@@ -156,6 +156,7 @@ export async function runImport(app, { text, withGroup, groupId = null, createGr
 
   const items = errors.map((e) => ({ line: e.line, email: null, name: null, group: null, role: null, action: 'error', message: e.message, text: e.text }));
   const mails = [];
+  const accessMails = [];
   const invitedNow = new Set(); // une seule invitation envoyée par personne, même si plusieurs groupes
   for (const r of rows) {
     const item = { line: r.line, email: r.email, name: r.name, group: null, role: r.role, action: 'error', message: '' };
@@ -180,6 +181,7 @@ export async function runImport(app, { text, withGroup, groupId = null, createGr
           await app.db.query(
             'INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)',
             [g.id, u[0].id, r.role]);
+          if (mailEnabled(app.cfg)) accessMails.push({ userId: u[0].id, groupId: g.id, groupRole: r.role });
         }
         item.action = current ? 'updated' : 'added';
         item.message = current ? 'Nommé(e) admin du groupe.' : `Compte existant ajouté au groupe${r.role === 'admin' ? ' (admin)' : ''}.`;
@@ -214,9 +216,11 @@ export async function runImport(app, { text, withGroup, groupId = null, createGr
   items.sort((a, b) => a.line - b.line);
 
   // E-mails envoyés en arrière-plan, l'un après l'autre (la réponse n'attend pas l'envoi).
-  const mailing = mails.length
-    ? (async () => { for (const m of mails) await sendInvitationMail(app, m.id, m.email, m.mail); })()
-        .catch((e) => app.log.error(e))
+  const mailing = mails.length || accessMails.length
+    ? (async () => {
+        for (const m of mails) await sendInvitationMail(app, m.id, m.email, m.mail);
+        for (const a of accessMails) await notifyAccessChange(app, a.userId, { groupId: a.groupId, groupRole: a.groupRole, invitedBy });
+      })().catch((e) => app.log.error(e))
     : Promise.resolve();
   lastImportMailing = mailing;
 

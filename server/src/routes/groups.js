@@ -2,7 +2,7 @@
 import { HttpError } from '../errors.js';
 import { tx } from '../db.js';
 import { progressOf, statsRow } from '../progress.js';
-import { createInvitation, invitationRow } from '../invitations.js';
+import { createInvitation, invitationRow, notifyAccessChange } from '../invitations.js';
 import { assignGroupCode } from '../groupCodes.js';
 import { runImport } from '../bulkImport.js';
 
@@ -97,9 +97,11 @@ export default async function groupRoutes(app) {
     const [u] = await app.db.query('SELECT id, display_name, status FROM users WHERE email = ?', [email]);
     if (u[0]) {
       if (u[0].status !== 'active') throw new HttpError(409, 'account_disabled', 'Ce compte est désactivé.');
+      const [prev] = await app.db.query('SELECT role FROM group_members WHERE group_id = ? AND user_id = ?', [g.id, u[0].id]);
       await app.db.query(
         'INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)',
         [g.id, u[0].id, role]);
+      if (prev[0]?.role !== role) await notifyAccessChange(app, u[0].id, { groupId: g.id, groupRole: role, invitedBy: req.user.id });
       return { added: true, user: { id: u[0].id, email, displayName: u[0].display_name }, role };
     }
     const inv = await createInvitation(app, { email, role: 'user', groupId: g.id, groupRole: role, invitedBy: req.user.id });
@@ -125,15 +127,19 @@ export default async function groupRoutes(app) {
     schema: { params: idParam, body: { type: 'object', required: ['role'], properties: { role: { type: 'string', enum: ['admin', 'member'] } } } },
   }, async (req) => {
     await guard(req);
-    return tx(app.db, async (conn) => {
+    let changedFrom = null;
+    const result = await tx(app.db, async (conn) => {
       const [m] = await conn.query('SELECT role FROM group_members WHERE group_id = ? AND user_id = ? FOR UPDATE', [req.params.id, req.params.uid]);
       if (!m[0]) throw new HttpError(404, 'not_member', 'Cette personne n’est pas membre du groupe.');
       if (m[0].role === 'admin' && req.body.role === 'member' && req.user.role !== 'admin' && (await groupAdmins(conn, req.params.id)) <= 1) {
         throw new HttpError(409, 'last_group_admin', 'Le groupe doit garder au moins un admin. Nommez-en un autre d’abord.');
       }
       await conn.query('UPDATE group_members SET role = ? WHERE group_id = ? AND user_id = ?', [req.body.role, req.params.id, req.params.uid]);
+      changedFrom = m[0].role;
       return { ok: true };
     });
+    if (changedFrom !== req.body.role) await notifyAccessChange(app, req.params.uid, { groupId: req.params.id, groupRole: req.body.role, invitedBy: req.user.id });
+    return result;
   });
 
   /** Retire un membre ; chacun peut aussi quitter un groupe lui-même. */

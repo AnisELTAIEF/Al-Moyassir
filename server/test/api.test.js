@@ -518,8 +518,10 @@ test('import général : crée les groupes, admins de groupe, une seule invitati
     assert.equal(inc.role, 'admin');
     assert.equal(run.body.emailing, 3, 'Mariem ne reçoit qu’un seul e-mail');
     await bulk.lastImportMailing;
-    assert.equal(smtp.received.length, 3);
+    // 3 invitations + 1 e-mail « vous avez rejoint le groupe » pour le compte existant (rien d'autre n'est modifié).
+    assert.equal(smtp.received.length, 4);
     assert.ok(smtp.received.some((m) => /To: youssef@x\.io/.test(m)));
+    assert.ok(smtp.received.some((m) => /To: inconnu@x\.io/.test(m) && /conserv/i.test(m)), 'le compte existant est prévenu, sans nouveau code');
     const [[sent]] = await pool.query("SELECT COUNT(*) c FROM invitations WHERE emailed_at IS NOT NULL AND email IN ('youssef@x.io','mariem@x.io','libre-import@x.io')");
     assert.equal(Number(sent.c), 3);
 

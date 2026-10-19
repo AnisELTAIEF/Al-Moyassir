@@ -3,7 +3,7 @@ import { assignGroupCode } from '../groupCodes.js';
 import { HttpError } from '../errors.js';
 import { tx } from '../db.js';
 import { uuid, sha256, normalizeCode, newInvitationCode } from '../security.js';
-import { createInvitation, invitationRow } from '../invitations.js';
+import { createInvitation, invitationRow, applyToExistingUser, notifyAccessChange } from '../invitations.js';
 import { runImport } from '../bulkImport.js';
 import { iso, otherActiveAdmins } from '../users.js';
 import { progressOf, STATS_SQL, statsRow } from '../progress.js';
@@ -96,7 +96,8 @@ export default async function adminRoutes(app) {
     } } },
   }, async (req) => {
     const id = req.params.id;
-    return tx(app.db, async (conn) => {
+    let becameAdmin = false;
+    const result = await tx(app.db, async (conn) => {
       const [rows] = await conn.query('SELECT * FROM users WHERE id = ? FOR UPDATE', [id]);
       const u = rows[0];
       if (!u) throw new HttpError(404, 'not_found', 'Utilisateur introuvable.');
@@ -112,8 +113,11 @@ export default async function adminRoutes(app) {
       if (status === 'disabled') {
         await conn.query('UPDATE refresh_tokens SET revoked_at = UTC_TIMESTAMP(3) WHERE user_id = ? AND revoked_at IS NULL', [id]);
       }
+      becameAdmin = role === 'admin' && u.role !== 'admin' && status === 'active';
       return { id, email: u.email, displayName: name, role, status };
     });
+    if (becameAdmin) await notifyAccessChange(app, id, { globalRole: 'admin', invitedBy: req.user.id });
+    return result;
   });
 
   app.delete('/users/:id', { schema: { params: idParam } }, async (req) => {
@@ -148,10 +152,17 @@ export default async function adminRoutes(app) {
       groupId: { type: ['string', 'null'], maxLength: 36 },
       groupRole: { type: 'string', enum: ['admin', 'member'] },
     } } },
-  }, async (req) => createInvitation(app, {
-    email: req.body.email, role: req.body.role ?? 'user', groupId: req.body.groupId ?? null,
-    groupRole: req.body.groupRole ?? 'member', invitedBy: req.user.id,
-  }));
+  }, async (req) => {
+    const opts = {
+      role: req.body.role ?? 'user', groupId: req.body.groupId ?? null,
+      groupRole: req.body.groupRole ?? 'member', invitedBy: req.user.id,
+    };
+    // Compte existant : on garde son compte, son mot de passe et sa progression ; seul le rôle change
+    // et un e-mail l'en informe.
+    const [ex] = await app.db.query('SELECT id, email, role, status FROM users WHERE email = ?', [req.body.email.trim().toLowerCase()]);
+    if (ex[0]) return applyToExistingUser(app, ex[0], opts);
+    return createInvitation(app, { email: req.body.email, ...opts });
+  });
 
   /**
    * Import général : « Groupe ; Nom complet ; e-mail ; rôle » par ligne. Crée les groupes absents,
@@ -210,9 +221,11 @@ export default async function adminRoutes(app) {
     const [[g]] = await app.db.query('SELECT COUNT(*) AS c FROM study_groups WHERE id = ?', [req.params.id]);
     const [[u]] = await app.db.query('SELECT COUNT(*) AS c FROM users WHERE id = ?', [req.params.uid]);
     if (!Number(g.c) || !Number(u.c)) throw new HttpError(404, 'not_found', 'Groupe ou utilisateur introuvable.');
+    const [prev] = await app.db.query('SELECT role FROM group_members WHERE group_id = ? AND user_id = ?', [req.params.id, req.params.uid]);
     await app.db.query(
       'INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)',
       [req.params.id, req.params.uid, role]);
+    if (prev[0]?.role !== role) await notifyAccessChange(app, req.params.uid, { groupId: req.params.id, groupRole: role, invitedBy: req.user.id });
     return { ok: true };
   });
 
