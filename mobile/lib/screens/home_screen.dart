@@ -5,6 +5,7 @@ import '../core/auth_service.dart';
 import '../core/duas.dart';
 import '../core/models.dart';
 import '../core/prayer_service.dart';
+import '../core/push_service.dart';
 import '../core/progress_store.dart';
 import '../core/quran_repository.dart';
 import '../core/settings.dart';
@@ -66,6 +67,8 @@ class HomeScreen extends StatelessWidget {
                 ),
               ]),
               const SizedBox(height: 16),
+              // Alertes dans la barre de notifications du téléphone / du navigateur (une fois, écartable).
+              const _PushPrompt(),
               // Rappel : reprendre la dernière activité, avec une suggestion ; puis l'invocation du jour.
               _NextStepCard(onOpenTab: onOpenTab, toReview: toReview),
               const SizedBox(height: 12),
@@ -243,6 +246,60 @@ class _NotificationsBell extends StatelessWidget {
       iconSize: 26,
       onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
       icon: Badge(isLabelVisible: unread > 0, label: Text('$unread'), child: const Icon(Icons.notifications_outlined)),
+    );
+  }
+}
+
+/// Invite à recevoir les alertes de l'enseignant dans la barre de notifications, même app fermée.
+class _PushPrompt extends StatefulWidget {
+  const _PushPrompt();
+
+  @override
+  State<_PushPrompt> createState() => _PushPromptState();
+}
+
+class _PushPromptState extends State<_PushPrompt> {
+  bool _busy = false;
+
+  Future<void> _enable(PushService push) async {
+    setState(() => _busy = true);
+    try {
+      await push.enable();
+    } catch (_) {
+      if (mounted) snack(context, tr('Impossible de modifier les alertes pour le moment.'));
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final push = context.watch<PushService>();
+    if (!push.shouldPrompt) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        color: context.colors.primary.withValues(alpha: 0.08),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Icon(Icons.notifications_active_outlined, color: context.colors.primary),
+              const SizedBox(width: 10),
+              Expanded(child: Text(tr('Recevoir les alertes dans la barre de notifications'), style: context.text.titleSmall)),
+            ]),
+            const SizedBox(height: 6),
+            Text(tr('Soyez prévenu quand votre enseignant valide, demande une révision ou envoie un certificat, même si l’app est fermée.'),
+                style: TextStyle(color: context.tones.muted)),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Wrap(children: [
+                TextButton(onPressed: _busy ? null : push.dismissPrompt, child: Text(tr('Plus tard'))),
+                FilledButton(onPressed: _busy ? null : () => _enable(push), child: Text(tr('Activer'))),
+              ]),
+            ),
+          ]),
+        ),
+      ),
     );
   }
 }

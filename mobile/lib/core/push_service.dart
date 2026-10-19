@@ -49,6 +49,17 @@ class PushService extends ChangeNotifier {
   String? _sentToken; // dernier jeton envoyé au serveur (évite de le renvoyer à chaque rafraîchissement)
   StreamSubscription<String>? _tokenRefresh;
 
+  /// L'invitation à activer les alertes (accueil) a-t-elle été écartée par ce compte ?
+  bool get promptDismissed => _prefs.getBool('push_prompt_dismissed_${_auth.userId}') ?? false;
+
+  /// Faut-il proposer d'activer les alertes sur l'accueil : connecté, possible ici, pas encore activées.
+  bool get shouldPrompt => _auth.signedIn && state == PushState.off && !promptDismissed;
+
+  Future<void> dismissPrompt() async {
+    await _prefs.setBool('push_prompt_dismissed_${_auth.userId}', true);
+    notifyListeners();
+  }
+
   /// Vrai sur l'app Android (alertes natives) ; faux sur le web.
   bool get native => native_.nativePushSupported();
 

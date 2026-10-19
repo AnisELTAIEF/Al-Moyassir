@@ -92,6 +92,7 @@ et `https://quran.bestconsultingit.com/app/` (version web de l'app).
 | 0.24.0 | Les alertes portent la notification à ouvrir (toucher → l'app l'ouvre directement) ; app : « Aller à » page/sourate/juz pour l'enseignant, raccourci « Valider la mémorisation » sur l'accueil, correction du marquage de l'ayah voisin, mise à jour instantanée app ouverte. Pas de migration |
 | 0.25.0 | App : récitateurs Kamel Smida et Nour Eddine Al-Mesallati (khatma complète), sourate entière sans suivi des ayat ; nginx : emplacement `/audio/` (installé par `install.sh`). Publier les fichiers : section « Enregistrements de nos récitateurs ». Pas de migration |
 | 0.26.0 | App : Kamel Smida complet (104 sourates), « Votre khatma » au choix en 114 sourates ou 604 pages, les messages avec « Annuler » disparaissent après quelques secondes. Pas de migration |
+| 0.27.0 | App : invitation sur l'accueil à activer les alertes dans la barre de notifications (écartable). Pas de migration. E-mails : voir « E-mails qui ne partent pas » (SMTP AUTH désactivé côté Microsoft 365) |
 
 ## Mettre à jour la version web (côté développement)
 
