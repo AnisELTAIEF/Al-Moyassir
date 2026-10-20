@@ -22,6 +22,12 @@ Future<String> nativePushPermission() async {
   };
 }
 
+/// Fenêtre d'autorisation des notifications (Android 13+) ; vrai si accordée.
+Future<bool> nativePushRequestPermission() async {
+  final s = await (await _messaging()).requestPermission();
+  return s.authorizationStatus == AuthorizationStatus.authorized || s.authorizationStatus == AuthorizationStatus.provisional;
+}
+
 /// Demande l'autorisation (fenêtre Android 13+) puis renvoie le jeton de l'appareil, ou null si refusé.
 Future<String?> nativePushToken({bool ask = false}) async {
   final m = await _messaging();

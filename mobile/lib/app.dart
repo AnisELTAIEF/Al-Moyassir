@@ -68,6 +68,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       // Alertes de l'enseignant : touchée → sa notification ; reçue app ouverte → mise à jour + bandeau.
       _push.onReceived = _onPushReceived;
       _push.onOpened = (a) => _openNotification(a.id);
+      // Premier lancement sur Android : autorisation des notifications demandée d'emblée.
+      _push.askOnFirstLaunch();
     });
     _startPolling();
   }

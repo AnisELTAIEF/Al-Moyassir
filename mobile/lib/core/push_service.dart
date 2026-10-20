@@ -51,6 +51,22 @@ class PushService extends ChangeNotifier {
   /// Firebase répond « refusé » tant que l'autorisation n'est pas donnée, même jamais demandée (Android 13+) :
   /// sans ce repère, le bouton « Activer » n'apparaîtrait jamais.
   static const _nativeAskedKey = 'push_native_asked';
+
+  /// App native : ce compte a coupé les alertes lui-même (sinon, elles s'activent dès que l'autorisation est donnée).
+  String get _nativeOffKey => 'push_native_off_${_auth.userId}';
+
+  /// Premier lancement de l'app Android : demande tout de suite l'autorisation des notifications
+  /// (une seule fois). Les alertes s'activeront d'elles-mêmes à la connexion si elle est accordée.
+  Future<void> askOnFirstLaunch() async {
+    if (!native || (_prefs.getBool(_nativeAskedKey) ?? false)) return;
+    await _prefs.setBool(_nativeAskedKey, true);
+    try {
+      await native_.nativePushRequestPermission();
+    } catch (e) {
+      debugPrint('alertes Android : $e'); // Firebase indisponible sur l'appareil
+    }
+    await refresh();
+  }
   String? _sentToken; // dernier jeton envoyé au serveur (évite de le renvoyer à chaque rafraîchissement)
   StreamSubscription<String>? _tokenRefresh;
 
@@ -190,8 +206,10 @@ class PushService extends ChangeNotifier {
           final permission = await native_.nativePushPermission();
           if (permission == 'denied' && (_prefs.getBool(_nativeAskedKey) ?? false)) {
             state = PushState.denied;
-          } else if (enabledFor == _auth.userId && permission == 'granted') {
+          } else if (permission == 'granted' && (enabledFor == _auth.userId || !(_prefs.getBool(_nativeOffKey) ?? false))) {
+            // Autorisation donnée et alertes non coupées par ce compte : on (ré)enregistre l'appareil.
             await _register(await native_.nativePushToken());
+            await _prefs.setString(_nativeUserKey, _auth.userId!);
             state = PushState.on;
           } else {
             state = PushState.off;
@@ -216,6 +234,7 @@ class PushService extends ChangeNotifier {
     _sentToken = null;
     await _register(token);
     await _prefs.setString(_nativeUserKey, _auth.userId!);
+    await _prefs.remove(_nativeOffKey);
     await refresh();
     return true;
   }
@@ -223,6 +242,7 @@ class PushService extends ChangeNotifier {
   Future<void> _disableNative() async {
     final token = _sentToken ?? await native_.nativePushToken();
     await _prefs.remove(_nativeUserKey);
+    await _prefs.setBool(_nativeOffKey, true);
     _sentToken = null;
     if (token != null) {
       try {

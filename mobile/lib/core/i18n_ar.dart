@@ -308,6 +308,7 @@ const Map<String, String> arStrings = {
   'Recevoir les alertes dans la barre de notifications': 'تلقّي التنبيهات في شريط الإشعارات',
   'Soyez prévenu quand votre enseignant valide, demande une révision ou envoie un certificat, même si l’app est fermée.': 'نبّهوني عندما يعتمد معلّمي حفظي أو يطلب مراجعة أو يرسل شهادة، حتى والتطبيق مغلق.',
   'Plus tard': 'لاحقًا',
+  'Pas encore disponibles : le serveur n’est pas configuré pour les envoyer.': 'غير متاحة بعد: الخادم غير مهيّأ لإرسالها.',
   'Activer': 'تفعيل',
   'Ajuster les horaires (minutes)': 'تعديل المواقيت (بالدقائق)',
   'Pour coller au calendrier de votre mosquée': 'لتتوافق مع رزنامة مسجدكم',

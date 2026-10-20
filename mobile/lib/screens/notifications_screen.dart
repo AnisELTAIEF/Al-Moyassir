@@ -198,7 +198,20 @@ class _PushBannerState extends State<_PushBanner> {
   @override
   Widget build(BuildContext context) {
     final push = context.watch<PushService>();
-    if (push.state == PushState.unsupported || push.state == PushState.unavailable) return const SizedBox.shrink();
+    if (push.state == PushState.unsupported) return const SizedBox.shrink();
+    if (push.state == PushState.unavailable) {
+      // Le serveur n'envoie pas encore d'alertes à cet appareil : on le dit plutôt que de cacher la fonction.
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+        child: Card(
+          child: ListTile(
+            leading: Icon(Icons.notifications_off_outlined, color: context.tones.muted),
+            title: Text(tr('Alertes quand l’app est fermée')),
+            subtitle: Text(tr('Pas encore disponibles : le serveur n’est pas configuré pour les envoyer.')),
+          ),
+        ),
+      );
+    }
     final denied = push.state == PushState.denied;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
