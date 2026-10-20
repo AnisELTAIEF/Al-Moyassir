@@ -171,14 +171,18 @@ class PrayerService extends ChangeNotifier {
     return p;
   }
 
-  /// Tunisie : Fajr et ‘Ichâ’ à 18°, Dhuhr +1 min de précaution.
+  /// Tunisie (calendrier du ministère des Affaires religieuses) : Fajr et ‘Ichâ’ à 18°,
+  /// Dhuhr 7 min après le zénith et Maghrib 2 min après le coucher du soleil (marges de précaution).
   static CalculationParameters _tunisia() {
     final p = CalculationMethod.other.getParameters();
     p.fajrAngle = 18;
     p.ishaAngle = 18;
-    p.adjustments = PrayerAdjustments(dhuhr: 1);
+    p.adjustments = PrayerAdjustments(dhuhr: 7, maghrib: 2);
     return p;
   }
+
+  @visibleForTesting
+  Map<Salat, DateTime> timesOn(DateTime day) => _compute(day);
 
   Map<Salat, DateTime> _compute(DateTime day) {
     final pt = PrayerTimes(Coordinates(_lat, _lng), DateComponents.from(day), _params());

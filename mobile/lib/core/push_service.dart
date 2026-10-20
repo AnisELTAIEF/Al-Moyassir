@@ -46,6 +46,11 @@ class PushService extends ChangeNotifier {
 
   /// App native : compte pour lequel l'utilisateur a activé les alertes sur cet appareil.
   static const _nativeUserKey = 'push_native_user';
+
+  /// App native : la fenêtre d'autorisation d'Android a-t-elle déjà été proposée sur cet appareil ?
+  /// Firebase répond « refusé » tant que l'autorisation n'est pas donnée, même jamais demandée (Android 13+) :
+  /// sans ce repère, le bouton « Activer » n'apparaîtrait jamais.
+  static const _nativeAskedKey = 'push_native_asked';
   String? _sentToken; // dernier jeton envoyé au serveur (évite de le renvoyer à chaque rafraîchissement)
   StreamSubscription<String>? _tokenRefresh;
 
@@ -183,7 +188,7 @@ class PushService extends ChangeNotifier {
           state = PushState.unavailable;
         } else {
           final permission = await native_.nativePushPermission();
-          if (permission == 'denied') {
+          if (permission == 'denied' && (_prefs.getBool(_nativeAskedKey) ?? false)) {
             state = PushState.denied;
           } else if (enabledFor == _auth.userId && permission == 'granted') {
             await _register(await native_.nativePushToken());
@@ -202,6 +207,7 @@ class PushService extends ChangeNotifier {
   }
 
   Future<bool> _enableNative() async {
+    await _prefs.setBool(_nativeAskedKey, true);
     final token = await native_.nativePushToken(ask: true);
     if (token == null) {
       await refresh();

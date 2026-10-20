@@ -136,21 +136,23 @@ class _PageBar extends StatelessWidget {
                   onTap: onJump,
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(children: [
                       Flexible(
-                        child: Text(
-                          session.isRetake(page) ? tr('Page {n} · à reprendre', {'n': page}) : tr('Page {n}', {'n': page}),
-                          style: TextStyle(fontWeight: FontWeight.w600, color: session.isRetake(page) ? context.tones.red : null),
-                        ),
+                        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(tr('Page {n}', {'n': page}), maxLines: 1, softWrap: false, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          if (session.isRetake(page))
+                            Text(tr('à reprendre'), maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.tones.red)),
+                        ]),
                       ),
                       const Icon(Icons.arrow_drop_down),
                     ]),
                   ),
                 ),
               ),
-              TextButton(onPressed: onClear, child: Text(tr('Effacer la page'))),
-              const SizedBox(width: 8),
+              IconButton(onPressed: onClear, tooltip: tr('Effacer la page'), icon: const Icon(Icons.layers_clear_outlined)),
+              const SizedBox(width: 4),
               FilledButton.icon(onPressed: onAccept, icon: const Icon(Icons.check), label: Text(tr('Page acquise'))),
             ]),
           ),

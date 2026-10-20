@@ -95,6 +95,7 @@ et `https://quran.bestconsultingit.com/app/` (version web de l'app).
 | 0.27.0 | App : invitation sur l'accueil à activer les alertes dans la barre de notifications (écartable). Pas de migration. E-mails : voir « E-mails qui ne partent pas » (SMTP AUTH désactivé côté Microsoft 365) |
 | 0.27.1 | Admin web : validation de la mémorisation depuis la fiche d'un élève (ayah par ayah, sourate entière, page du mushaf). Aucun changement serveur ni migration |
 | 0.28.0 | « Hifdh global / successif » et étiquette « ضمن النخبة » dans le suivi ; autorisation des parents non exigée après 14 ans ; plusieurs enfants sur un compte de parent ; invocation de l'heure (facultative) dans la barre de notifications ; du‘â’ al-qunût, sayyid al-istighfâr et Nom suprême ; horaires de prière (méthode Tunisie + ajustements) ; connexion Google sur la version web ; couleurs « acquis avec erreur » / « à revoir » inversées. **Migrations 015 et 016** (appliquées par `install.sh` : faire d'abord `sudo /usr/local/bin/hifidh-backup`) |
+| 0.28.1 | App : horaires de prière alignés sur le calendrier officiel tunisien (Dhuhr +7 min, Maghrib +2 min) ; bouton « Activer » des alertes visible sur Android avant la première demande ; barre du bas de la validation lisible sur téléphone. Webapp reconstruite ; aucun changement serveur ni migration |
 
 ## Mettre à jour la version web (côté développement)
 

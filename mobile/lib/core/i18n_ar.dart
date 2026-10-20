@@ -608,7 +608,7 @@ const Map<String, String> arStrings = {
   'Une page est « à reprendre » quand trop d’ayat y sont acquis avec erreur ; elle porte alors un bandeau en haut.': 'تُعتبر الصفحة «للإعادة» عندما تكثر فيها الآيات المحفوظة بأخطاء، وتظهر حينها شريطًا في أعلاها.',
   'Touchez un ayah pour changer son résultat : acquis → acquis avec erreur → à revoir → effacé.': 'المس آية لتغيير نتيجتها: محفوظ ← محفوظ بأخطاء ← للمراجعة ← مَحْو.',
   'Page à reprendre': 'صفحة للإعادة',
-  'Page {n} · à reprendre': 'الصفحة {n} · للإعادة',
+  'à reprendre': 'للإعادة',
   'Pages à reprendre : {p}': 'صفحات للإعادة: {p}',
   '{n} ayat à revoir': '{n} آيات للمراجعة',
   'Notification': 'إشعار',
