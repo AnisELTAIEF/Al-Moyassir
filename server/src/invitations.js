@@ -70,7 +70,7 @@ export const invitationRow = (r) => ({
  * admin de groupe, admin général). Ne modifie rien : le compte, le mot de passe et la progression
  * restent ceux de la personne. N'échoue jamais (renvoie false si le SMTP est absent ou en erreur).
  */
-export async function notifyAccessChange(app, userId, { globalRole = null, groupId = null, groupRole = null, invitedBy = null }) {
+export async function notifyAccessChange(app, userId, { globalRole = null, groupId = null, groupRole = null, orgName = null, orgRole = null, className = null, invitedBy = null }) {
   try {
     if (!mailEnabled(app.cfg)) return false;
     const [u] = await app.db.query('SELECT email, display_name FROM users WHERE id = ?', [userId]);
@@ -80,13 +80,13 @@ export async function notifyAccessChange(app, userId, { globalRole = null, group
       const [g] = await app.db.query('SELECT name FROM study_groups WHERE id = ?', [groupId]);
       groupName = g[0]?.name ?? null;
     }
-    if (!globalRole && !groupName) return false;
+    if (!globalRole && !groupName && !orgName) return false;
     let inviterName = null;
     if (invitedBy && invitedBy !== userId) {
       const [i] = await app.db.query('SELECT display_name FROM users WHERE id = ?', [invitedBy]);
       inviterName = i[0]?.display_name ?? null;
     }
-    const mail = buildAccessMail(app.cfg, { displayName: u[0].display_name, globalRole, groupName, groupRole, inviterName });
+    const mail = buildAccessMail(app.cfg, { displayName: u[0].display_name, globalRole, groupName, groupRole, orgName, orgRole, className, inviterName });
     return await sendMail(app, { to: u[0].email, ...mail });
   } catch (e) {
     app.log.warn({ err: { message: e.message } }, 'e-mail de changement de rôle impossible');
@@ -120,4 +120,51 @@ export async function applyToExistingUser(app, user, { role = 'user', groupId = 
   if (!globalRole && !groupChange) throw new HttpError(409, 'already_member', 'Cette personne a déjà un compte avec ce rôle : rien à changer.');
   const emailed = await notifyAccessChange(app, user.id, { globalRole, ...(groupChange ?? {}), invitedBy });
   return { existingAccount: true, applied: true, email: user.email, role: globalRole ?? user.role, groupId, groupRole: groupChange?.groupRole ?? null, emailed, mailConfigured: mailEnabled(app.cfg) };
+}
+
+/**
+ * Invitation d'un enseignant (ou administratif) dans un établissement, avec ou SANS adresse e-mail.
+ * - compte existant (e-mail connu) : ajouté tout de suite (et à la classe), puis prévenu par e-mail ;
+ * - sinon : un code est créé (à transmettre ; envoyé par e-mail si une adresse est donnée et que le SMTP est configuré).
+ */
+export async function inviteToOrg(app, org, { email = null, displayName = null, orgRole = 'teacher', classId = null, invitedBy }) {
+  email = email ? email.trim().toLowerCase() : null;
+  displayName = displayName?.trim().slice(0, 80) || null;
+  if (!email && !displayName) throw new HttpError(400, 'name_required', 'Indiquez au moins un nom, ou une adresse e-mail.');
+  let className = null;
+  if (classId) {
+    const [c] = await app.db.query('SELECT name FROM study_groups WHERE id = ? AND organization_id = ?', [classId, org.id]);
+    if (!c[0]) throw new HttpError(400, 'invalid_class', 'Cette classe n’appartient pas à cet établissement.');
+    className = c[0].name;
+  }
+  if (email) {
+    const [u] = await app.db.query('SELECT id, status FROM users WHERE email = ?', [email]);
+    if (u[0]) {
+      if (u[0].status !== 'active') throw new HttpError(409, 'account_disabled', 'Ce compte est désactivé.');
+      await app.db.query('INSERT IGNORE INTO org_members (organization_id, user_id, role) VALUES (?,?,?)', [org.id, u[0].id, orgRole]);
+      if (classId && orgRole === 'teacher') await app.db.query('INSERT IGNORE INTO group_teachers (group_id, user_id) VALUES (?,?)', [classId, u[0].id]);
+      const emailed = await notifyAccessChange(app, u[0].id, { orgName: org.name, orgRole, className, invitedBy });
+      return { existingAccount: true, added: true, email, role: orgRole, classId, emailed, mailConfigured: mailEnabled(app.cfg) };
+    }
+    await app.db.query(
+      `UPDATE invitations SET revoked_at = UTC_TIMESTAMP(3)
+       WHERE email = ? AND org_id = ? AND org_role = ? AND (class_id <=> ?) AND accepted_at IS NULL AND revoked_at IS NULL`, [email, org.id, orgRole, classId]);
+  }
+  const code = newInvitationCode();
+  const id = uuid();
+  const expires = new Date(Date.now() + app.cfg.invitationTtlDays * 86_400_000);
+  await app.db.query(
+    `INSERT INTO invitations (id, email, code_hash, role, org_id, org_role, class_id, invited_by, expires_at, display_name)
+     VALUES (?, ?, ?, 'user', ?, ?, ?, ?, ?, ?)`,
+    [id, email, sha256(code), org.id, orgRole, classId, invitedBy, expires, displayName]);
+  const [inv] = await app.db.query('SELECT display_name FROM users WHERE id = ?', [invitedBy]);
+  const mail = buildInvitationMail(app.cfg, {
+    email, code, role: 'user', groupId: null, groupRole: 'member', groupName: null, displayName,
+    inviterName: inv[0]?.display_name ?? null, expiresAt: expires, orgName: org.name, orgRole, className,
+  });
+  const emailed = email && mailEnabled(app.cfg) ? await sendInvitationMail(app, id, email, mail) : false;
+  return {
+    id, email, role: orgRole, classId, displayName, code, link: app.cfg.publicUrl ? `${app.cfg.publicUrl}/invite/${code}` : null,
+    expiresAt: expires.toISOString(), subject: mail.subject, message: mail.text, emailed, mailConfigured: mailEnabled(app.cfg),
+  };
 }

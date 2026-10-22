@@ -355,3 +355,46 @@ test('import en masse de fiches : simulation, création, doublons, autorisation 
   assert.ok([403, 404].includes((await call('POST', orgUrl('/students/import'), { ...T('teacher'), body: { text } })).status), 'réservé à l’administratif');
   assert.equal((await call('POST', orgUrl('/students/import'), { ...T('outsider'), body: { text } })).status, 404);
 });
+
+test('inviter un enseignant dans une classe : sans e-mail (code), avec e-mail, et compte existant', async () => {
+  const cls = (await call('POST', orgUrl('/classes'), { ...T('orgadmin'), body: { name: 'Classe Invitations' } })).body.class;
+  const inv = (body) => call('POST', orgUrl('/invitations'), { ...T('orgadmin'), body });
+
+  // Sans e-mail : un code à transmettre ; la personne s'inscrit avec l'adresse de son choix.
+  const a = await inv({ displayName: 'Cheikh Sans Mail', role: 'teacher', classId: cls.id });
+  assert.equal(a.status, 200, JSON.stringify(a.body));
+  assert.equal(a.body.email, null);
+  assert.match(a.body.code, /^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+  assert.equal(a.body.emailed, false);
+  const pending = await call('GET', orgUrl('/invitations'), T('orgadmin'));
+  assert.ok(pending.body.items.some((i) => i.displayName === 'Cheikh Sans Mail' && i.className === 'Classe Invitations'));
+  const preview = await call('GET', `/auth/codes/${a.body.code}`);
+  assert.equal(preview.body.orgRole, 'teacher');
+  assert.equal(preview.body.className, 'Classe Invitations');
+  const r = await call('POST', '/auth/register', { body: { email: 'cheikh.sans.mail@x.io', password: 'motdepasse1', displayName: 'Cheikh', invitationCode: a.body.code } });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const [[m]] = await pool.query("SELECT COUNT(*) c FROM org_members om JOIN users u ON u.id = om.user_id WHERE u.email = 'cheikh.sans.mail@x.io' AND om.role = 'teacher' AND om.organization_id = ?", [S.org]);
+  assert.equal(Number(m.c), 1);
+  const [[gt]] = await pool.query("SELECT COUNT(*) c FROM group_teachers gt JOIN users u ON u.id = gt.user_id WHERE u.email = 'cheikh.sans.mail@x.io' AND gt.group_id = ?", [cls.id]);
+  assert.equal(Number(gt.c), 1, 'rejoint la classe');
+  assert.equal((await call('POST', '/auth/register', { body: { email: 'autre@x.io', password: 'motdepasse1', displayName: 'Autre', invitationCode: a.body.code } })).status, 400, 'le code ne sert qu’une fois');
+
+  // Compte existant (avec e-mail) : ajouté directement, rien à recréer.
+  const b = await inv({ email: 'parent@x.io', role: 'teacher', classId: cls.id });
+  assert.equal(b.body.added, true);
+  const [[pm]] = await pool.query("SELECT COUNT(*) c FROM org_members om JOIN users u ON u.id = om.user_id WHERE u.email = 'parent@x.io' AND om.role = 'teacher' AND om.organization_id = ?", [S.org]);
+  assert.equal(Number(pm.c), 1);
+
+  // E-mail inconnu : invitation liée à l'adresse ; un autre e-mail est refusé.
+  const c = await inv({ email: 'nouveau.prof@x.io', role: 'teacher' });
+  assert.equal(c.body.existingAccount, undefined);
+  assert.equal((await call('POST', '/auth/register', { body: { email: 'pas.lui@x.io', password: 'motdepasse1', displayName: 'Xx', invitationCode: c.body.code } })).body.error, 'email_mismatch');
+
+  // Révocation, droits.
+  const list = (await call('GET', orgUrl('/invitations'), T('orgadmin'))).body.items;
+  const mine = list.find((i) => i.email === 'nouveau.prof@x.io');
+  assert.equal((await call('DELETE', orgUrl(`/invitations/${mine.id}`), T('orgadmin'))).status, 200);
+  assert.equal((await call('POST', '/auth/register', { body: { email: 'nouveau.prof@x.io', password: 'motdepasse1', displayName: 'Nn', invitationCode: c.body.code } })).body.error, 'invalid_invitation');
+  assert.ok([403, 404].includes((await call('POST', orgUrl('/invitations'), { ...T('outsider'), body: { displayName: 'Xx' } })).status));
+  assert.equal((await inv({})).status, 400, 'un nom ou un e-mail est requis');
+});

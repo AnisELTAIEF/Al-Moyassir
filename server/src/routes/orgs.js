@@ -10,6 +10,7 @@ import { iso } from '../users.js';
 import { orgAccessFor, STUDENT_COLS } from '../orgAccess.js';
 import { removeProfileFiles } from '../certFiles.js';
 import { runStudentImport } from '../studentImport.js';
+import { inviteToOrg } from '../invitations.js';
 
 const RETENTION_YEARS = 5; // D20 : données d'un élève sorti conservées 5 ans au moins
 const CODE_TTL_MIN = 15;
@@ -205,6 +206,40 @@ export default async function orgRoutes(app) {
     if (!u) throw new HttpError(404, 'user_not_found', 'Aucun compte avec cet e-mail : la personne doit d’abord créer son compte.');
     await db.query('INSERT IGNORE INTO org_members (organization_id, user_id, role) VALUES (?,?,?)', [org.id, u.id, req.body.role]);
     return { member: { userId: u.id, email: u.email, displayName: u.display_name, role: req.body.role } };
+  });
+
+  // Inviter un enseignant (ou un administratif), avec ou SANS e-mail ; éventuellement directement dans une classe.
+  // Compte existant : ajouté tout de suite. Sinon : code d'invitation à transmettre (envoyé par e-mail si une adresse est donnée).
+  app.post('/:id/invitations', {
+    schema: { params: idParam, body: { type: 'object', properties: {
+      email: { type: 'string', format: 'email', maxLength: 254 },
+      displayName: { type: 'string', maxLength: 80 },
+      role: { enum: ['teacher', 'admin'] },
+      classId: { type: ['string', 'null'], maxLength: 36 },
+    } } },
+  }, async (req) => {
+    const { org } = await access(req, req.params.id, ['admin']);
+    return inviteToOrg(app, org, { email: req.body.email, displayName: req.body.displayName, orgRole: req.body.role ?? 'teacher', classId: req.body.classId ?? null, invitedBy: req.user.id });
+  });
+
+  app.get('/:id/invitations', { schema: { params: idParam } }, async (req) => {
+    const { org } = await access(req, req.params.id, ['admin']);
+    const [rows] = await db.query(
+      `SELECT i.id, i.email, i.display_name, i.org_role, i.class_id, c.name AS class_name, i.created_at, i.expires_at, i.emailed_at
+       FROM invitations i LEFT JOIN study_groups c ON c.id = i.class_id
+       WHERE i.org_id = ? AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > UTC_TIMESTAMP(3) ORDER BY i.created_at DESC`, [org.id]);
+    return { items: rows.map((r) => ({
+      id: r.id, email: r.email, displayName: r.display_name, role: r.org_role, classId: r.class_id, className: r.class_name,
+      createdAt: iso(r.created_at), expiresAt: iso(r.expires_at), emailedAt: iso(r.emailed_at),
+    })) };
+  });
+
+  app.delete('/:id/invitations/:iid', {
+    schema: { params: { type: 'object', properties: { id: { type: 'string', minLength: 36, maxLength: 36 }, iid: { type: 'string', minLength: 36, maxLength: 36 } } } },
+  }, async (req) => {
+    const { org } = await access(req, req.params.id, ['admin']);
+    await db.query('UPDATE invitations SET revoked_at = UTC_TIMESTAMP(3) WHERE id = ? AND org_id = ? AND accepted_at IS NULL', [req.params.iid, org.id]);
+    return { ok: true };
   });
 
   app.delete('/:id/members/:uid', {

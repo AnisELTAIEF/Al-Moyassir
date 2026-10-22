@@ -1,7 +1,7 @@
 import { HttpError } from '../errors.js';
 import { normalizeCode } from '../security.js';
 import { groupByCode, looksLikeGroupCode } from '../groupCodes.js';
-import { publicUser, validInvitationByCode } from '../users.js';
+import { publicUser, validInvitationByCode, applyOrgInvitation } from '../users.js';
 import { progressOf, upsertProgress, progressItemSchema } from '../progress.js';
 
 export default async function meRoutes(app) {
@@ -92,12 +92,19 @@ export default async function meRoutes(app) {
       return { group: { id: g.id, name: g.name }, role: 'member' };
     }
     const inv = await validInvitationByCode(app.db, normalizeCode(code));
-    if (!inv || !inv.group_id) throw new HttpError(404, 'invalid_code', 'Code invalide ou expiré.');
-    if (inv.email !== req.user.email.toLowerCase()) throw new HttpError(403, 'email_mismatch', `Ce code d’invitation est réservé à ${inv.email}.`);
-    await app.db.query(
-      'INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)',
-      [inv.group_id, req.user.id, inv.group_role ?? 'member']);
+    if (!inv || (!inv.group_id && !inv.org_id)) throw new HttpError(404, 'invalid_code', 'Code invalide ou expiré.');
+    if (inv.email && inv.email !== req.user.email.toLowerCase()) throw new HttpError(403, 'email_mismatch', `Ce code d’invitation est réservé à ${inv.email}.`);
+    if (inv.group_id) {
+      await app.db.query(
+        'INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)',
+        [inv.group_id, req.user.id, inv.group_role ?? 'member']);
+    }
+    await applyOrgInvitation(app.db, inv, req.user.id);
     await app.db.query('UPDATE invitations SET accepted_at = UTC_TIMESTAMP(3), accepted_by = ? WHERE id = ?', [req.user.id, inv.id]);
+    if (!inv.group_id) {
+      const [o] = await app.db.query('SELECT id, name FROM organizations WHERE id = ?', [inv.org_id]);
+      return { organization: { id: o[0].id, name: o[0].name }, role: inv.org_role };
+    }
     const [g] = await app.db.query('SELECT id, name FROM study_groups WHERE id = ?', [inv.group_id]);
     return { group: { id: g[0].id, name: g[0].name }, role: inv.group_role ?? 'member' };
   });

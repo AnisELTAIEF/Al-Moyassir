@@ -140,6 +140,7 @@ export default async function adminRoutes(app) {
     const [rows] = await app.db.query(
       `SELECT i.*, g.name AS group_name, u.display_name AS inviter_name FROM invitations i
        LEFT JOIN study_groups g ON g.id = i.group_id LEFT JOIN users u ON u.id = i.invited_by
+       WHERE i.org_id IS NULL
        ORDER BY i.created_at DESC LIMIT 500`);
     return { items: rows.map(invitationRow) };
   });

@@ -34,16 +34,20 @@ function links(cfg, code, kind) {
  * Construit l'e-mail d'invitation.
  * @returns {{ subject: string, text: string, html: string }}
  */
-export function buildInvitationMail(cfg, { email, code, role, groupId, groupRole, groupName, displayName = null, inviterName, expiresAt }) {
+export function buildInvitationMail(cfg, { email = null, code, role, groupId, groupRole, groupName, displayName = null, inviterName, expiresAt, orgName = null, orgRole = null, className = null }) {
   const kind = invitationKind({ role, groupId, groupRole });
   const L = links(cfg, code, kind);
   const until = new Date(expiresAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const hello = displayName ? `Assalamou alaykoum ${displayName}` : 'Assalamou alaykoum';
   const who = inviterName ? `${inviterName} vous invite` : 'Vous êtes invité(e)';
-  const inGroup = groupName ? ` dans le groupe « ${groupName} »` : '';
-  const as = kind === 'admin' ? ' en tant qu’administrateur général' : kind === 'groupAdmin' ? ' en tant qu’admin de ce groupe' : '';
+  const orgRoleLabel = orgRole === 'admin' ? 'administratif' : 'enseignant(e)';
+  const inGroup = orgName ? ` dans « ${orgName} »${className ? ` (classe « ${className} »)` : ''}` : groupName ? ` dans le groupe « ${groupName} »` : '';
+  const forWho = email ? `pour l’adresse ${email}` : 'avec l’adresse e-mail de votre choix';
+  const as = orgName ? ` en tant que ${orgRoleLabel}` : kind === 'admin' ? ' en tant qu’administrateur général' : kind === 'groupAdmin' ? ' en tant qu’admin de ce groupe' : '';
 
-  const subject = kind === 'admin'
+  const subject = orgName
+    ? `Invitation : ${orgRoleLabel} à « ${orgName} » sur Almoyassir (الميسّر)`
+    : kind === 'admin'
     ? 'Invitation : administrateur d’Almoyassir (الميسّر)'
     : kind === 'groupAdmin'
       ? `Vous êtes admin du groupe « ${groupName} » sur Almoyassir (الميسّر)`
@@ -83,9 +87,9 @@ export function buildInvitationMail(cfg, { email, code, role, groupId, groupRole
     {
       title: 'Créer votre compte',
       items: [
-        `Touchez « Créer un compte avec un code » et saisissez ${code} : votre e-mail${groupName ? ' et votre groupe' : ''} s’affichent tout seuls.`,
+        `Touchez « Créer un compte avec un code » et saisissez ${code}${email ? ` : votre e-mail${groupName || orgName ? ' et votre rattachement' : ''} s’affichent tout seuls` : ' (vous gardez votre adresse e-mail habituelle)'}.`,
         'Choisissez le nom affiché et un mot de passe (8 caractères au moins), ou touchez « Continuer avec Google » si votre adresse est une adresse Google.',
-        `Le code est personnel, valable jusqu’au ${until}, pour l’adresse ${email}.`,
+        `Le code est personnel, valable jusqu’au ${until}, ${forWho}.`,
       ],
     },
     {
@@ -98,6 +102,17 @@ export function buildInvitationMail(cfg, { email, code, role, groupId, groupRole
         'Déjà un compte ? Ne créez rien : connectez-vous avec votre compte habituel, votre nouveau rôle s’applique tout seul.',
       ],
     },
+    ...(orgName ? [{
+      title: orgRole === 'admin' ? `Gérer « ${orgName} »` : `Suivre vos élèves dans « ${orgName} »`,
+      items: orgRole === 'admin' ? [
+        'Dans l’admin web (ordinateur) : fiches élèves, classes, enseignants, import de listes, rapports et classement.',
+        'Vous pouvez valider la mémorisation de tous les élèves, y compris le hifdh déjà fait sur papier.',
+      ] : [
+        'Dans l’app : Compte → Mes établissements → Valider, ou le raccourci « Valider la mémorisation » de l’accueil.',
+        'Vous validez ayah par ayah, page par page, ou pour plusieurs élèves de la classe à la fois (décochez les absents).',
+        'Vous ne voyez que les élèves de vos classes.',
+      ],
+    }] : []),
     ...(kind === 'groupAdmin' ? [{
       title: 'Gérer votre groupe',
       items: [
@@ -133,7 +148,7 @@ export function buildInvitationMail(cfg, { email, code, role, groupId, groupRole
     `${who} à rejoindre Almoyassir (الميسّر)${inGroup}${as}.`,
     '',
     `Votre code d’invitation : ${code}`,
-    `(valable jusqu’au ${until}, pour l’adresse ${email})`,
+    `(valable jusqu’au ${until}, ${forWho})`,
     '',
     line, 'LIENS UTILES', line,
     ...linkRows.map(([k, v]) => `• ${k} : ${v}`),
@@ -166,7 +181,7 @@ export function buildInvitationMail(cfg, { email, code, role, groupId, groupRole
   <div style="background:#F5F6F2;border:1px dashed #C9A227;border-radius:12px;padding:14px;text-align:center">
     <div style="font-size:13px;color:#5B6B66">Votre code d’invitation</div>
     <div style="font-size:28px;font-weight:700;letter-spacing:4px;font-family:Consolas,monospace">${esc(code)}</div>
-    <div style="font-size:12px;color:#5B6B66">valable jusqu’au ${esc(until)}, pour ${esc(email)}</div>
+    <div style="font-size:12px;color:#5B6B66">valable jusqu’au ${esc(until)}, ${esc(forWho)}</div>
   </div>
   ${h2('Liens utiles')}
   <div>${[
@@ -184,7 +199,7 @@ export function buildInvitationMail(cfg, { email, code, role, groupId, groupRole
   ${L.guide ? `<p style="margin:22px 0 0;padding:12px 14px;background:#FBF6E6;border-radius:10px">Pour plus d’informations : <a href="${esc(L.guide)}" style="color:#0D5C4B;font-weight:600">guide détaillé →</a></p>` : ''}
   <p style="margin:22px 0 0">Qu’Allah vous facilite.${inviterName ? `<br>${esc(inviterName)}` : ''}</p>
 </div>
-<p style="font-size:11px;color:#8A9893;text-align:center;margin:14px 0 0">Vous recevez ce message parce qu’une invitation a été créée pour ${esc(email)}. Si vous ne la connaissez pas, ignorez-le.</p>
+<p style="font-size:11px;color:#8A9893;text-align:center;margin:14px 0 0">Vous recevez ce message parce qu’une invitation a été créée pour ${esc(email ?? 'vous')}. Si vous ne la connaissez pas, ignorez-le.</p>
 </div></body></html>`;
 
   return { subject, text, html };
@@ -195,24 +210,31 @@ export function buildInvitationMail(cfg, { email, code, role, groupId, groupRole
  * groupe, admin général). Rien n'est à recréer : même compte, même mot de passe, même progression.
  * @returns {{ subject: string, text: string, html: string }}
  */
-export function buildAccessMail(cfg, { displayName = null, globalRole = null, groupName = null, groupRole = null, inviterName = null }) {
+export function buildAccessMail(cfg, { displayName = null, globalRole = null, groupName = null, groupRole = null, orgName = null, orgRole = null, className = null, inviterName = null }) {
   const base = cfg.publicUrl;
   const android = androidApkLink(cfg);
   const isAdmin = globalRole === 'admin';
   const isGroupAdmin = Boolean(groupName) && groupRole === 'admin';
   const hello = displayName ? `Assalamou alaykoum ${displayName}` : 'Assalamou alaykoum';
   const by = inviterName ? ` par ${inviterName}` : '';
-  const change = isAdmin
+  const orgLabel = orgRole === 'admin' ? 'administratif' : 'enseignant(e)';
+  const change = orgName
+    ? `Vous êtes maintenant ${orgLabel} de « ${orgName} »${className ? ` (classe « ${className} »)` : ''} sur Almoyassir (الميسّر)${by}.`
+    : isAdmin
     ? `Vous êtes maintenant administrateur général d’Almoyassir (الميسّر)${by}.`
     : isGroupAdmin
       ? `Vous êtes maintenant admin du groupe « ${groupName} » sur Almoyassir (الميسّر)${by}.`
       : `Vous avez été ajouté(e) au groupe « ${groupName} » sur Almoyassir (الميسّر)${by}.`;
-  const subject = isAdmin
+  const subject = orgName
+    ? `Almoyassir (الميسّر) : vous êtes ${orgLabel} de « ${orgName} »`
+    : isAdmin
     ? 'Almoyassir (الميسّر) : vous êtes administrateur général'
     : isGroupAdmin
       ? `Almoyassir (الميسّر) : vous êtes admin du groupe « ${groupName} »`
       : `Almoyassir (الميسّر) : vous avez rejoint le groupe « ${groupName} »`;
-  const what = isAdmin
+  const what = orgName
+    ? (orgRole === 'admin' ? 'Depuis l’admin web (ordinateur), vous gérez les fiches élèves, les classes et les enseignants de l’établissement.' : 'Dans l’app (Compte → Mes établissements → Valider), vous validez la mémorisation des élèves de vos classes.')
+    : isAdmin
     ? 'Depuis l’admin web (sur ordinateur) vous gérez les utilisateurs, les groupes, les invitations et les rôles.'
     : isGroupAdmin
       ? 'Dans l’app (onglet « Suivi ») ou dans l’admin web, vous suivez la progression des membres et vous faites entrer de nouveaux membres.'
@@ -220,7 +242,7 @@ export function buildAccessMail(cfg, { displayName = null, globalRole = null, gr
   const rows = [
     ['Application', base ? `${base}/app/` : null],
     ['Android', android],
-    ...(isAdmin || isGroupAdmin ? [['Admin web (ordinateur)', base ? `${base}/` : null]] : []),
+    ...(isAdmin || isGroupAdmin || orgRole === 'admin' ? [['Admin web (ordinateur)', base ? `${base}/` : null]] : []),
     ['Guide détaillé', base ? `${base}/guide/${isAdmin ? '#admin-general' : isGroupAdmin ? '#admin-groupe' : '#membre'}` : null],
   ].filter(([, v]) => v);
   const keep = 'Rien à refaire : connectez-vous comme d’habitude avec votre compte et votre mot de passe actuels. Votre progression et vos réglages sont conservés.';

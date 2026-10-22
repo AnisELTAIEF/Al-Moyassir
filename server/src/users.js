@@ -46,6 +46,15 @@ export async function validInvitationByEmail(db, email) {
   return rows[0] ?? null;
 }
 
+/** Invitation d'établissement : la personne devient enseignant (ou administratif) et rejoint la classe indiquée. */
+export async function applyOrgInvitation(conn, invitation, userId) {
+  if (!invitation.org_id || !invitation.org_role) return;
+  await conn.query('INSERT IGNORE INTO org_members (organization_id, user_id, role) VALUES (?, ?, ?)', [invitation.org_id, userId, invitation.org_role]);
+  if (invitation.class_id && invitation.org_role === 'teacher') {
+    await conn.query('INSERT IGNORE INTO group_teachers (group_id, user_id) VALUES (?, ?)', [invitation.class_id, userId]);
+  }
+}
+
 /**
  * Crée un compte. L'inscription est ouverte : toute personne peut créer un compte (rôle « user »),
  * ce qui permet de conserver sa progression d'un appareil à l'autre. Le rôle vient de l'invitation
@@ -65,11 +74,12 @@ export async function createAccount(conn, cfg, { email, displayName, passwordHas
       await conn.query('INSERT IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
         [invitation.group_id, id, invitation.group_role ?? 'member']);
     }
+    await applyOrgInvitation(conn, invitation, id);
   }
   // Autres invitations en cours pour la même adresse (ex. import dans plusieurs groupes) :
   // la personne rejoint aussi ces groupes. Seulement si l'adresse est prouvée (code d'invitation
   // reçu à cette adresse, ou compte Google), jamais sur une simple inscription sans code.
-  const [others] = !invitation ? [[]] : await conn.query(
+  const [others] = !invitation || !invitation.email ? [[]] : await conn.query(
     `SELECT id, group_id, group_role FROM invitations WHERE email = ? AND accepted_at IS NULL AND revoked_at IS NULL
        AND expires_at > UTC_TIMESTAMP(3) AND group_id IS NOT NULL`, [email]);
   for (const o of others) {

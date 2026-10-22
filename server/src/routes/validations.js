@@ -15,6 +15,12 @@ import { addNotification, pushNotification } from '../notify.js';
 
 const idPid = { type: 'object', properties: { id: { type: 'string', minLength: 36, maxLength: 36 }, pid: { type: 'string', minLength: 36, maxLength: 36 } } };
 const RESULTS = ['acquired', 'acquired_error', 'review', 'cleared'];
+const dayStr = { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' };
+const rangeItem = {
+  type: 'object',
+  required: ['surah', 'from', 'to'],
+  properties: { surah: { type: 'integer', minimum: 1, maximum: 114 }, from: { type: 'integer', minimum: 1 }, to: { type: 'integer', minimum: 1 } },
+};
 
 const putSchema = {
   params: idPid,
@@ -31,7 +37,27 @@ const putSchema = {
         },
       },
       page: { type: 'integer', minimum: 1, maximum: 604 },
+      pages: { type: 'array', maxItems: 604, items: { type: 'integer', minimum: 1, maximum: 604 } },
+      ranges: { type: 'array', maxItems: 200, items: rangeItem },
       result: { enum: RESULTS },
+      at: dayStr,
+    },
+  },
+};
+
+const bulkSchema = {
+  params: { type: 'object', properties: { id: { type: 'string', minLength: 36, maxLength: 36 } } },
+  body: {
+    type: 'object',
+    required: ['studentIds'],
+    properties: {
+      studentIds: { type: 'array', minItems: 1, maxItems: 200, items: { type: 'string', minLength: 36, maxLength: 36 } },
+      items: putSchema.body.properties.items,
+      page: putSchema.body.properties.page,
+      pages: putSchema.body.properties.pages,
+      ranges: putSchema.body.properties.ranges,
+      result: putSchema.body.properties.result,
+      at: dayStr,
     },
   },
 };
@@ -55,6 +81,111 @@ const stateDto = (ref, codes, items, threshold) => ({
   threshold,
   stats: memorizationStats(ref, acquiredFlags(ref, codes, threshold)),
 });
+
+/** Les ayat visés (indices globaux → résultat) à partir de « page », « pages », « ranges » ou « items ». */
+function wantedFrom(ref, { page, pages, ranges, items, result }) {
+  const wanted = new Map();
+  const needResult = () => { if (!result) throw new HttpError(400, 'invalid_request', 'Indiquez le résultat à appliquer.'); };
+  if (page != null || pages?.length) {
+    needResult();
+    for (const p of page != null ? [page] : pages) {
+      const { from, to } = ref.pageRanges[p - 1];
+      for (let i = from; i < to; i++) wanted.set(i, result);
+    }
+  }
+  if (ranges?.length) {
+    needResult();
+    for (const r of ranges) {
+      let a, b;
+      try { a = ref.indexOf(r.surah, r.from); b = ref.indexOf(r.surah, r.to); } catch { throw new HttpError(400, 'invalid_ayah', `Passage inexistant : ${r.surah}:${r.from}-${r.to}.`); }
+      if (b < a) throw new HttpError(400, 'invalid_ayah', `Passage inversé : ${r.surah}:${r.from}-${r.to}.`);
+      for (let i = a; i <= b; i++) wanted.set(i, result);
+    }
+  }
+  if (items?.length) {
+    for (const it of items) {
+      let idx;
+      try { idx = ref.indexOf(it.surah, it.ayah); } catch { throw new HttpError(400, 'invalid_ayah', `Ayah inexistant : ${it.surah}:${it.ayah}.`); }
+      wanted.set(idx, it.result);
+    }
+  }
+  if (!wanted.size) throw new HttpError(400, 'invalid_request', 'Rien à valider : fournissez « items », « page(s) » ou « ranges » et « result ».');
+  return wanted;
+}
+
+/**
+ * Applique une validation à un élève (journal + état + notification). `at` (AAAA-MM-JJ) : saisie d'un hifdh
+ * déjà validé sur papier, datée du jour réel de la validation ; sans alerte à l'élève.
+ */
+async function applyValidation(app, ctx, st, body, userId) {
+  const db = app.db;
+  const ref = app.reference;
+  if (st.status !== 'active') throw new HttpError(409, 'student_left', 'Cet élève est sorti de l’établissement.');
+  const at = body.at ? new Date(`${body.at}T12:00:00Z`) : null;
+  if (body.at && (Number.isNaN(at.getTime()) || at.toISOString().slice(0, 10) !== body.at || at > new Date())) throw new HttpError(400, 'invalid_date', 'Date de validation invalide (pas dans le futur).');
+  if (at && !ctx.seesAll) throw new HttpError(403, 'forbidden', 'Seul l’administratif peut saisir un hifdh validé sur papier (avec une date).');
+  const threshold = Number(ctx.org.error_threshold);
+  const wanted = wantedFrom(ref, body);
+  // 2. On ne garde que ce qui change vraiment (pas de bruit dans le journal).
+  const { codes } = await loadStates(db, ref, ctx.org.id, st.id);
+  const before = new Set(retakePages(ref, codes, threshold));
+  const next = Uint8Array.from(codes);
+  const effective = [];
+  for (const [idx, res] of wanted) {
+    const code = res === 'cleared' ? 0 : RESULT_CODE[res];
+    if (next[idx] === code) continue;
+    next[idx] = code;
+    effective.push({ idx, code, res });
+  }
+  const after = retakePages(ref, next, threshold);
+  if (!effective.length) return { changed: 0, retakePages: after, threshold };
+
+  // 3. Journal + état, en une transaction.
+  const sent = [];
+  await tx(db, async (c) => {
+    const journal = effective.map((e) => { const [s, a] = ref.refAt(e.idx); return [ctx.org.id, st.id, userId, s, a, e.res, at ?? new Date()]; });
+    await c.query('INSERT INTO validations (organization_id, profile_id, teacher_id, surah, ayah, result, created_at) VALUES ?', [journal]);
+    const set = effective.filter((e) => e.code !== 0).map((e) => { const [s, a] = ref.refAt(e.idx); return [ctx.org.id, st.id, s, a, e.res, userId, at ?? new Date()]; });
+    if (set.length) {
+      await c.query(
+        `INSERT INTO validation_state (organization_id, profile_id, surah, ayah, result, teacher_id, updated_at)
+         VALUES ${set.map(() => '(?,?,?,?,?,?,?)').join(',')}
+         ON DUPLICATE KEY UPDATE result = VALUES(result), teacher_id = VALUES(teacher_id), updated_at = VALUES(updated_at)`,
+        set.flat());
+    }
+    for (const e of effective.filter((x) => x.code === 0)) {
+      const [s, a] = ref.refAt(e.idx);
+      await c.query('DELETE FROM validation_state WHERE organization_id = ? AND profile_id = ? AND surah = ? AND ayah = ?', [ctx.org.id, st.id, s, a]);
+    }
+
+    // 4. Notification à l'élève (s'il a un compte lié) : pages qui basculent « à reprendre », ayat à revoir.
+    if (st.user_id && !at) {
+      const newlyRetake = after.filter((p) => !before.has(p));
+      const reviewIdx = effective.filter((e) => e.code === 3).map((e) => e.idx);
+      const name = (s) => ref.surahNames?.get(s) ?? String(s);
+      const span = (x) => (x.from === x.to ? `${x.from}` : `${x.from}–${x.to}`);
+      const note = async (kind, title, body, extra) => {
+        const payload = { organizationId: ctx.org.id, organizationName: ctx.org.name, ...extra };
+        const id = await addNotification(c, st.user_id, { kind, title, body, payload });
+        sent.push({ kind, payload, id });
+      };
+      if (newlyRetake.length) {
+        // Sourate du début de chaque page, pour que l'élève s'y retrouve sans connaître les numéros de page.
+        const pageInfo = newlyRetake.map((p) => { const [s, a] = ref.refAt(ref.pageRanges[p - 1].from); return { page: p, surah: s, ayah: a, name: name(s) }; });
+        const txt = pageInfo.map((x) => `${x.page} (${x.name})`).join(', ');
+        await note('retake_pages', 'Page à reprendre', `Page(s) à reprendre : ${txt} (${ctx.org.name}).`, { pages: newlyRetake, pageInfo });
+      }
+      if (reviewIdx.length) {
+        const refs = passagesOf(ref, reviewIdx).map((x) => ({ ...x, name: name(x.surah) }));
+        const txt = refs.map((x) => `${x.name} ${span(x)}`).join(' · ');
+        await note('review_ayat', 'Ayat à revoir', `${reviewIdx.length} ayat à revoir : ${txt} (${ctx.org.name}).`, { count: reviewIdx.length, refs });
+      }
+    }
+  });
+  // 5. Alerte sur les appareils de l'élève, une fois la transaction validée (n'échoue jamais).
+  for (const n of sent) await pushNotification(app, st.user_id, n);
+  return { changed: effective.length, retakePages: after, threshold };
+}
 
 /** Routes de l'équipe, sous /orgs. */
 export default async function validationRoutes(app) {
@@ -83,85 +214,26 @@ export default async function validationRoutes(app) {
   app.put('/:id/students/:pid/validation', { schema: putSchema }, async (req) => {
     const ctx = await access(req, req.params.id, ['admin', 'teacher']);
     const st = await studentOf(req, ctx, req.params.pid);
-    if (st.status !== 'active') throw new HttpError(409, 'student_left', 'Cet élève est sorti de l’établissement.');
-    const threshold = Number(ctx.org.error_threshold);
-    const { page, result, items } = req.body;
+    return applyValidation(app, ctx, st, req.body, req.user.id);
+  });
 
-    // 1. Les changements demandés, sous forme d'indices globaux (le dernier gagne si un ayah est répété).
-    const wanted = new Map();
-    if (page != null) {
-      if (!result) throw new HttpError(400, 'invalid_request', 'Indiquez le résultat à appliquer à la page.');
-      const { from, to } = ref.pageRanges[page - 1];
-      for (let i = from; i < to; i++) wanted.set(i, result);
-    } else if (items?.length) {
-      for (const it of items) {
-        let idx;
-        try { idx = ref.indexOf(it.surah, it.ayah); } catch { throw new HttpError(400, 'invalid_ayah', `Ayah inexistant : ${it.surah}:${it.ayah}.`); }
-        wanted.set(idx, it.result);
+  // Plusieurs élèves d'un coup (même classe) : mêmes pages / passages pour tous ceux qui sont cochés.
+  app.post('/:id/validation/bulk', { schema: bulkSchema }, async (req) => {
+    const ctx = await access(req, req.params.id, ['admin', 'teacher']);
+    const ids = [...new Set(req.body.studentIds)];
+    const { studentIds, ...rest } = req.body;
+    const out = [];
+    for (const pid of ids) {
+      try {
+        const st = await studentOf(req, ctx, pid);
+        const r = await applyValidation(app, ctx, st, rest, req.user.id);
+        out.push({ studentId: pid, name: st.full_name, changed: r.changed });
+      } catch (e) {
+        out.push({ studentId: pid, error: e instanceof HttpError ? e.message : 'Erreur inattendue.' });
+        if (!(e instanceof HttpError)) app.log.error(e);
       }
-    } else {
-      throw new HttpError(400, 'invalid_request', 'Rien à valider : fournissez « items » ou « page » et « result ».');
     }
-
-    // 2. On ne garde que ce qui change vraiment (pas de bruit dans le journal).
-    const { codes } = await loadStates(db, ref, ctx.org.id, st.id);
-    const before = new Set(retakePages(ref, codes, threshold));
-    const next = Uint8Array.from(codes);
-    const effective = [];
-    for (const [idx, res] of wanted) {
-      const code = res === 'cleared' ? 0 : RESULT_CODE[res];
-      if (next[idx] === code) continue;
-      next[idx] = code;
-      effective.push({ idx, code, res });
-    }
-    const after = retakePages(ref, next, threshold);
-    if (!effective.length) return { changed: 0, retakePages: after, threshold };
-
-    // 3. Journal + état, en une transaction.
-    const sent = [];
-    await tx(db, async (c) => {
-      const journal = effective.map((e) => { const [s, a] = ref.refAt(e.idx); return [ctx.org.id, st.id, req.user.id, s, a, e.res]; });
-      await c.query('INSERT INTO validations (organization_id, profile_id, teacher_id, surah, ayah, result) VALUES ?', [journal]);
-      const set = effective.filter((e) => e.code !== 0).map((e) => { const [s, a] = ref.refAt(e.idx); return [ctx.org.id, st.id, s, a, e.res, req.user.id]; });
-      if (set.length) {
-        await c.query(
-          `INSERT INTO validation_state (organization_id, profile_id, surah, ayah, result, teacher_id, updated_at)
-           VALUES ${set.map(() => '(?,?,?,?,?,?,UTC_TIMESTAMP(3))').join(',')}
-           ON DUPLICATE KEY UPDATE result = VALUES(result), teacher_id = VALUES(teacher_id), updated_at = VALUES(updated_at)`,
-          set.flat());
-      }
-      for (const e of effective.filter((x) => x.code === 0)) {
-        const [s, a] = ref.refAt(e.idx);
-        await c.query('DELETE FROM validation_state WHERE organization_id = ? AND profile_id = ? AND surah = ? AND ayah = ?', [ctx.org.id, st.id, s, a]);
-      }
-
-      // 4. Notification à l'élève (s'il a un compte lié) : pages qui basculent « à reprendre », ayat à revoir.
-      if (st.user_id) {
-        const newlyRetake = after.filter((p) => !before.has(p));
-        const reviewIdx = effective.filter((e) => e.code === 3).map((e) => e.idx);
-        const name = (s) => ref.surahNames?.get(s) ?? String(s);
-        const span = (x) => (x.from === x.to ? `${x.from}` : `${x.from}–${x.to}`);
-        const note = async (kind, title, body, extra) => {
-          const payload = { organizationId: ctx.org.id, organizationName: ctx.org.name, ...extra };
-          const id = await addNotification(c, st.user_id, { kind, title, body, payload });
-          sent.push({ kind, payload, id });
-        };
-        if (newlyRetake.length) {
-          // Sourate du début de chaque page, pour que l'élève s'y retrouve sans connaître les numéros de page.
-          const pageInfo = newlyRetake.map((p) => { const [s, a] = ref.refAt(ref.pageRanges[p - 1].from); return { page: p, surah: s, ayah: a, name: name(s) }; });
-          const txt = pageInfo.map((x) => `${x.page} (${x.name})`).join(', ');
-          await note('retake_pages', 'Page à reprendre', `Page(s) à reprendre : ${txt} (${ctx.org.name}).`, { pages: newlyRetake, pageInfo });
-        }
-        if (reviewIdx.length) {
-          const refs = passagesOf(ref, reviewIdx).map((x) => ({ ...x, name: name(x.surah) }));
-          const txt = refs.map((x) => `${x.name} ${span(x)}`).join(' · ');
-          await note('review_ayat', 'Ayat à revoir', `${reviewIdx.length} ayat à revoir : ${txt} (${ctx.org.name}).`, { count: reviewIdx.length, refs });
-        }
-      }
-    });
-    // 5. Alerte sur les appareils de l'élève, une fois la transaction validée (n'échoue jamais).
-    for (const n of sent) await pushNotification(app, st.user_id, n);
-    return { changed: effective.length, retakePages: after, threshold };
+    return { results: out, changed: out.filter((x) => x.changed > 0).length, errors: out.filter((x) => x.error).length };
   });
 }
 

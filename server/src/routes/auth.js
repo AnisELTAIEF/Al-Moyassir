@@ -31,7 +31,7 @@ export default async function authRoutes(app) {
         return u;
       }
       const { invitation, group } = await resolveCodes(conn, req.body);
-      if (invitation && invitation.email !== g.email) throw emailMismatch(invitation.email);
+      if (invitation?.email && invitation.email !== g.email) throw emailMismatch(invitation.email);
       return createAccount(conn, app.cfg, {
         email: g.email, displayName: g.name, googleSub: g.sub,
         invitation: invitation ?? (group ? null : await validInvitationByEmail(conn, g.email)), group,
@@ -57,8 +57,8 @@ export default async function authRoutes(app) {
     const user = await tx(app.db, async (conn) => {
       const { invitation, group } = await resolveCodes(conn, req.body);
       const given = req.body.email?.trim().toLowerCase();
-      if (invitation && given && given !== invitation.email) throw emailMismatch(invitation.email);
-      const email = invitation?.email ?? given;
+      if (invitation?.email && given && given !== invitation.email) throw emailMismatch(invitation.email);
+      const email = invitation?.email ?? given; // invitation sans e-mail : celui de la personne
       if (!email) throw new HttpError(400, 'email_required', 'Indiquez votre adresse e-mail.');
       if (await findUserByEmail(conn, email)) {
         throw new HttpError(409, 'email_taken', 'Un compte existe déjà avec cet e-mail. Connectez-vous.');
@@ -161,7 +161,8 @@ export default async function authRoutes(app) {
     if (!inv) throw new HttpError(404, 'invalid_code', 'Code invalide ou expiré. Vérifiez-le auprès de l’admin du groupe.');
     const [gr] = inv.group_id ? await app.db.query('SELECT name FROM study_groups WHERE id = ?', [inv.group_id]) : [[]];
     const [by] = inv.invited_by ? await app.db.query('SELECT display_name FROM users WHERE id = ?', [inv.invited_by]) : [[]];
-    return { type: 'invitation', email: inv.email, displayName: inv.display_name ?? null, role: inv.role, groupName: gr[0]?.name ?? null, invitedBy: by[0]?.display_name ?? null, expiresAt: iso(inv.expires_at) };
+    const org = await orgInfo(app.db, inv);
+    return { type: 'invitation', email: inv.email, displayName: inv.display_name ?? null, role: inv.role, groupName: gr[0]?.name ?? null, ...org, invitedBy: by[0]?.display_name ?? null, expiresAt: iso(inv.expires_at) };
   });
 
   /** Aperçu public d'une invitation (pour l'écran « J'ai un code »). */
@@ -170,8 +171,17 @@ export default async function authRoutes(app) {
     if (!inv) throw new HttpError(404, 'invalid_invitation', 'Code d’invitation invalide ou expiré.');
     const [g] = inv.group_id ? await app.db.query('SELECT name FROM study_groups WHERE id = ?', [inv.group_id]) : [[]];
     const [by] = inv.invited_by ? await app.db.query('SELECT display_name FROM users WHERE id = ?', [inv.invited_by]) : [[]];
-    return { email: inv.email, displayName: inv.display_name ?? null, role: inv.role, groupName: g[0]?.name ?? null, invitedBy: by[0]?.display_name ?? null, expiresAt: iso(inv.expires_at) };
+    const org = await orgInfo(app.db, inv);
+    return { email: inv.email, displayName: inv.display_name ?? null, role: inv.role, groupName: g[0]?.name ?? null, ...org, invitedBy: by[0]?.display_name ?? null, expiresAt: iso(inv.expires_at) };
   });
+}
+
+/** Établissement, rôle et classe d'une invitation d'établissement (vide pour les autres). */
+async function orgInfo(db, inv) {
+  if (!inv.org_id) return {};
+  const [[o]] = await db.query('SELECT name FROM organizations WHERE id = ?', [inv.org_id]);
+  const [c] = inv.class_id ? await db.query('SELECT name FROM study_groups WHERE id = ?', [inv.class_id]) : [[]];
+  return { orgName: o?.name ?? null, orgRole: inv.org_role, className: c[0]?.name ?? null };
 }
 
 const emailMismatch = (email) => new HttpError(400, 'email_mismatch', `Ce code d’invitation est réservé à ${email}.`);

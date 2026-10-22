@@ -235,3 +235,37 @@ test('un enseignant retiré de la classe ne peut plus valider ses élèves', asy
   await call('DELETE', `/orgs/${S.org}/classes/${S.cls}/teachers/${U.teacher.id}`, T('orgadmin'));
   assert.equal((await validate('teacher', { items: ayat(60, 60, 'acquired') })).status, 404);
 });
+
+test('validation groupée : mêmes passages pour les élèves cochés, droits de l’enseignant respectés', async () => {
+  // L'enseignant est retiré de la classe (test précédent) : on le rattache de nouveau.
+  await call('PUT', `/orgs/${S.org}/classes/${S.cls}/teachers`, { ...T('orgadmin'), body: { userId: U.teacher.id } });
+  const mk = async (name) => (await call('POST', `/orgs/${S.org}/students`, { ...T('orgadmin'), body: { fullName: name, fatherName: 'x', guardianConsent: true, groupIds: [S.cls] } })).body.student.id;
+  const a = await mk('Groupe A'), b = await mk('Groupe B');
+  const outside = (await call('POST', `/orgs/${S.org}/students`, { ...T('orgadmin'), body: { fullName: 'Hors classe', fatherName: 'x', guardianConsent: true } })).body.student.id;
+  const bulk = (k, body) => call('POST', `/orgs/${S.org}/validation/bulk`, { ...T(k), body });
+
+  const r = await bulk('teacher', { studentIds: [a, b, outside], ranges: [{ surah: 2, from: 5, to: 15 }], result: 'acquired' });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.changed, 2);
+  assert.equal(r.body.errors, 1, 'l’élève hors de ses classes est refusé, les autres sont validés');
+  assert.equal((await state('teacher', S.org, a)).body.items.length, 11);
+  assert.equal((await state('teacher', S.org, b)).body.items.length, 11);
+  assert.equal((await state('orgadmin', S.org, outside)).body.items.length, 0);
+
+  // Pages entières, et rien à valider = refus.
+  const p = await bulk('teacher', { studentIds: [a], pages: [3, 4], result: 'acquired_error' });
+  assert.equal(p.body.results[0].changed > 0, true);
+  assert.equal((await bulk('teacher', { studentIds: [a] })).body.errors, 1);
+});
+
+test('hifdh sur papier : l’administratif saisit une validation datée, sans alerte ; l’enseignant ne le peut pas', async () => {
+  const mk = (await call('POST', `/orgs/${S.org}/students`, { ...T('orgadmin'), body: { fullName: 'Élève Papier', fatherName: 'x', guardianConsent: true, groupIds: [S.cls] } })).body.student.id;
+  const body = { ranges: [{ surah: 2, from: 5, to: 7 }], result: 'acquired', at: '2026-01-15' };
+  assert.equal((await validate('teacher', body, S.org, mk)).status, 403);
+  const r = await validate('orgadmin', body, S.org, mk);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.changed, 3);
+  const [[row]] = await pool.query("SELECT DATE_FORMAT(MIN(created_at), '%Y-%m-%d') d FROM validations WHERE profile_id = ?", [mk]);
+  assert.equal(row.d, '2026-01-15', 'daté du jour réel de la validation');
+  assert.equal((await validate('orgadmin', { ...body, at: '2999-01-01' }, S.org, mk)).status, 400, 'pas de date future');
+});
