@@ -8,11 +8,12 @@ import Invitations from './pages/Invitations';
 import GroupsPage from './pages/GroupsPage';
 import GroupView from './pages/GroupView';
 import Import from './pages/Import';
+import { TrashPanel } from './pages/OrgTools';
 import Orgs from './pages/Orgs';
 import { ThemeToggle } from './theme';
 import { lang, setLang, t } from './i18n';
 
-type Page = 'overview' | 'users' | 'invitations' | 'groups' | 'orgs' | 'import';
+type Page = 'overview' | 'users' | 'invitations' | 'groups' | 'orgs' | 'import' | 'trash';
 
 export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
@@ -63,7 +64,7 @@ export default function App() {
   }
 
   const nav: [Page, string][] = isAdmin
-    ? [['overview', 'Aperçu'], ['orgs', 'Établissements'], ['users', 'Utilisateurs'], ['invitations', 'Invitations'], ['groups', 'Groupes'], ['import', 'Import']]
+    ? [['overview', 'Aperçu'], ['orgs', 'Établissements'], ['users', 'Utilisateurs'], ['invitations', 'Invitations'], ['groups', 'Groupes'], ['import', 'Import'], ['trash', 'Corbeille']]
     : [...(staffOrgs.length ? ([['orgs', staffOrgs.length > 1 ? 'Mes établissements' : 'Mon établissement']] as [Page, string][]) : []),
        ...(managed.length ? ([['groups', 'Mes groupes']] as [Page, string][]) : [])];
   const current = nav.some(([p]) => p === page) ? page : nav[0][0];
@@ -99,6 +100,11 @@ export default function App() {
           <Invitations api={api} />
         ) : current === 'import' ? (
           <Import api={api} />
+        ) : current === 'trash' ? (
+          <>
+            <h1>{t('Corbeille')}</h1>
+            <TrashPanel showOrg load={() => api!.adminTrash()} restore={(id) => api!.restoreAdminTrash(id)} purge={(id) => api!.purgeAdminTrash(id)} />
+          </>
         ) : (
           <GroupsPage api={api} isAdmin={isAdmin}
             managed={managed.map((g): GroupSummary => ({ id: g.id, name: g.name, members: g.members, managers: 1 }))}

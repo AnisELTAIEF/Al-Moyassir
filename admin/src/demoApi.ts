@@ -212,6 +212,17 @@ export function createDemoApi(): Api {
     unlinkStudent: async (_o, id) => { d.students.find((x) => x.id === id)!.linked = false; },
     setStudentElite: async (_o, id, elite) => { const s = d.students.find((x) => x.id === id)!; s.eliteTag = elite; return s; },
     studentValidation: async (_o, id) => ({ items: [...(vals.get(id) ?? new Map()).entries()].map(([k, result]) => { const [surah, ayah] = k.split(':').map(Number); return { surah, ayah, result, at: ago(0) }; }), retakePages: [], threshold: 3 }),
+    bulkValidation: async (_o, body) => ({ results: body.studentIds.map((studentId) => ({ studentId, changed: 11 })), changed: body.studentIds.length, errors: 0 }),
+    inviteToOrg: async (_o, input) => input.email && input.email.includes('exemple')
+      ? { existingAccount: true as const, added: true as const, email: input.email, role: input.role, emailed: false, mailConfigured: false }
+      : { email: input.email ?? null, code: 'ABCD-2345', link: 'https://exemple.test/invite/ABCD-2345', message: 'Message d’invitation (démo)', expiresAt: ago(-14), emailed: false, mailConfigured: false },
+    orgInvitations: async () => [],
+    revokeOrgInvitation: async () => {},
+    orgTrash: async () => [{ id: 't1', kind: 'class', kindLabel: 'Classe', label: 'فوج قديم', orgId: 'o1', orgName: 'جامع النور', deletedAt: ago(3), deletedBy: 'Responsable', level: 1 as const, daysLeft: 27 }],
+    restoreOrgTrash: async () => {},
+    adminTrash: async () => [{ id: 't2', kind: 'group', kindLabel: 'Groupe', label: 'مجموعة قديمة', orgId: null, orgName: null, deletedAt: ago(40), deletedBy: 'Anis', level: 2 as const, daysLeft: 20 }],
+    restoreAdminTrash: async () => {},
+    purgeAdminTrash: async () => {},
     putValidation: async (_o, id, body) => {
       const m = vals.get(id) ?? new Map();
       vals.set(id, m);

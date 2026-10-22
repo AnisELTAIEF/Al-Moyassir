@@ -6,9 +6,10 @@ import { ORG_TYPE, classWord } from './orgLabels';
 import Follow from './Follow';
 import { CoverageMap, Rhythm, ResultsSection } from './StudentResults';
 import { ValidationSection } from './Validate';
+import { GroupValidate, OrgInviteForm, PendingOrgInvitations, TrashPanel } from './OrgTools';
 import { t } from '../i18n';
 
-type Tab = 'students' | 'follow' | 'classes' | 'team' | 'settings';
+type Tab = 'students' | 'validate' | 'follow' | 'classes' | 'team' | 'trash' | 'settings';
 const ROLE: Record<OrgRole, string> = { admin: 'Administratif (إداري)', teacher: 'Enseignant (مدرس)', student: 'Élève (طالب)' };
 const waLink = (phone: string, text: string) => `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -28,7 +29,7 @@ export default function OrgView({ api, org, isGlobalAdmin, onBack, onChanged }: 
   const [tab, setTab] = useState<Tab>('students');
   const [selected, setSelected] = useState<string | null>(null);
   const [current, setCurrent] = useState(org);
-  const tabs: [Tab, string][] = [['students', 'Élèves'], ['follow', 'Suivi (متابعة)'], ['classes', 'Classes'], ...(canEdit ? ([['team', 'Équipe'], ['settings', 'Réglages']] as [Tab, string][]) : [])];
+  const tabs: [Tab, string][] = [['students', 'Élèves'], ...(canReward ? ([['validate', 'Validation groupée']] as [Tab, string][]) : []), ['follow', 'Suivi (متابعة)'], ['classes', 'Classes'], ...(canEdit ? ([['team', 'Équipe'], ['trash', 'Corbeille'], ['settings', 'Réglages']] as [Tab, string][]) : [])];
   return (
     <>
       <button className="btn ghost small" onClick={onBack}>{t('← Établissements')}</button>
@@ -40,6 +41,8 @@ export default function OrgView({ api, org, isGlobalAdmin, onBack, onChanged }: 
         ))}
       </div>
       {tab === 'students' && <StudentsTab api={api} org={current} canEdit={canEdit} canReward={canReward} isGlobalAdmin={isGlobalAdmin} selected={selected} setSelected={setSelected} />}
+      {tab === 'validate' && canReward && <GroupValidate api={api} org={current} canBackdate={canEdit} />}
+      {tab === 'trash' && canEdit && <TrashPanel load={() => api.orgTrash(current.id)} restore={(id) => api.restoreOrgTrash(current.id, id)} />}
       {tab === 'follow' && <Follow api={api} org={current} onOpen={(id) => { setSelected(id); setTab('students'); }} />}
       {tab === 'classes' && <ClassesTab api={api} org={current} canEdit={canEdit} />}
       {tab === 'team' && canEdit && <TeamTab api={api} org={current} />}
@@ -424,6 +427,7 @@ function ClassesTab({ api, org, canEdit }: { api: Api; org: OrgSummary; canEdit:
   const list = useAsync(() => api.orgClasses(org.id), [org.id]);
   const team = useAsync(() => (canEdit ? api.orgMembers(org.id) : Promise.resolve([])), [org.id, canEdit]);
   const [name, setName] = useState('');
+  const [inviting, setInviting] = useState<string | null>(null);
   const [msg, setMsg] = useFlash();
   const fail = (e: Error) => setMsg(e.message);
   const teachers = (team.data ?? []).filter((m) => m.roles.includes('teacher'));
@@ -448,10 +452,12 @@ function ClassesTab({ api, org, canEdit }: { api: Api; org: OrgSummary; canEdit:
                   <option value="">{t('+ Enseignant…')}</option>
                   {teachers.filter((t) => !c.teachers.some((x) => x.userId === t.userId)).map((t) => <option key={t.userId} value={t.userId}>{t.displayName}</option>)}
                 </select>
+                <button className="btn ghost small" onClick={() => setInviting(inviting === c.id ? null : c.id)}>{inviting === c.id ? t('Fermer') : t('+ Inviter un enseignant')}</button>
                 <button className="btn ghost small" onClick={() => { const n = window.prompt('Nouveau nom de la classe', c.name); if (n?.trim()) api.renameClass(org.id, c.id, n.trim()).then(list.reload, fail); }}>{t('Renommer')}</button>
                 <button className="btn ghost small danger-text" onClick={() => window.confirm(`Supprimer la classe « ${c.name} » ? Les fiches des élèves sont conservées.`) && api.deleteClass(org.id, c.id).then(list.reload, fail)}>{t('Supprimer')}</button>
               </div>
             )}
+            {canEdit && inviting === c.id && <OrgInviteForm api={api} org={org} classId={c.id} className={c.name} onDone={() => { list.reload(); team.reload(); }} />}
           </div>
         ))}
         {list.data?.length === 0 && <p className="muted">Aucune classe{canEdit ? ' : créez la première ci-dessous.' : ' ne vous est affectée.'}</p>}
@@ -472,10 +478,15 @@ function TeamTab({ api, org }: { api: Api; org: OrgSummary }) {
   const list = useAsync(() => api.orgMembers(org.id), [org.id]);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<OrgRole>('teacher');
+  const [pending, setPending] = useState(0);
   const [msg, setMsg] = useFlash();
   const fail = (e: Error) => setMsg(e.message);
   return (
     <>
+      <h3>{t('Inviter un enseignant ou un administratif')}</h3>
+      <OrgInviteForm api={api} org={org} onDone={() => { list.reload(); setPending((n) => n + 1); }} />
+      <PendingOrgInvitations api={api} org={org} refresh={pending} />
+      <h3>{t('Ajouter une personne qui a déjà un compte')}</h3>
       <p className="muted small">{t('La personne doit d’abord avoir créé son compte (application ou page de connexion) avec cet e-mail.')}</p>
       <form className="card invite-form" onSubmit={(e) => { e.preventDefault(); api.addOrgMember(org.id, email.trim(), role).then(() => { setEmail(''); list.reload(); }, fail); }}>
         <label>{t('E-mail')}<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('prenom.nom@gmail.com')} /></label>

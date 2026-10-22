@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { AR } from './i18n_ar';
 
 // Pages et modules traduits : chaque t('…') doit avoir son entrée arabe (sinon le français s'afficherait en mode arabe).
-const FILES = ['App.tsx', 'pages/Orgs.tsx', 'pages/OrgView.tsx', 'pages/StudentResults.tsx', 'pages/Follow.tsx', 'export.ts'];
+const FILES = ['App.tsx', 'pages/Orgs.tsx', 'pages/OrgView.tsx', 'pages/StudentResults.tsx', 'pages/Follow.tsx', 'pages/OrgTools.tsx', 'export.ts'];
 const EXTRA = ['Aperçu', 'Établissements', 'Utilisateurs', 'Invitations', 'Groupes', 'Import', 'Mes établissements', 'Mon établissement', 'Mes groupes', 'Élèves', 'Suivi (متابعة)', 'Classes', 'Équipe', 'Réglages',
   'Ce mois', 'Ce trimestre', 'Ce semestre', 'Cette année', 'Depuis toujours']; // libellés passés à t() par variable
 

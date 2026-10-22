@@ -107,20 +107,22 @@ export const TOTAL = TOTAL_AYAHS;
 export function InvitationResult({ created }: { created: CreatedInvitation }) {
   const [copied, setCopied] = useState(false);
   const subject = created.subject ?? 'Invitation Almoyassir (الميسّر)';
-  const mailto = `mailto:${encodeURIComponent(created.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(created.message)}`;
+  const mailto = created.email && `mailto:${encodeURIComponent(created.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(created.message)}`;
   return (
     <div className="card created" role="status">
       <div>
         {created.emailed
           ? <p>✓ E-mail d’invitation envoyé à <strong>{created.email}</strong>. Code (affiché une seule fois) :</p>
-          : <p>Invitation créée pour <strong>{created.email}</strong>. Envoyez-lui le message ci-contre ; le code ne sera plus affiché ensuite :</p>}
+          : created.email
+            ? <p>Invitation créée pour <strong>{created.email}</strong>. Envoyez-lui le message ci-contre ; le code ne sera plus affiché ensuite :</p>
+            : <p>Invitation créée (sans e-mail). Transmettez le code ou le message à la personne (WhatsApp, SMS…) ; le code ne sera plus affiché ensuite :</p>}
         <div className="code">{created.code}</div>
         {created.link && <p className="muted small">Lien : {created.link}</p>}
         {!created.emailed && created.mailConfigured && <p className="warn small">L’envoi automatique a échoué : envoyez le message vous-même.</p>}
       </div>
       <div className="row-actions">
         <button className="btn" onClick={() => { navigator.clipboard?.writeText(created.message); setCopied(true); }}>{copied ? 'Message copié ✓' : 'Copier le message'}</button>
-        {!created.emailed && <a className="btn ghost" href={mailto}>Ouvrir dans ma messagerie</a>}
+        {!created.emailed && mailto && <a className="btn ghost" href={mailto}>Ouvrir dans ma messagerie</a>}
       </div>
     </div>
   );

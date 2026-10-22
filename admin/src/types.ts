@@ -49,7 +49,7 @@ export interface ImportResult {
   items: ImportItem[];
 }
 export interface CreatedInvitation {
-  email: string; code: string; link: string | null; message: string; expiresAt: string;
+  email: string | null; code: string; link: string | null; message: string; expiresAt: string;
   /** Sujet de l'e-mail (adapté au rôle invité). */
   subject?: string;
   /** L'e-mail est parti automatiquement (envoi SMTP configuré sur le serveur). */
@@ -108,7 +108,29 @@ export interface StudentSummary {
 }
 export type ValResult = 'acquired' | 'acquired_error' | 'review';
 export interface ValidationState { items: { surah: number; ayah: number; result: ValResult; at: string }[]; retakePages: number[]; threshold: number }
-export interface ValidationPut { items?: { surah: number; ayah: number; result: ValResult | 'cleared' }[]; page?: number; result?: ValResult | 'cleared' }
+export interface PassageRange { surah: number; from: number; to: number }
+export interface ValidationPut {
+  items?: { surah: number; ayah: number; result: ValResult | 'cleared' }[]; page?: number; pages?: number[]; ranges?: PassageRange[];
+  result?: ValResult | 'cleared';
+  /** Hifdh déjà validé sur papier : jour réel (AAAA-MM-JJ), réservé à l'administratif ; aucune alerte à l'élève. */
+  at?: string;
+}
+export interface ValidationBulk extends ValidationPut { studentIds: string[] }
+export interface ValidationBulkResult { results: { studentId: string; name?: string; changed?: number; error?: string }[]; changed: number; errors: number }
+/** Enseignant (ou administratif) invité dans l'établissement, avec ou sans e-mail. */
+export interface OrgInvitationInput { email?: string; displayName?: string; role: 'teacher' | 'admin'; classId?: string | null }
+export type OrgInviteResult =
+  | (CreatedInvitation & { existingAccount?: undefined })
+  | { existingAccount: true; added: true; email: string; role: string; emailed: boolean; mailConfigured: boolean };
+export interface OrgInvitation {
+  id: string; email: string | null; displayName: string | null; role: 'teacher' | 'admin'; classId: string | null; className: string | null;
+  createdAt: string; expiresAt: string; emailedAt: string | null;
+}
+/** Corbeille à deux niveaux : 30 jours (établissement), puis 30 jours (admin global), puis suppression définitive. */
+export interface TrashItem {
+  id: string; kind: string; kindLabel: string; label: string; orgId: string | null; orgName: string | null;
+  deletedAt: string; deletedBy: string | null; level: 1 | 2; daysLeft: number;
+}
 export type Period = 'month' | 'quarter' | 'semester' | 'year' | 'all';
 export interface RankRow {
   studentId: string; fullName: string; fatherName: string; age: number | null; joinedAt: string | null; hasCompetitions: boolean;
@@ -204,6 +226,15 @@ export interface Api {
   /** Ce que l'enseignant a déjà validé pour cet élève (ayah par ayah). */
   studentValidation(orgId: string, id: string): Promise<ValidationState>;
   /** Pose un résultat sur des ayat ou sur une page entière (1..604) ; le dernier résultat gagne. */
+  bulkValidation(orgId: string, body: ValidationBulk): Promise<ValidationBulkResult>;
+  inviteToOrg(orgId: string, input: OrgInvitationInput): Promise<OrgInviteResult>;
+  orgInvitations(orgId: string): Promise<OrgInvitation[]>;
+  revokeOrgInvitation(orgId: string, id: string): Promise<void>;
+  orgTrash(orgId: string): Promise<TrashItem[]>;
+  restoreOrgTrash(orgId: string, id: string): Promise<void>;
+  adminTrash(): Promise<TrashItem[]>;
+  restoreAdminTrash(id: string): Promise<void>;
+  purgeAdminTrash(id: string): Promise<void>;
   putValidation(orgId: string, id: string, body: ValidationPut): Promise<{ changed: number; retakePages: number[]; threshold: number }>;
   /** Classement de l'équipe (jamais des élèves) : par classe ou pour tout l'établissement, sur une période civile. */
   ranking(orgId: string, filter: { classId?: string; period: Period }): Promise<Ranking>;
