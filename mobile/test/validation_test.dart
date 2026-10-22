@@ -184,6 +184,22 @@ void main() {
       expect(first, isNotEmpty);
     });
 
+    test('classement : sa position dans chaque classe et dans l’association, rien s’il est seul', () async {
+      final (auth, server) = await setup();
+      server.handler = (req) => req.url.path == '/me/notifications'
+          ? json({'unread': 0, 'notifications': <Object>[]})
+          : json({'organizations': [
+              {'organizationId': 'o1', 'organizationName': 'جمعية', 'studentName': 'ليلى', 'items': <Object>[], 'retakePages': <int>[], 'standing': {
+                'association': {'rank': 4, 'of': 23},
+                'classes': [{'name': 'فوج 1', 'rank': 1, 'of': 9}, {'name': 'فوج 2', 'rank': null, 'of': 1}],
+              }},
+            ]});
+      final v = ValidationStore(auth);
+      await v.refresh();
+      final list = v.standings(classLabel: 'Classe', orgLabel: 'Association');
+      expect(list.map((r) => (r.label, r.rank, r.of)), [('Classe فوج 1', 1, 9), ('Association جمعية', 4, 23)]);
+    });
+
     test('hors ligne : on garde ce qu’on avait ; déconnexion : tout est vidé', () async {
       final (auth, server) = await setup();
       server.handler = (req) => req.url.path == '/me/notifications'

@@ -105,6 +105,20 @@ class Settings extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Rythme choisi dans « Estimer ma khatma » (propre à chaque compte) : sert aussi aux jours restants de l'accueil.
+  bool get hasKhatmaPlan => _prefs.containsKey('khatma_days_$_owner');
+  int get khatmaDays => _prefs.getInt('khatma_days_$_owner') ?? 5;
+  int get khatmaMinutes => _prefs.getInt('khatma_minutes_$_owner') ?? 30;
+  String get khatmaPace => _prefs.getString('khatma_pace_$_owner') ?? 'medium';
+  int get khatmaReview => _prefs.getInt('khatma_review_$_owner') ?? 30;
+  void saveKhatmaPlan({required int days, required int minutes, required String pace, required int review}) {
+    _prefs.setInt('khatma_days_$_owner', days);
+    _prefs.setInt('khatma_minutes_$_owner', minutes);
+    _prefs.setString('khatma_pace_$_owner', pace);
+    _prefs.setInt('khatma_review_$_owner', review);
+    notifyListeners();
+  }
+
   /// Palette adaptée au daltonisme (bleu / orange / vermillon, d'après Okabe et Ito).
   bool get colorBlind => _prefs.getBool('coloring_cb_$_owner') ?? false;
   set colorBlind(bool v) {

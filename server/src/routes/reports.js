@@ -23,7 +23,7 @@ export function periodStart(period, now = new Date()) {
 /** Classement « à égalité, même rang » : suites continues d'ahzab puis de sourates d'abord (c'est ce qui compte en concours). */
 const sortKey = (r) => [r.ahzab.longestRun, r.surahs.longestRun, r.ahzab.complete, r.surahs.complete, r.ayat];
 const sameKey = (a, b) => sortKey(a).every((v, i) => v === sortKey(b)[i]);
-function rankRows(rows) {
+export function rankRows(rows) {
   rows.sort((a, b) => {
     const ka = sortKey(a), kb = sortKey(b);
     for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return kb[i] - ka[i];

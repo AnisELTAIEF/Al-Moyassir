@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/auth_service.dart';
 import '../core/duas.dart';
+import '../core/khatma_estimate.dart';
 import '../core/models.dart';
 import '../core/prayer_service.dart';
 import '../core/push_service.dart';
@@ -80,6 +81,7 @@ class HomeScreen extends StatelessWidget {
               _DuaCard(name: firstName(auth.user?.displayName)),
               const SizedBox(height: 14),
               const _ChildPicker(),
+              const _StandingCard(),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(18),
@@ -90,6 +92,7 @@ class HomeScreen extends StatelessWidget {
                       TextSpan(text: '$memorized', style: TextStyle(fontWeight: FontWeight.w700, color: context.colors.primary)),
                       TextSpan(text: tr(' ayat appris sur {total} · {p}', {'total': QuranRepository.totalAyahs, 'p': pct(memorized, QuranRepository.totalAyahs)})),
                     ]), style: TextStyle(color: context.tones.muted)),
+                    const _KhatmaDays(),
                     const SizedBox(height: 12),
                     SegmentedButton<bool>(
                       showSelectedIcon: false,
@@ -214,6 +217,81 @@ class _ValidateCard extends StatelessWidget {
           onTap: () => _open(context),
         ),
       );
+}
+
+/// « Il reste environ N jours » d'après le rythme choisi dans « Estimer ma khatma » (rythme moyen par défaut).
+class _KhatmaDays extends StatelessWidget {
+  const _KhatmaDays();
+
+  @override
+  Widget build(BuildContext context) {
+    final memorized = context.select<ProgressStore, int>((s) => s.memorizedCount);
+    final s = context.watch<Settings>();
+    final est = estimateKhatma(
+      memorized: memorized,
+      daysPerWeek: s.khatmaDays,
+      minutesPerSession: s.khatmaMinutes,
+      ayatPerHour: kPaceAyatPerHour[s.khatmaPace] ?? kPaceAyatPerHour['medium']!,
+      reviewShare: s.khatmaReview / 100,
+    );
+    final String text;
+    if (est == null) {
+      text = tr('Estimer ma khatma');
+    } else if (est.remainingAyat == 0) {
+      text = tr('Khatma terminée : il ne reste aucun ayah à apprendre.');
+    } else {
+      text = tr('Il reste environ {n} jours pour terminer la khatma (estimation)', {'n': est.days});
+    }
+    return InkWell(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KhatmaPlannerScreen())),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(children: [
+          Icon(Icons.hourglass_bottom_rounded, size: 16, color: context.colors.primary),
+          const SizedBox(width: 6),
+          Expanded(child: Text(text, style: TextStyle(fontSize: 13, color: context.colors.primary, fontWeight: FontWeight.w600))),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Position de l'élève dans sa classe et dans l'association : seulement son rang, jamais les autres.
+class _StandingCard extends StatelessWidget {
+  const _StandingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final list = context.watch<ValidationStore>().standings(classLabel: tr('Classe'), orgLabel: tr('Association'));
+    if (list.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Icon(Icons.emoji_events_outlined, color: context.tones.gold),
+              const SizedBox(width: 8),
+              Text(tr('Mon classement'), style: context.text.titleMedium),
+            ]),
+            const SizedBox(height: 8),
+            for (final r in list)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(children: [
+                  Expanded(child: Text(r.label, style: TextStyle(color: context.tones.muted))),
+                  Text(
+                    r.rank == null ? tr('pas encore classé') : tr('{r} sur {n}', {'r': r.rank!, 'n': r.of}),
+                    style: TextStyle(fontWeight: FontWeight.w700, color: context.colors.primary),
+                  ),
+                ]),
+              ),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 class _Legend extends StatelessWidget {

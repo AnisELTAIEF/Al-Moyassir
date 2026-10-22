@@ -57,4 +57,15 @@ void main() {
     s.owner = 'autre-compte';
     expect(s.khatmaByPage, isFalse);
   });
+
+  test('rythme de la khatma : valeurs par défaut, mémorisé par compte', () async {
+    final s = await _settings({});
+    expect(s.hasKhatmaPlan, isFalse);
+    expect([s.khatmaDays, s.khatmaMinutes, s.khatmaPace, s.khatmaReview], [5, 30, 'medium', 30]);
+    s.saveKhatmaPlan(days: 3, minutes: 45, pace: 'fast', review: 20);
+    expect(s.hasKhatmaPlan, isTrue);
+    expect([s.khatmaDays, s.khatmaMinutes, s.khatmaPace, s.khatmaReview], [3, 45, 'fast', 20]);
+    s.owner = 'autre-compte';
+    expect(s.hasKhatmaPlan, isFalse);
+  });
 }

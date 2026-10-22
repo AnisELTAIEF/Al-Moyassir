@@ -45,6 +45,14 @@ class AppNotification {
 ///
 /// Couche privée de l'élève (ses propres marques « à revoir ») : elle vit dans [ProgressStore] et n'est jamais
 /// envoyée à l'enseignant. Ici, au contraire, ne figure que ce que l'équipe a posé.
+/// Position de l'élève : son rang sur l'effectif (`rank` est null tant qu'il n'a rien d'acquis).
+class Rank {
+  const Rank({required this.label, required this.rank, required this.of});
+  final String label;
+  final int? rank;
+  final int of;
+}
+
 class ValidationStore extends ChangeNotifier implements ValidationView {
   ValidationStore(this._auth);
   final AuthService _auth;
@@ -92,6 +100,28 @@ class ValidationStore extends ChangeNotifier implements ValidationView {
       ..clear()
       ..addAll(items);
     _retake = retake;
+  }
+
+  /// Positions de l'élève affiché : dans chaque classe, puis dans l'association (uniquement s'il y a des élèves à comparer).
+  List<Rank> standings({required String classLabel, required String orgLabel}) {
+    final only = child;
+    final out = <Rank>[];
+    for (final org in _blocks) {
+      if (only != null && '${org['studentName']}' != only) continue;
+      final st = org['standing'] as Map<String, dynamic>?;
+      if (st == null) continue;
+      Rank? one(Map<String, dynamic> m, String label) {
+        final of = (m['of'] as num?)?.toInt() ?? 0;
+        return of < 2 ? null : Rank(label: label, rank: (m['rank'] as num?)?.toInt(), of: of);
+      }
+      for (final c in (st['classes'] as List? ?? const [])) {
+        final r = one(c as Map<String, dynamic>, '$classLabel ${c['name']}');
+        if (r != null) out.add(r);
+      }
+      final a = one(st['association'] as Map<String, dynamic>? ?? const {}, '$orgLabel ${org['organizationName']}');
+      if (a != null) out.add(a);
+    }
+    return out;
   }
 
   bool get hasAny => _items.isNotEmpty;

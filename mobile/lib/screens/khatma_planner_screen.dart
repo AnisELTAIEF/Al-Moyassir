@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/i18n.dart';
 import '../core/khatma_estimate.dart';
 import '../core/progress_store.dart';
+import '../core/settings.dart';
 import '../core/quran_repository.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
@@ -22,6 +23,19 @@ class _KhatmaPlannerScreenState extends State<KhatmaPlannerScreen> {
   double _minutes = 30;
   String _pace = 'medium';
   double _review = 30; // % du temps consacré à la révision
+
+  @override
+  void initState() {
+    super.initState();
+    final s = context.read<Settings>();
+    _days = s.khatmaDays.toDouble();
+    _minutes = s.khatmaMinutes.toDouble();
+    _pace = s.khatmaPace;
+    _review = s.khatmaReview.toDouble();
+  }
+
+  /// Chaque réglage est mémorisé tout de suite : l'accueil affiche les jours restants d'après ce rythme.
+  void _save() => context.read<Settings>().saveKhatmaPlan(days: _days.round(), minutes: _minutes.round(), pace: _pace, review: _review.round());
 
   String _duration(int days) {
     if (days < 60) return tr('environ {n} jours', {'n': days});
@@ -59,7 +73,10 @@ class _KhatmaPlannerScreenState extends State<KhatmaPlannerScreen> {
               min: 1,
               max: 7,
               divisions: 6,
-              onChanged: (v) => setState(() => _days = v),
+              onChanged: (v) {
+                setState(() => _days = v);
+                _save();
+              },
             ),
             _slider(
               label: tr('Minutes par séance : {n}', {'n': _minutes.round()}),
@@ -67,7 +84,10 @@ class _KhatmaPlannerScreenState extends State<KhatmaPlannerScreen> {
               min: 10,
               max: 180,
               divisions: 34,
-              onChanged: (v) => setState(() => _minutes = v),
+              onChanged: (v) {
+                setState(() => _minutes = v);
+                _save();
+              },
             ),
             SectionTitle(tr('Votre rythme de mémorisation')),
             SegmentedButton<String>(
@@ -78,7 +98,10 @@ class _KhatmaPlannerScreenState extends State<KhatmaPlannerScreen> {
                 ButtonSegment(value: 'fast', label: Text(tr('Soutenu'))),
               ],
               selected: {_pace},
-              onSelectionChanged: (s) => setState(() => _pace = s.first),
+              onSelectionChanged: (s) {
+                setState(() => _pace = s.first);
+                _save();
+              },
             ),
             const SizedBox(height: 6),
             Text(
@@ -91,7 +114,10 @@ class _KhatmaPlannerScreenState extends State<KhatmaPlannerScreen> {
               min: 0,
               max: 60,
               divisions: 12,
-              onChanged: (v) => setState(() => _review = v),
+              onChanged: (v) {
+                setState(() => _review = v);
+                _save();
+              },
             ),
             const SizedBox(height: 12),
             _result(context, est),

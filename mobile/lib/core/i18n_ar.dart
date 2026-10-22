@@ -672,4 +672,10 @@ const Map<String, String> arStrings = {
   'sourate entière, sans suivi des ayat': 'السورة كاملة، دون تتبّع الآيات',
   'Reculer de 15 s': 'رجوع 15 ثانية',
   'Avancer de 15 s': 'تقديم 15 ثانية',
+  'Il reste environ {n} jours pour terminer la khatma (estimation)': 'تبقّى حوالي {n} يومًا لإتمام الختمة (تقدير)',
+  'Mon classement': 'ترتيبي',
+  'Classe': 'القسم',
+  'Association': 'الجمعية',
+  'pas encore classé': 'لم يُصنَّف بعد',
+  '{r} sur {n}': 'المرتبة {r} من {n}',
 };

@@ -5,6 +5,7 @@
 //     privé de l'élève (D15) : ces deux couches restent indépendantes.
 //   - Règle de page (D4) : au moins `error_threshold` ayat « acquis avec erreur » sur la même page → page à reprendre.
 //   - Plusieurs établissements (D5/D19) : chacun ne compte que SES validations ; l'élève voit la plus récente par ayah.
+import { standingOf } from '../standing.js';
 import { HttpError } from '../errors.js';
 import { tx } from '../db.js';
 import { iso } from '../users.js';
@@ -187,6 +188,8 @@ export async function myValidationRoutes(app) {
         items,
         retakePages: retakePages(ref, codes, Number(p.error_threshold)),
         threshold: Number(p.error_threshold),
+        // Sa position seulement (jamais les noms ni les résultats des autres élèves).
+        standing: await standingOf(db, ref, { id: p.organization_id, error_threshold: p.error_threshold }, p.id),
       });
     }
     return { organizations };

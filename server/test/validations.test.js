@@ -182,6 +182,10 @@ test('côté élève : ses validations, par établissement ; un inconnu n’en v
   assert.equal(o.organizationName, 'جامع النور');
   assert.equal(o.profileId, S.pid);
   assert.ok(o.items.length >= 11 && o.items.every((i) => ['acquired', 'acquired_error', 'review'].includes(i.result) && i.at));
+  // Sa position seulement : rang et effectif, sans nom ni détail sur les autres élèves.
+  assert.ok(o.standing.association.rank >= 1 && o.standing.association.of >= o.standing.association.rank);
+  assert.deepEqual(Object.keys(o.standing.association).sort(), ['of', 'rank']);
+  assert.ok(o.standing.classes.every((c) => Object.keys(c).sort().join() === 'name,of,rank'));
   assert.deepEqual((await call('GET', '/me/validations', T('outsider'))).body.organizations, []);
   assert.deepEqual((await call('GET', '/me/validations', T('teacher'))).body.organizations, [], 'un enseignant n’est pas un élève');
 });
