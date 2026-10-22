@@ -23,7 +23,7 @@ export default function Follow({ api, org, onOpen }: { api: Api; org: OrgSummary
 
   return (
     <>
-      <p className="muted small">{t('Classement réservé à l’équipe : les élèves et leurs parents ne le voient jamais. Il ne compte que les validations de l’enseignant ; les suites continues de ahzab puis de sourates passent en premier (comme en concours).')}</p>
+      <p className="muted small">{t('Classement réservé à l’équipe : chaque élève ne voit que sa propre position (jamais les noms ni les résultats des autres). Il ne compte que les validations de l’enseignant ; les suites continues de ahzab puis de sourates passent en premier (comme en concours).')}</p>
       <div className="toolbar">
         <select value={period} onChange={(e) => setPeriod(e.target.value as Period)} aria-label={t('Période')}>{PERIODS.map(([p, l]) => <option key={p} value={p}>{t(l)}</option>)}</select>
         <select value={classId} onChange={(e) => setClassId(e.target.value)} aria-label={t('Classe')}>
@@ -40,6 +40,7 @@ export default function Follow({ api, org, onOpen }: { api: Api; org: OrgSummary
           <thead><tr>
             <th>#</th><th>{t('Élève')}</th><th>{t('Âge')}</th><th title={t('Ahzab entiers (حفظ إجمالي)')}>{t('Ahzab')}<br /><span className="muted small">{t('Hifdh global')}</span></th><th title={t('Sourates entières (حفظ إجمالي)')}>{t('Sourates')}<br /><span className="muted small">{t('Hifdh global')}</span></th>
             <th title={t('Plus longue suite continue de ahzab entiers')}>{t('Ahzab')}<br /><span className="muted small">{t('Hifdh successif')}</span></th><th title={t('Plus longue suite continue de sourates entières')}>{t('Sourates')}<br /><span className="muted small">{t('Hifdh successif')}</span></th>
+            <th title={t('Pages entières (حفظ إجمالي)')}>{t('Pages')}<br /><span className="muted small">{t('Hifdh global')}</span></th><th title={t('Plus longue suite continue de pages entières')}>{t('Pages')}<br /><span className="muted small">{t('Hifdh successif')}</span></th>
             <th>{t('Ayat')}</th><th title={t('Ayat validés sur la période')}>{t('Gain')}</th><th>{t('Par semaine')}</th><th>{t('Dernière validation')}</th>
           </tr></thead>
           <tbody>
@@ -54,10 +55,12 @@ export default function Follow({ api, org, onOpen }: { api: Api; org: OrgSummary
                 <td className="num"><strong>{r.surahs.complete}</strong></td>
                 <td className="num">{r.ahzab.longestRun}</td>
                 <td className="num">{r.surahs.longestRun}</td>
+                <td className="num"><strong>{r.pages.complete}</strong></td>
+                <td className="num">{r.pages.longestRun}</td>
                 <td className="num">{r.ayat}</td><td className="num">{r.gain}</td><td className="num">{r.perWeek}</td><td className="nowrap">{fmtDate(r.lastValidationAt)}</td>
               </tr>
             ))}
-            {rank.data && rows.length === 0 && <tr><td colSpan={11} className="muted">{t('Aucun élève à afficher.')}</td></tr>}
+            {rank.data && rows.length === 0 && <tr><td colSpan={13} className="muted">{t('Aucun élève à afficher.')}</td></tr>}
           </tbody>
         </table>
       </div>

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useAsync, useFlash } from '../components';
-import type { Api, OrgClass, OrgRole, OrgSummary, OrgType, Student, StudentInput } from '../types';
+import { downloadCsv, readTextFile } from '../lib';
+import type { Api, OrgClass, OrgRole, OrgSummary, OrgType, Student, StudentImportResult, StudentInput } from '../types';
 import { ORG_TYPE, classWord } from './orgLabels';
 import Follow from './Follow';
 import { CoverageMap, Rhythm, ResultsSection } from './StudentResults';
@@ -50,7 +51,7 @@ export default function OrgView({ api, org, isGlobalAdmin, onBack, onChanged }: 
 // ───────────────────────── Élèves ─────────────────────────
 
 interface Form {
-  fullName: string; fatherName: string; birthDate: string; gender: '' | 'm' | 'f'; phone: string;
+  fullName: string; fatherName: string; birthDate: string; gender: '' | 'm' | 'f'; phone: string; guardianPhone: string;
   joinedAt: string; hifdhStartedAt: string; pastCompetitions: string;
 }
 /** L'autorisation des parents n'est exigée que jusqu'à 14 ans inclus, ou si l'âge est inconnu. */
@@ -61,14 +62,14 @@ function needsConsent(birthDate: string): boolean {
   if (n.getUTCMonth() < b.getUTCMonth() || (n.getUTCMonth() === b.getUTCMonth() && n.getUTCDate() < b.getUTCDate())) age--;
   return age <= 14;
 }
-const emptyForm: Form = { fullName: '', fatherName: '', birthDate: '', gender: '', phone: '', joinedAt: today(), hifdhStartedAt: '', pastCompetitions: '' };
+const emptyForm: Form = { fullName: '', fatherName: '', birthDate: '', gender: '', phone: '', guardianPhone: '', joinedAt: today(), hifdhStartedAt: '', pastCompetitions: '' };
 const formOf = (s: Student): Form => ({
-  fullName: s.fullName, fatherName: s.fatherName, birthDate: s.birthDate ?? '', gender: s.gender ?? '', phone: s.phone ?? '',
+  fullName: s.fullName, fatherName: s.fatherName, birthDate: s.birthDate ?? '', gender: s.gender ?? '', phone: s.phone ?? '', guardianPhone: s.guardianPhone ?? '',
   joinedAt: s.joinedAt ?? '', hifdhStartedAt: s.hifdhStartedAt ?? '', pastCompetitions: s.pastCompetitions,
 });
 const inputOf = (f: Form): StudentInput => ({
   fullName: f.fullName.trim(), fatherName: f.fatherName.trim(), birthDate: f.birthDate || null, gender: f.gender || null,
-  phone: f.phone.trim() || null, joinedAt: f.joinedAt || null, hifdhStartedAt: f.hifdhStartedAt || null, pastCompetitions: f.pastCompetitions.trim() || null,
+  phone: f.phone.trim() || null, guardianPhone: f.guardianPhone.trim() || null, joinedAt: f.joinedAt || null, hifdhStartedAt: f.hifdhStartedAt || null, pastCompetitions: f.pastCompetitions.trim() || null,
 });
 
 function StudentFields({ f, set }: { f: Form; set: (f: Form) => void }) {
@@ -80,10 +81,99 @@ function StudentFields({ f, set }: { f: Form; set: (f: Form) => void }) {
       <label>{t('Date de naissance')}<input type="date" value={f.birthDate} max={today()} onChange={on('birthDate')} /></label>
       <label>{t('Sexe')}<select value={f.gender} onChange={on('gender')}><option value="">—</option><option value="m">{t('Garçon')}</option><option value="f">{t('Fille')}</option></select></label>
       <label>{t('Téléphone (format international)')}<input inputMode="tel" placeholder="+218 91 234 5678" value={f.phone} onChange={on('phone')} /></label>
+      <label>{t('Téléphone du parent (format international)')}<input inputMode="tel" placeholder="+218 92 123 4567" value={f.guardianPhone} onChange={on('guardianPhone')} /></label>
       <label>{t('Date d’adhésion (تاريخ الإنخراط)')}<input type="date" value={f.joinedAt} onChange={on('joinedAt')} /></label>
       <label>{t('Début du hifdh (تاريخ بداية الحفظ)')}<input type="date" value={f.hifdhStartedAt} onChange={on('hifdhStartedAt')} /></label>
       <label className="span-all">{t('Participations précédentes à des concours')}<textarea rows={2} value={f.pastCompetitions} onChange={on('pastCompetitions')} /></label>
     </>
+  );
+}
+
+const IMPORT_EXAMPLE = 'Nom complet;Prénom du père;Date de naissance;Sexe;Téléphone;Téléphone du parent;Classe\nAhmed Ben Ali;Salem;2012-05-03;m;;+218 92 123 4567;Classe 1\nSara Trabelsi;Mohamed;14/09/2010;f;+218 91 234 5678;+218 92 765 4321;Classe 1\n';
+const IMPORT_ACTION: Record<'created' | 'unchanged' | 'error', [string, string]> = { created: ['Créée', 'ok'], unchanged: ['Déjà inscrit(e)', ''], error: ['Erreur', 'off'] };
+
+/** Import en masse de fiches élèves (TXT / CSV ou texte collé) : « Vérifier » simule, « Importer » crée. */
+function StudentImport({ api, org, classes, onDone }: { api: Api; org: OrgSummary; classes: OrgClass[]; onDone: () => void }) {
+  const [text, setText] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [createClasses, setCreateClasses] = useState(true);
+  const [groupId, setGroupId] = useState('');
+  const [result, setResult] = useState<StudentImportResult | null>(null);
+  const [checked, setChecked] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const key = `${text}|${consent}|${createClasses}|${groupId}`;
+  const s = result?.summary;
+
+  async function go(dryRun: boolean) {
+    setBusy(true); setErr(null);
+    try {
+      const r = await api.importStudents(org.id, text, dryRun, { guardianConsent: consent, createClasses, groupId: groupId || null });
+      setResult(r);
+      setChecked(dryRun ? key : null);
+      if (!dryRun) onDone();
+    } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  }
+  async function pick(f: File | undefined) {
+    if (!f) return;
+    setText(await readTextFile(f));
+    setResult(null); setChecked(null);
+  }
+
+  return (
+    <div className="card import">
+      <div className="import-help">
+        <p><strong>{t('Format')} :</strong> {t('une fiche par ligne')} : <code>Nom complet ; Prénom du père ; Date de naissance ; Sexe ; Téléphone ; Téléphone du parent ; Classe</code> ({t('point-virgule, tabulation ou virgule ; seul le nom est obligatoire')}).</p>
+        <p className="muted small">{t('Date : AAAA-MM-JJ ou JJ/MM/AAAA. Sexe : m ou f. Téléphones au format international. Un élève déjà inscrit (même nom et même prénom du père) n’est pas recréé. Cliquez d’abord sur Vérifier : rien n’est créé avant Importer.')}</p>
+      </div>
+      <div className="row-actions">
+        <label className="btn ghost small file">{t('Choisir un fichier (.txt, .csv)')}
+          <input type="file" accept=".txt,.csv,text/plain,text/csv" onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
+        </label>
+        <button type="button" className="btn ghost small" onClick={() => downloadCsv('modele-import-eleves', '﻿' + IMPORT_EXAMPLE)}>{t('Télécharger un modèle')}</button>
+      </div>
+      <textarea rows={8} value={text} placeholder={IMPORT_EXAMPLE} spellCheck={false} aria-label={t('Liste à importer')}
+        onChange={(e) => { setText(e.target.value); setChecked(null); }} />
+      <label className="check"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> {t('Les parents des élèves de 14 ans ou moins (ou d’âge inconnu) ont autorisé l’enregistrement de leurs informations.')}</label>
+      <label className="check"><input type="checkbox" checked={createClasses} onChange={(e) => setCreateClasses(e.target.checked)} /> {t('Créer les classes absentes (colonne Classe)')}</label>
+      <label>{t('Ou mettre tous ces élèves dans la classe')}
+        <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+          <option value="">{t('— d’après la colonne Classe —')}</option>
+          {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </label>
+      <div className="row-actions">
+        <button className="btn ghost" disabled={busy || !text.trim()} onClick={() => go(true)}>1. {t('Vérifier')}</button>
+        <button className="btn" disabled={busy || checked !== key || !s || s.created === 0}
+          onClick={() => window.confirm(`${s?.created ?? 0} fiche(s) seront créées. Continuer ?`) && go(false)}>
+          2. {t('Importer')}{checked === key && s?.created ? ` (${s.created})` : ''}
+        </button>
+        {busy && <span className="muted small">{t('Traitement…')}</span>}
+      </div>
+      {err && <p className="error" role="alert">{err}</p>}
+      {result && s && (
+        <div role="status">
+          <p>
+            <strong>{result.dryRun ? t('Simulation (rien n’est encore créé) :') : t('✓ Import terminé :')}</strong>{' '}
+            {s.created} {t('fiche(s)')}, {s.unchanged} {t('déjà inscrit(s)')}, {s.errors} {t('erreur(s)')}.
+            {s.classesCreated.length > 0 && <> {t('Classes')} {result.dryRun ? t('à créer') : t('créées')} : {s.classesCreated.join(', ')}.</>}
+          </p>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>{t('Ligne')}</th><th>{t('Nom')}</th><th>{t('Classe')}</th><th>{t('Résultat')}</th><th>{t('Détail')}</th></tr></thead>
+              <tbody>
+                {result.items.map((i) => (
+                  <tr key={i.line}>
+                    <td>{i.line}</td><td>{i.name ?? <span className="muted small">{i.text}</span>}</td><td>{i.className ?? '—'}</td>
+                    <td><span className={`chip ${IMPORT_ACTION[i.action][1]}`}>{t(IMPORT_ACTION[i.action][0])}</span></td><td className="small">{i.message}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -95,6 +185,7 @@ function StudentsTab({ api, org, canEdit, canReward, isGlobalAdmin, selected, se
   const [classId, setClassId] = useState('');
   const [showLeft, setShowLeft] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [form, setForm] = useState<Form>(emptyForm);
   const [newClasses, setNewClasses] = useState<string[]>([]);
   const [consent, setConsent] = useState(false);
@@ -132,6 +223,7 @@ function StudentsTab({ api, org, canEdit, canReward, isGlobalAdmin, selected, se
           </select>
           <label className="check"><input type="checkbox" checked={showLeft} onChange={(e) => setShowLeft(e.target.checked)} /> {t('Élèves sortis')}</label>
           {canEdit && !showLeft && <button className="btn small" onClick={() => setAdding(!adding)}>{adding ? 'Annuler' : '+ Ajouter un élève'}</button>}
+          {canEdit && !showLeft && <button className="btn ghost small" onClick={() => setImporting(!importing)}>{importing ? t('Fermer') : t('Importer une liste')}</button>}
         </div>
         {adding && canEdit && (
           <form className="card invite-form" onSubmit={add}>
@@ -152,6 +244,7 @@ function StudentsTab({ api, org, canEdit, canReward, isGlobalAdmin, selected, se
             <button className="btn" disabled={needsConsent(form.birthDate) && !consent}>{t('Créer la fiche')}</button>
           </form>
         )}
+        {importing && canEdit && <StudentImport api={api} org={org} classes={classes.data ?? []} onDone={() => { list.reload(); classes.reload(); }} />}
         {msg && <p className="error" role="alert">{msg}</p>}
         {list.error && <p className="error">{list.error}</p>}
         <div className="card table-wrap">
@@ -163,7 +256,8 @@ function StudentsTab({ api, org, canEdit, canReward, isGlobalAdmin, selected, se
                   <td><button className="link" onClick={() => setSelected(s.id === selected ? null : s.id)}>{s.fullName}</button>
                     {s.fatherName && <span className="muted small"> · ابن {s.fatherName}</span>}</td>
                   <td className="num">{s.age ?? '—'}</td>
-                  <td className="nowrap">{s.phone ? <>{s.phone} <span className={`chip ${s.phoneVerified ? 'ok' : 'wait'}`}>{s.phoneVerified ? 'vérifié' : 'à vérifier'}</span></> : '—'}</td>
+                  <td className="nowrap">{s.phone ? <>{s.phone} <span className={`chip ${s.phoneVerified ? 'ok' : 'wait'}`}>{s.phoneVerified ? 'vérifié' : 'à vérifier'}</span></> : '—'}
+                    {s.guardianPhone && <><br /><span className="muted small">{t('Parent')} : {s.guardianPhone}</span></>}</td>
                   <td>{s.classes.map((c) => c.name).join(', ') || '—'}</td>
                   <td>{s.linked ? <span className="chip ok">{t('lié')}</span> : <span className="chip off">{t('non lié')}</span>}</td>
                 </tr>
@@ -220,6 +314,7 @@ function StudentFiche({ api, org, student: s, classes, canEdit, canReward, isGlo
       ) : (
         <ul className="list plain">
           <li><span>{t('Téléphone')}</span><span>{s.phone ?? '—'}</span></li>
+          <li><span>{t('Téléphone du parent')}</span><span>{s.guardianPhone ?? '—'}</span></li>
           <li><span>{t('Adhésion')}</span><span>{fmtDay(s.joinedAt)}</span></li>
           <li><span>{t('Début du hifdh')}</span><span>{fmtDay(s.hifdhStartedAt)}</span></li>
         </ul>
@@ -232,6 +327,7 @@ function StudentFiche({ api, org, student: s, classes, canEdit, canReward, isGlo
           <ul className="list plain">
             <li><span>{t('Ahzab entiers')}</span><span><strong>{summary.data.stats.ahzab.complete}</strong> {t('· suite continue max')} <strong>{summary.data.stats.ahzab.longestRun}</strong></span></li>
             <li><span>{t('Sourates entières')}</span><span><strong>{summary.data.stats.surahs.complete}</strong> {t('· suite continue max')} <strong>{summary.data.stats.surahs.longestRun}</strong></span></li>
+            <li><span>{t('Pages entières')}</span><span><strong>{summary.data.stats.pages.complete}</strong> / 604 {t('· suite continue max')} <strong>{summary.data.stats.pages.longestRun}</strong></span></li>
             <li><span>{t('Ayat comptés')}</span><span><strong>{summary.data.stats.ayat}</strong> / 6214</span></li>
           </ul>
           <p className="muted small">Seules les validations de l’enseignant comptent (حفظ إجمالي / مسترسل). {summary.data.validatedAyat === 0 ? 'Aucune validation pour l’instant.' : ''}</p>

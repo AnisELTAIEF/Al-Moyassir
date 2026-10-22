@@ -9,6 +9,7 @@ import { uuid, sha256, newInvitationCode, normalizeCode } from '../security.js';
 import { iso } from '../users.js';
 import { orgAccessFor, STUDENT_COLS } from '../orgAccess.js';
 import { removeProfileFiles } from '../certFiles.js';
+import { runStudentImport } from '../studentImport.js';
 
 const RETENTION_YEARS = 5; // D20 : données d'un élève sorti conservées 5 ans au moins
 const CODE_TTL_MIN = 15;
@@ -64,6 +65,7 @@ const studentDto = (r, classes = []) => ({
   gender: r.gender,
   phone: r.phone,
   phoneVerified: !!r.phone_verified_at,
+  guardianPhone: r.guardian_phone ?? null,
   joinedAt: r.joined_at,
   hifdhStartedAt: r.hifdh_started_at,
   pastCompetitions: r.past_competitions ?? '',
@@ -346,7 +348,7 @@ export default async function orgRoutes(app) {
     const where = ['p.organization_id = ?'];
     const args = [ctx.org.id];
     if (status !== 'all') { where.push('p.status = ?'); args.push(status); }
-    if (q?.trim()) { where.push('(p.full_name LIKE ? OR p.father_name LIKE ? OR p.phone LIKE ?)'); const like = `%${q.trim()}%`; args.push(like, like, like); }
+    if (q?.trim()) { where.push('(p.full_name LIKE ? OR p.father_name LIKE ? OR p.phone LIKE ? OR p.guardian_phone LIKE ?)'); const like = `%${q.trim()}%`; args.push(like, like, like, like); }
     if (groupId) { where.push('EXISTS (SELECT 1 FROM group_students gs WHERE gs.profile_id = p.id AND gs.group_id = ?)'); args.push(groupId); }
     if (!ctx.seesAll) {
       where.push(`EXISTS (SELECT 1 FROM group_students gs JOIN group_teachers gt ON gt.group_id = gs.group_id
@@ -370,6 +372,7 @@ export default async function orgRoutes(app) {
           birthDate: dateStr,
           gender: { enum: ['m', 'f'] },
           phone: { type: 'string', maxLength: 30 },
+          guardianPhone: { type: 'string', maxLength: 30 },
           joinedAt: dateStr,
           hifdhStartedAt: dateStr,
           pastCompetitions: { type: 'string', maxLength: 2000 },
@@ -384,6 +387,7 @@ export default async function orgRoutes(app) {
     const b = req.body;
     const fullName = cleanName(b.fullName), father = cleanName(b.fatherName);
     const phone = normalizePhone(b.phone);
+    const guardianPhone = normalizePhone(b.guardianPhone);
     const birth = validDate(b.birthDate, { notFuture: true });
     // L'autorisation des parents n'est exigée que pour un mineur de 14 ans ou moins, ou d'âge inconnu.
     const age = ageOf(birth);
@@ -411,14 +415,35 @@ export default async function orgRoutes(app) {
     const id = uuid();
     await tx(db, async (c) => {
       await c.query(
-        `INSERT INTO student_profiles (id, organization_id, full_name, father_name, birth_date, gender, phone, joined_at, hifdh_started_at,
+        `INSERT INTO student_profiles (id, organization_id, full_name, father_name, birth_date, gender, phone, guardian_phone, joined_at, hifdh_started_at,
                                        past_competitions, guardian_consent_at, created_by)
-         VALUES (?,?,?,?,?,?,?,?,?,?,${b.guardianConsent === true ? 'UTC_TIMESTAMP(3)' : 'NULL'},?)`,
-        [id, org.id, fullName, father, birth, b.gender ?? null, phone, joined, started, b.pastCompetitions ?? null, req.user.id]);
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,${b.guardianConsent === true ? 'UTC_TIMESTAMP(3)' : 'NULL'},?)`,
+        [id, org.id, fullName, father, birth, b.gender ?? null, phone, guardianPhone, joined, started, b.pastCompetitions ?? null, req.user.id]);
       for (const gid of groupIds) await c.query('INSERT INTO group_students (group_id, profile_id) VALUES (?,?)', [gid, id]);
     });
     const [[row]] = await db.query(`SELECT ${STUDENT_COLS} FROM student_profiles p WHERE p.id = ?`, [id]);
     return { student: studentDto(row, (await classesOfStudents([id])).get(id) ?? []) };
+  });
+
+  // Import en masse de fiches (TXT/CSV) ; dryRun (par défaut) : simulation sans rien créer.
+  app.post('/:id/students/import', {
+    bodyLimit: 1_048_576,
+    schema: {
+      params: idParam,
+      body: { type: 'object', required: ['text'], properties: {
+        text: { type: 'string', maxLength: 500_000 },
+        dryRun: { type: 'boolean' },
+        guardianConsent: { type: 'boolean' },
+        createClasses: { type: 'boolean' },
+        groupId: { type: ['string', 'null'], maxLength: 36 },
+      } },
+    },
+  }, async (req) => {
+    const { org } = await access(req, req.params.id, ['admin']);
+    return runStudentImport(app, org, {
+      text: req.body.text, dryRun: req.body.dryRun !== false, guardianConsent: req.body.guardianConsent === true,
+      createClasses: req.body.createClasses === true, groupId: req.body.groupId ?? null, userId: req.user.id,
+    });
   });
 
   app.get('/:id/students/:pid', { schema: { params: idPidParam } }, async (req) => {
@@ -438,6 +463,7 @@ export default async function orgRoutes(app) {
           birthDate: { anyOf: [dateStr, { type: 'null' }] },
           gender: { enum: ['m', 'f', null] },
           phone: { type: ['string', 'null'], maxLength: 30 },
+          guardianPhone: { type: ['string', 'null'], maxLength: 30 },
           joinedAt: { anyOf: [dateStr, { type: 'null' }] },
           hifdhStartedAt: { anyOf: [dateStr, { type: 'null' }] },
           pastCompetitions: { type: ['string', 'null'], maxLength: 2000 },
@@ -451,9 +477,10 @@ export default async function orgRoutes(app) {
     const has = (k) => Object.prototype.hasOwnProperty.call(b, k);
     const phone = has('phone') ? normalizePhone(b.phone) : cur.phone;
     const phoneChanged = has('phone') && phone !== cur.phone;
+    const guardianPhone = has('guardianPhone') ? normalizePhone(b.guardianPhone) : cur.guardian_phone;
     await tx(db, async (c) => {
       await c.query(
-        `UPDATE student_profiles SET full_name = ?, father_name = ?, birth_date = ?, gender = ?, phone = ?, phone_verified_at = ${phoneChanged ? 'NULL' : 'phone_verified_at'},
+        `UPDATE student_profiles SET full_name = ?, father_name = ?, birth_date = ?, gender = ?, phone = ?, guardian_phone = ?, phone_verified_at = ${phoneChanged ? 'NULL' : 'phone_verified_at'},
                 joined_at = ?, hifdh_started_at = ?, past_competitions = ? WHERE id = ?`,
         [
           has('fullName') ? cleanName(b.fullName) : cur.full_name,
@@ -461,6 +488,7 @@ export default async function orgRoutes(app) {
           has('birthDate') ? validDate(b.birthDate, { notFuture: true }) : cur.birth_date,
           has('gender') ? b.gender : cur.gender,
           phone,
+          guardianPhone,
           has('joinedAt') ? validDate(b.joinedAt) : cur.joined_at,
           has('hifdhStartedAt') ? validDate(b.hifdhStartedAt) : cur.hifdh_started_at,
           has('pastCompetitions') ? b.pastCompetitions : cur.past_competitions,

@@ -140,6 +140,7 @@ export function createRestApi(baseUrl: string, googleClientId: string | null): A
       if (f.status) qs.set('status', f.status);
       return (await call<{ students: never[] }>('GET', `/orgs/${o}/students${qs.size ? `?${qs}` : ''}`)).students;
     },
+    importStudents: (o, text, dryRun, options) => call('POST', `/orgs/${o}/students/import`, { text, dryRun, ...options }),
     createStudent: async (o, input, classIds, confirmDuplicate) => {
       try {
         const r = await call<{ student: never }>('POST', `/orgs/${o}/students`, { ...input, guardianConsent: input.guardianConsent ?? true, groupIds: classIds, confirmDuplicate });

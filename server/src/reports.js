@@ -86,7 +86,7 @@ function unitStats(unitRanges, prefix) {
 
 /**
  * @param {Uint8Array} flags 1 = ayah acquis, indexé comme `ref.indexOf`
- * @returns {{ayat:number, surahs:{complete:number,longestRun:number}, ahzab:{complete:number,longestRun:number}}}
+ * @returns {{ayat:number, surahs:{complete:number,longestRun:number}, ahzab:{complete:number,longestRun:number}, pages:{complete:number,longestRun:number}}}
  */
 export function memorizationStats(ref, flags) {
   const prefix = new Uint32Array(ref.total + 1);
@@ -95,6 +95,7 @@ export function memorizationStats(ref, flags) {
     ayat: prefix[ref.total],
     surahs: unitStats(ref.surahRanges, prefix),
     ahzab: unitStats(ref.hizbRanges, prefix),
+    pages: unitStats(ref.pageRanges, prefix),
   };
 }
 

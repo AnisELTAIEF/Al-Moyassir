@@ -90,7 +90,7 @@ export default async function reportRoutes(app) {
       return {
         studentId: s.id, fullName: s.full_name, fatherName: s.father_name, age: ageOf(s.birth_date), joinedAt: s.joined_at,
         hasCompetitions: !!s.competitions, classes: classes.get(s.id) ?? [],
-        ahzab: stats.ahzab, surahs: stats.surahs, ayat: stats.ayat, retakeCount: retakePages(ref, c, threshold).length,
+        ahzab: stats.ahzab, surahs: stats.surahs, pages: stats.pages, ayat: stats.ayat, retakeCount: retakePages(ref, c, threshold).length,
         gain: g, perWeek: Math.round((g / weeks) * 10) / 10, lastValidationAt: iso(t?.last), rank: 0, elite: false, eliteTag: !!s.elite_tag,
       };
     });

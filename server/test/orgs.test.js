@@ -297,3 +297,61 @@ test('autorisation des parents : exigée jusqu’à 14 ans ou âge inconnu, plus
   assert.equal((await post({ fullName: 'Enfant Sans Accord', birthDate: kid.toISOString().slice(0, 10) })).body.error, 'consent_required');
   assert.equal((await post({ fullName: 'Age Inconnu' })).body.error, 'consent_required');
 });
+
+test('téléphone du parent sur la fiche : normalisé, modifiable', async () => {
+  const c = await call('POST', orgUrl('/students'), { ...T('orgadmin'), body: student({ fullName: 'Fiche Tel Parent', guardianPhone: '00218 92 111 2233' }) });
+  assert.equal(c.status, 200, JSON.stringify(c.body));
+  assert.equal(c.body.student.guardianPhone, '+218921112233');
+  const p = await call('PATCH', orgUrl(`/students/${c.body.student.id}`), { ...T('orgadmin'), body: { guardianPhone: null } });
+  assert.equal(p.body.student.guardianPhone, null);
+  assert.equal((await call('PATCH', orgUrl(`/students/${c.body.student.id}`), { ...T('orgadmin'), body: { guardianPhone: '12' } })).body.error, 'invalid_phone');
+});
+
+test('import en masse de fiches : simulation, création, doublons, autorisation des parents, classes', async () => {
+  const old = new Date(); old.setUTCFullYear(old.getUTCFullYear() - 20);
+  const grown = old.toISOString().slice(0, 10);
+  const text = [
+    'Nom complet ; Père ; Naissance ; Sexe ; Téléphone ; Téléphone parent ; Classe',
+    `Import Adulte;Salem;${grown};m;+218911110001;;Classe Import`,
+    'Import Enfant;Salem;12/05/2015;f;;+218 92 000 0002;Classe Import',
+    'Import Sans Age;Salem',
+    'Import Adulte;Salem;;;;;',                // doublon dans le fichier
+    'Import Date Fausse;Salem;31/02/2015',
+    'Import Classe Inconnue;Salem;' + grown + ';;;;Nulle part',
+  ].join('\n');
+  const body = (extra) => ({ ...T('orgadmin'), body: { text, ...extra } });
+
+  const dry = await call('POST', orgUrl('/students/import'), body({ createClasses: true }));
+  assert.equal(dry.status, 200, JSON.stringify(dry.body));
+  const act = (n) => dry.body.items.find((i) => i.name === n || i.line === n)?.action;
+  assert.equal(act('Import Adulte'), 'created');
+  assert.equal(act('Import Enfant'), 'error', 'mineur sans autorisation des parents');
+  assert.equal(act('Import Sans Age'), 'error', 'âge inconnu : autorisation exigée aussi');
+  assert.equal(dry.body.summary.errors, 4);
+  const [[none]] = await pool.query("SELECT COUNT(*) c FROM student_profiles WHERE full_name LIKE 'Import %'");
+  assert.equal(Number(none.c), 0, 'la simulation ne crée rien');
+
+  // Sans l'option, une classe absente est une erreur ; avec, elle est créée.
+  const noClass = await call('POST', orgUrl('/students/import'), body({ guardianConsent: true }));
+  assert.match(noClass.body.items.find((i) => i.name === 'Import Adulte').message, /Classe introuvable/);
+
+  const run = await call('POST', orgUrl('/students/import'), body({ dryRun: false, guardianConsent: true, createClasses: true }));
+  assert.equal(run.status, 200, JSON.stringify(run.body));
+  assert.deepEqual(run.body.summary.classesCreated, ['Classe Import', 'Nulle part']);
+  assert.equal(run.body.summary.created, 4, JSON.stringify(run.body.items));
+  const [rows] = await pool.query("SELECT full_name, guardian_phone, guardian_consent_at FROM student_profiles WHERE full_name LIKE 'Import %' ORDER BY full_name");
+  assert.deepEqual(rows.map((r) => r.full_name), ['Import Adulte', 'Import Classe Inconnue', 'Import Enfant', 'Import Sans Age']);
+  assert.equal(rows[2].guardian_phone, '+218920000002');
+  assert.ok(rows[2].guardian_consent_at);
+  const [[inClass]] = await pool.query("SELECT COUNT(*) c FROM group_students gs JOIN study_groups g ON g.id = gs.group_id WHERE g.name = 'Classe Import'");
+  assert.equal(Number(inClass.c), 2);
+
+  // Une deuxième exécution ne recrée rien.
+  const again = await call('POST', orgUrl('/students/import'), body({ dryRun: false, guardianConsent: true, createClasses: true }));
+  assert.equal(again.body.summary.created, 0);
+  assert.equal(again.body.summary.unchanged, 4);
+
+  // Droits : ni enseignant, ni inconnu.
+  assert.ok([403, 404].includes((await call('POST', orgUrl('/students/import'), { ...T('teacher'), body: { text } })).status), 'réservé à l’administratif');
+  assert.equal((await call('POST', orgUrl('/students/import'), { ...T('outsider'), body: { text } })).status, 404);
+});

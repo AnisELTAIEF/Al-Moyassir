@@ -67,7 +67,7 @@ function demoOrgs() {
   ];
   const mk = (n: number, fullName: string, fatherName: string, age: number, classIds: string[], over: Partial<Student> = {}): Student => ({
     id: `p${n}`, organizationId: 'o1', fullName, fatherName, birthDate: `${2026 - age}-01-01`, age, gender: 'm', phone: `+21891000000${n}`,
-    phoneVerified: n === 1, joinedAt: '2025-09-01', hifdhStartedAt: '2025-09-15', pastCompetitions: '', guardianConsentAt: ago(100), eliteTag: n === 2,
+    phoneVerified: n === 1, guardianPhone: n === 1 ? '+218920000001' : null, joinedAt: '2025-09-01', hifdhStartedAt: '2025-09-15', pastCompetitions: '', guardianConsentAt: ago(100), eliteTag: n === 2,
     status: 'active', leftAt: null, retainUntil: null, linked: n === 1, classes: classes.filter((c) => classIds.includes(c.id)).map(({ id, name }) => ({ id, name })),
     createdAt: ago(100), ...over,
   });
@@ -178,12 +178,17 @@ export function createDemoApi(): Api {
       .filter((s) => !f.classId || s.classes.some((c) => c.id === f.classId))
       .filter((s) => !f.q?.trim() || `${s.fullName} ${s.fatherName} ${s.phone ?? ''}`.includes(f.q.trim()))
       .map((s) => ({ ...s })),
+    importStudents: async (_o, text, dryRun) => {
+      const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+      const items = lines.map((l, i) => ({ line: i + 1, name: l.split(/[;\t,]/)[0].trim(), className: null, action: 'created' as const, message: dryRun ? 'Sera créée.' : 'Fiche créée.' }));
+      return { dryRun, summary: { created: items.length, unchanged: 0, errors: 0, classesCreated: [] }, items };
+    },
     createStudent: async (_o, input, classIds, confirm) => {
       const dups = d.students.filter((s) => s.fullName === input.fullName.trim() && s.fatherName === (input.fatherName ?? '').trim());
       if (dups.length && !confirm) return { duplicates: dups.map((s) => ({ id: s.id, fullName: s.fullName, fatherName: s.fatherName, status: s.status })) };
       const n = d.students.length + 1;
       const s: Student = { id: `p${n}`, organizationId: 'o1', fullName: input.fullName.trim(), fatherName: (input.fatherName ?? '').trim(),
-        birthDate: input.birthDate ?? null, age: null, gender: input.gender ?? null, phone: input.phone ?? null, phoneVerified: false,
+        birthDate: input.birthDate ?? null, age: null, gender: input.gender ?? null, phone: input.phone ?? null, guardianPhone: input.guardianPhone ?? null, phoneVerified: false,
         joinedAt: input.joinedAt ?? null, hifdhStartedAt: input.hifdhStartedAt ?? null, pastCompetitions: input.pastCompetitions ?? '',
         guardianConsentAt: input.guardianConsent === false ? null : new Date().toISOString(), eliteTag: false, status: 'active', leftAt: null, retainUntil: null, linked: false,
         classes: d.classes.filter((c) => classIds.includes(c.id)).map(({ id, name }) => ({ id, name })), createdAt: new Date().toISOString() };
@@ -219,13 +224,13 @@ export function createDemoApi(): Api {
       const pages = Array.from({ length: 604 }, (_, i) => (!real ? 'n' : i < 40 ? (i === 36 ? 'r' : 'c') : i < 55 ? 'p' : 'n')).join('');
       const surahs = Array.from({ length: 114 }, (_, i) => (!real ? 'n' : i > 104 ? 'c' : i === 1 ? 'p' : 'n')).join('');
       return real
-        ? { stats: { ayat: 412, surahs: { complete: 9, longestRun: 4 }, ahzab: { complete: 2, longestRun: 2 } }, retakePages: [37], threshold: 3, validatedAyat: 430, pages, surahs }
-        : { stats: { ayat: 0, surahs: { complete: 0, longestRun: 0 }, ahzab: { complete: 0, longestRun: 0 } }, retakePages: [], threshold: 3, validatedAyat: 0, pages, surahs };
+        ? { stats: { ayat: 412, surahs: { complete: 9, longestRun: 4 }, ahzab: { complete: 2, longestRun: 2 }, pages: { complete: 41, longestRun: 22 } }, retakePages: [37], threshold: 3, validatedAyat: 430, pages, surahs }
+        : { stats: { ayat: 0, surahs: { complete: 0, longestRun: 0 }, ahzab: { complete: 0, longestRun: 0 }, pages: { complete: 0, longestRun: 0 } }, retakePages: [], threshold: 3, validatedAyat: 0, pages, surahs };
     },
     ranking: async (_o, f) => {
       const rows: RankRow[] = d.students.filter((s) => s.status === 'active').map((s, i) => ({
         studentId: s.id, fullName: s.fullName, fatherName: s.fatherName, age: s.age, joinedAt: s.joinedAt, hasCompetitions: i === 0, classes: s.classes.map((c) => c.name),
-        ahzab: { complete: 3 - i, longestRun: 2 - (i > 0 ? 1 : 0) }, surahs: { complete: 12 - 4 * i, longestRun: 6 - 2 * i }, ayat: 600 - 220 * i,
+        ahzab: { complete: 3 - i, longestRun: 2 - (i > 0 ? 1 : 0) }, surahs: { complete: 12 - 4 * i, longestRun: 6 - 2 * i }, pages: { complete: 90 - 30 * i, longestRun: 40 - 14 * i }, ayat: 600 - 220 * i,
         retakeCount: i, gain: f.period === 'all' ? 600 - 220 * i : 60 - 20 * i, perWeek: 12 - 4 * i, lastValidationAt: ago(i + 1), rank: i + 1, elite: i === 0, eliteTag: i === 1,
       })).filter((r) => !f.classId || d.students.find((s) => s.id === r.studentId)?.classes.some((c) => c.id === f.classId));
       return { period: f.period, since: null, threshold: 3, rows };

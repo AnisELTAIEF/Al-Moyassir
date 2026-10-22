@@ -70,7 +70,7 @@ test('anti-dérive : pages et ahzab du serveur = ceux de l’application (recalc
 
 test('rien d’acquis : tout à zéro', () => {
   const s = memorizationStats(ref, new Uint8Array(ref.total));
-  assert.deepEqual(s, { ayat: 0, surahs: { complete: 0, longestRun: 0 }, ahzab: { complete: 0, longestRun: 0 } });
+  assert.deepEqual(s, { ayat: 0, surahs: { complete: 0, longestRun: 0 }, ahzab: { complete: 0, longestRun: 0 }, pages: { complete: 0, longestRun: 0 } });
 });
 
 test('tout acquis : 114 sourates, 60 ahzab, successif = global', () => {
@@ -78,6 +78,7 @@ test('tout acquis : 114 sourates, 60 ahzab, successif = global', () => {
   assert.equal(s.ayat, 6214);
   assert.deepEqual(s.surahs, { complete: 114, longestRun: 114 });
   assert.deepEqual(s.ahzab, { complete: 60, longestRun: 60 });
+  assert.deepEqual(s.pages, { complete: 604, longestRun: 604 });
 });
 
 test('sourate ou hizb PARTIEL : ne compte pas', () => {

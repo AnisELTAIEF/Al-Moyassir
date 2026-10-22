@@ -80,21 +80,28 @@ export interface OrgClass { id: string; name: string; studentCount: number; teac
 export interface OrgMember { userId: string; email: string; displayName: string; roles: OrgRole[] }
 export interface Student {
   id: string; organizationId: string; fullName: string; fatherName: string; birthDate: string | null; age: number | null;
-  gender: 'm' | 'f' | null; phone: string | null; phoneVerified: boolean; joinedAt: string | null; hifdhStartedAt: string | null;
+  gender: 'm' | 'f' | null; phone: string | null; phoneVerified: boolean; guardianPhone: string | null; joinedAt: string | null; hifdhStartedAt: string | null;
   pastCompetitions: string; guardianConsentAt: string | null; status: 'active' | 'left'; leftAt: string | null;
   eliteTag: boolean; retainUntil: string | null; linked: boolean; classes: { id: string; name: string }[]; createdAt: string;
 }
 export interface StudentInput {
-  fullName: string; fatherName?: string; birthDate?: string | null; gender?: 'm' | 'f' | null; phone?: string | null;
+  fullName: string; fatherName?: string; birthDate?: string | null; gender?: 'm' | 'f' | null; phone?: string | null; guardianPhone?: string | null;
   joinedAt?: string | null; hifdhStartedAt?: string | null; pastCompetitions?: string | null;
   /** Autorisation des parents recueillie (obligatoire jusqu'à 14 ans ou si l'âge est inconnu). */
   guardianConsent?: boolean;
 }
+export interface StudentImportItem { line: number; name: string | null; className: string | null; action: 'created' | 'unchanged' | 'error'; message: string; text?: string }
+export interface StudentImportResult {
+  dryRun: boolean;
+  summary: { created: number; unchanged: number; errors: number; classesCreated: string[] };
+  items: StudentImportItem[];
+}
+export interface StudentImportOptions { guardianConsent: boolean; createClasses: boolean; groupId?: string | null }
 export interface DuplicateStudent { id: string; fullName: string; fatherName: string; status: 'active' | 'left' }
 /** Mémorisation VALIDÉE par l'enseignant (jamais l'auto-marquage de l'élève) : global et successif en unités entières. */
 export interface UnitStats { complete: number; longestRun: number }
 export interface StudentSummary {
-  stats: { ayat: number; surahs: UnitStats; ahzab: UnitStats };
+  stats: { ayat: number; surahs: UnitStats; ahzab: UnitStats; pages: UnitStats };
   retakePages: number[]; threshold: number; validatedAyat: number;
   /** Une lettre par page (604) et par sourate (114) : n rien · p en cours · c complet · r à reprendre. */
   pages: string; surahs: string;
@@ -105,7 +112,7 @@ export interface ValidationPut { items?: { surah: number; ayah: number; result: 
 export type Period = 'month' | 'quarter' | 'semester' | 'year' | 'all';
 export interface RankRow {
   studentId: string; fullName: string; fatherName: string; age: number | null; joinedAt: string | null; hasCompetitions: boolean;
-  classes: string[]; ahzab: UnitStats; surahs: UnitStats; ayat: number; retakeCount: number;
+  classes: string[]; ahzab: UnitStats; surahs: UnitStats; pages: UnitStats; ayat: number; retakeCount: number;
   gain: number; perWeek: number; lastValidationAt: string | null; rank: number; elite: boolean; eliteTag: boolean;
 }
 export interface Ranking { period: Period; since: string | null; threshold: number; rows: RankRow[] }
@@ -178,6 +185,7 @@ export interface Api {
   setClassStudent(orgId: string, classId: string, profileId: string, on: boolean): Promise<void>;
   orgStudents(orgId: string, filter?: { q?: string; classId?: string; status?: 'active' | 'left' | 'all' }): Promise<Student[]>;
   /** Consentement des parents obligatoire. Renvoie `duplicates` si un élève porte déjà ce nom + prénom du père (à confirmer). */
+  importStudents(orgId: string, text: string, dryRun: boolean, options: StudentImportOptions): Promise<StudentImportResult>;
   createStudent(orgId: string, input: StudentInput, classIds: string[], confirmDuplicate: boolean): Promise<CreateStudentResult>;
   /** Pose ou retire l'étiquette « ضمن النخبة » (équipe). */
   setStudentElite(orgId: string, id: string, elite: boolean): Promise<Student>;
