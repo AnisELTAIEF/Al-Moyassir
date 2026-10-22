@@ -7,6 +7,7 @@ import '../core/i18n.dart';
 import '../core/validation_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'group_validation_screen.dart';
 import 'validation_screen.dart';
 
 /// Les élèves qu'un enseignant (ou un administratif) peut valider dans un établissement :
@@ -21,17 +22,29 @@ class TeacherStudentsScreen extends StatefulWidget {
 
 class _TeacherStudentsScreenState extends State<TeacherStudentsScreen> {
   late Future<List<StudentRef>> _students = _load();
+  List<StudentRef> _loaded = const [];
   String _q = '';
 
   Future<List<StudentRef>> _load() async {
     final r = await context.read<AuthService>().api!.get('/orgs/${widget.orgId}/students') as Map<String, dynamic>;
-    return [for (final s in (r['students'] as List)) StudentRef.fromJson(s as Map<String, dynamic>)];
+    final list = [for (final s in (r['students'] as List)) StudentRef.fromJson(s as Map<String, dynamic>)];
+    _loaded = list;
+    return list;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.orgName)),
+      appBar: AppBar(title: Text(widget.orgName), actions: [
+        IconButton(
+          tooltip: tr('Validation groupée'),
+          icon: const Icon(Icons.groups_2_outlined),
+          onPressed: () {
+            if (_loaded.isEmpty) return snack(context, tr('Aucun élève'));
+            Navigator.push(context, MaterialPageRoute(builder: (_) => GroupValidationScreen(orgId: widget.orgId, orgName: widget.orgName, students: _loaded)));
+          },
+        ),
+      ]),
       body: SafeArea(
         child: Constrained(
           child: Column(children: [

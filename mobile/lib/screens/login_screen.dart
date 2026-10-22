@@ -47,8 +47,15 @@ class _LoginPanelState extends State<LoginPanel> {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text(tr('Connexion'), style: context.text.headlineSmall),
       const SizedBox(height: 6),
-      Text(tr('Première fois ? Créez votre compte avec le code reçu (invitation ou code du groupe).'),
+      Text(tr('Nouveau ici ? Créez votre compte gratuitement : le code d’invitation est facultatif.'),
           style: TextStyle(color: context.tones.muted)),
+      const SizedBox(height: 14),
+      // Création de compte, bien visible : sans code (par défaut) ; le code sert à rejoindre un groupe ou un établissement.
+      FilledButton.tonalIcon(
+        onPressed: _busy ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InvitationScreen(noCode: true))),
+        icon: const Icon(Icons.person_add_alt_1_outlined),
+        label: Text(tr('Créer un compte')),
+      ),
       const SizedBox(height: 20),
       if (auth.googleEnabled) ...[
         FilledButton.icon(
@@ -96,7 +103,7 @@ class _LoginPanelState extends State<LoginPanel> {
       TextButton.icon(
         onPressed: _busy ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InvitationScreen())),
         icon: const Icon(Icons.mark_email_unread_outlined),
-        label: Text(tr('Créer un compte avec un code')),
+        label: Text(tr('J’ai un code d’invitation')),
       ),
     ]);
   }
@@ -193,7 +200,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 /// - code d'invitation (8 caractères, ex. K7XQ-M2PA) : e-mail et groupe pré-remplis, il reste nom + mot de passe ;
 /// - code de groupe (6 caractères, ex. H7KQ2M) : nom du groupe affiché, il reste nom + e-mail + mot de passe.
 class InvitationScreen extends StatefulWidget {
-  const InvitationScreen({super.key});
+  const InvitationScreen({super.key, this.noCode = false});
+
+  /// Ouvre directement la création de compte sans code.
+  final bool noCode;
   @override
   State<InvitationScreen> createState() => _InvitationScreenState();
 }
@@ -204,11 +214,12 @@ class _InvitationScreenState extends State<InvitationScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   Map<String, dynamic>? _found; // aperçu du code (invitation ou groupe)
-  bool _noCode = false; // inscription ouverte : création de compte par e-mail sans code d'invitation
+  late bool _noCode = widget.noCode; // inscription ouverte : création de compte par e-mail sans code d'invitation
   bool _busy = false;
   String? _error;
 
-  bool get _isInvitation => _found?['type'] == 'invitation';
+  /// Invitation liée à une adresse e-mail (sans adresse : la personne saisit la sienne).
+  bool get _isInvitation => _found?['type'] == 'invitation' && _found?['email'] != null;
 
   @override
   void dispose() {
@@ -246,7 +257,7 @@ class _InvitationScreenState extends State<InvitationScreen> {
         setState(() {
           _found = r;
           if (r['type'] == 'invitation') {
-            _email.text = r['email'] as String;
+            _email.text = (r['email'] as String?) ?? '';
             // Nom indiqué par l'admin à l'import : pré-rempli, modifiable.
             final name = r['displayName'] as String?;
             if (name != null && _name.text.trim().isEmpty) _name.text = name;
@@ -324,11 +335,16 @@ class _InvitationScreenState extends State<InvitationScreen> {
                             style: TextStyle(color: context.tones.muted)),
                       ])
                     : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        if (found!['groupName'] != null) ...[
+                        if (found!['groupName'] != null && found['orgName'] == null) ...[
                           Text(tr('Groupe'), style: TextStyle(color: context.tones.muted)),
                           Text(found['groupName'] as String, style: context.text.titleLarge),
-                        ] else
+                        ] else if (found['orgName'] == null)
                           Text(tr('Invitation valide'), style: context.text.titleLarge),
+                        if (found['orgName'] != null) ...[
+                          Text(tr('Établissement'), style: TextStyle(color: context.tones.muted)),
+                          Text('${found['orgName']}${found['className'] != null ? ' · ${found['className']}' : ''}', style: context.text.titleLarge),
+                          Text(found['orgRole'] == 'admin' ? tr('Rôle : administratif') : tr('Rôle : enseignant'), style: TextStyle(color: context.colors.primary)),
+                        ],
                         if (_isInvitation) ...[
                           const SizedBox(height: 8),
                           Row(children: [
