@@ -58,7 +58,10 @@ class AudioController extends ChangeNotifier {
   bool get active => _surah != null;
 
   /// Récitateur sans minutages : pas de suivi d'ayah ni de répétition, mais une barre de progression.
-  bool get timed => reciter.timed;
+  bool get timed => reciter.timed && !_wholeOnly;
+
+  /// Minutages absents ou incohérents pour la sourate en cours : lecture entière, sans suivi des ayat.
+  bool _wholeOnly = false;
   Duration get position => _player.position;
   Duration? get duration => _player.duration;
   int _shownSecond = -1; // sans minutages : l'interface est prévenue une fois par seconde
@@ -67,6 +70,7 @@ class AudioController extends ChangeNotifier {
     if (id == _reciterId) return;
     final resume = _surah != null && _currentAyah != null ? (_surah!, _currentAyah!, _player.playing) : null;
     _reciterId = id;
+    _wholeOnly = false;
     _prefs.setString('reciter_id', id);
     await _player.stop();
     _surah = null;
@@ -96,6 +100,7 @@ class AudioController extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    if (_surah != surah) _wholeOnly = false;
     if (!timed) return _playWhole(surah, autoplay: autoplay);
     try {
       if (_surah != surah || _timings.isEmpty) {
@@ -103,7 +108,12 @@ class AudioController extends ChangeNotifier {
         _surah = surah;
         _timings = await _repo.timingsFor(_reciterId, surah);
         notifyListeners();
-        if (_timings.isEmpty) throw StateError(tr('Minutages indisponibles pour cette sourate.'));
+        if (_timings.isEmpty) {
+          _loading = false;
+          _wholeOnly = true;
+          _surah = null;
+          return await _playWhole(surah, autoplay: autoplay);
+        }
         // Hors ligne si la sourate a été téléchargée, sinon streaming.
         final cached = _cache.cachedPath(_reciterId, surah);
         if (cached != null) {

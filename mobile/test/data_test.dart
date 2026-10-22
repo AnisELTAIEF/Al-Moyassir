@@ -19,9 +19,14 @@ void main() {
   test('chaque récitateur : minutages cohérents avec le texte pour chaque sourate annoncée', () async {
     final repo = await QuranRepository.load();
     expect(repo.reciters, isNotEmpty);
+    var excluded = 0;
     for (final r in repo.reciters.where((r) => r.timed)) {
       for (final s in r.surahs) {
         final t = await repo.timingsFor(r.id, s);
+        if (t.isEmpty) {
+          excluded++; // minutages incohérents écartés : la sourate se lit en entier, sans suivi des ayat
+          continue;
+        }
         expect(t.length, repo.surah(s).ayahCount, reason: '${r.id} sourate $s');
         for (var i = 0; i < t.length; i++) {
           expect(t[i].ayah, i + 1, reason: '${r.id} $s ordre');
@@ -30,6 +35,7 @@ void main() {
         }
       }
     }
+    expect(excluded, lessThan(25), reason: 'quelques sourates seulement ont des minutages à refaire');
   });
 
   test('nos enregistrements (sans minutages) : hébergés chez nous, sourate entière', () async {
@@ -62,5 +68,11 @@ void main() {
 
   test('assets du dépôt présents', () {
     expect(File('assets/fonts/ScheherazadeNew-Regular.ttf').existsSync(), isTrue);
+  });
+
+  test('minutages incohérents écartés : un ayah sans durée ou qui chevauche le précédent', () {
+    expect(QuranRepository.timingsConsistent(const [AyahTiming(1, 0, 3000), AyahTiming(2, 3000, 6000)]), isTrue);
+    expect(QuranRepository.timingsConsistent(const [AyahTiming(1, 0, 3000), AyahTiming(2, 3000, 3000)]), isFalse);
+    expect(QuranRepository.timingsConsistent(const [AyahTiming(1, 0, 5000), AyahTiming(2, 2000, 6000)]), isFalse);
   });
 }

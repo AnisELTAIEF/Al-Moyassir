@@ -95,7 +95,20 @@ class QuranRepository {
       };
       _timings[reciterId] = map;
     }
-    return map[surah] ?? const [];
+    final list = map[surah] ?? const [];
+    // Minutages incohérents (ayah de durée nulle, chevauchement) : l'ayah surligné ne correspondrait pas à ce
+    // que le récitateur dit. On les ignore : la sourate se lit alors en entier, sans suivi des ayat.
+    return timingsConsistent(list) ? list : const [];
+  }
+
+  /// Chaque ayah dure et suit le précédent (tolérance de 50 ms de recouvrement).
+  static bool timingsConsistent(List<AyahTiming> list) {
+    var prevEnd = -1;
+    for (final t in list) {
+      if (t.endMs <= t.startMs || t.startMs < prevEnd - 50) return false;
+      prevEnd = t.endMs;
+    }
+    return true;
   }
 }
 
