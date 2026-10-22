@@ -2,6 +2,7 @@
 //   - L'ADMINISTRATIF téléverse les certificats et saisit les résultats ; l'enseignant peut encourager (message, cadeau).
 //   - L'élève est notifié ; il garde l'historique de tous ses certificats. Les cadeaux ne lui sont montrés qu'une fois remis.
 //   - Un certificat est un fichier PDF/PNG/JPEG ≤ 5 Mo : type vérifié sur le contenu, stocké hors base, servi par un lien de 5 min.
+import { trashRow } from '../trash.js';
 import { createReadStream, existsSync } from 'node:fs';
 import { HttpError } from '../errors.js';
 import { uuid } from '../security.js';
@@ -71,6 +72,7 @@ export default async function resultsRoutes(app) {
 
   app.delete('/:id/assessments/:aid', { schema: { params: P('id', 'aid') } }, async (req) => {
     const ctx = await access(req, req.params.id, ['admin']);
+    await trashRow(db, { kind: 'assessment', table: 'assessments', id: req.params.aid, orgId: ctx.org.id, by: req.user.id, label: (x) => x.title });
     await db.query('DELETE FROM assessments WHERE id = ? AND organization_id = ?', [req.params.aid, ctx.org.id]);
     return { ok: true };
   });
@@ -169,6 +171,7 @@ export default async function resultsRoutes(app) {
 
   app.delete('/:id/rewards/:rid', { schema: { params: P('id', 'rid') } }, async (req) => {
     const ctx = await access(req, req.params.id, ['admin']);
+    await trashRow(db, { kind: 'reward', table: 'rewards', id: req.params.rid, orgId: ctx.org.id, by: req.user.id, label: (x) => x.title });
     await db.query('DELETE FROM rewards WHERE id = ? AND organization_id = ?', [req.params.rid, ctx.org.id]);
     return { ok: true };
   });

@@ -11,6 +11,7 @@ import { orgAccessFor, STUDENT_COLS } from '../orgAccess.js';
 import { removeProfileFiles } from '../certFiles.js';
 import { runStudentImport } from '../studentImport.js';
 import { inviteToOrg } from '../invitations.js';
+import { trashGroup, trashMember, toTrash, restoreItem, dto as trashDto, levelOf } from '../trash.js';
 
 const RETENTION_YEARS = 5; // D20 : données d'un élève sorti conservées 5 ans au moins
 const CODE_TTL_MIN = 15;
@@ -238,7 +239,32 @@ export default async function orgRoutes(app) {
     schema: { params: { type: 'object', properties: { id: { type: 'string', minLength: 36, maxLength: 36 }, iid: { type: 'string', minLength: 36, maxLength: 36 } } } },
   }, async (req) => {
     const { org } = await access(req, req.params.id, ['admin']);
-    await db.query('UPDATE invitations SET revoked_at = UTC_TIMESTAMP(3) WHERE id = ? AND org_id = ? AND accepted_at IS NULL', [req.params.iid, org.id]);
+    const [[inv]] = await db.query('SELECT id, email, display_name FROM invitations WHERE id = ? AND org_id = ? AND accepted_at IS NULL AND revoked_at IS NULL', [req.params.iid, org.id]);
+    if (inv) {
+      await toTrash(db, { kind: 'invitation', orgId: org.id, by: req.user.id, label: inv.email ?? inv.display_name ?? 'Invitation', payload: { id: inv.id } });
+      await db.query('UPDATE invitations SET revoked_at = UTC_TIMESTAMP(3) WHERE id = ?', [inv.id]);
+    }
+    return { ok: true };
+  });
+
+  // ───────────────────────── Corbeille (niveau 1 : l'établissement ; niveau 2 : admin global) ─────────────────────────
+  const trashSelect = `SELECT t.*, o.name AS org_name, u.display_name AS deleted_by_name FROM trash t
+    LEFT JOIN organizations o ON o.id = t.organization_id LEFT JOIN users u ON u.id = t.deleted_by`;
+
+  app.get('/:id/trash', { schema: { params: idParam } }, async (req) => {
+    const ctx = await access(req, req.params.id, ['admin']);
+    const [rows] = await db.query(`${trashSelect} WHERE t.organization_id = ? ORDER BY t.deleted_at DESC LIMIT 500`, [ctx.org.id]);
+    return { items: rows.map((r) => trashDto(r)).filter((r) => r.level !== 3 && (r.level === 1 || ctx.isGlobal)) };
+  });
+
+  app.post('/:id/trash/:tid/restore', { schema: { params: { type: 'object', properties: { id: { type: 'string', minLength: 36, maxLength: 36 }, tid: { type: 'string', minLength: 36, maxLength: 36 } } } } }, async (req) => {
+    const ctx = await access(req, req.params.id, ['admin']);
+    const [[item]] = await db.query('SELECT * FROM trash WHERE id = ? AND organization_id = ?', [req.params.tid, ctx.org.id]);
+    if (!item) throw new HttpError(404, 'not_found', 'Élément introuvable dans la corbeille.');
+    const level = levelOf(item.deleted_at);
+    if (level === 3) throw new HttpError(410, 'purged', 'Cet élément a été supprimé définitivement.');
+    if (level === 2 && !ctx.isGlobal) throw new HttpError(403, 'forbidden', 'Passé 30 jours, seul l’administrateur général peut restaurer cet élément.');
+    await restoreItem(db, item);
     return { ok: true };
   });
 
@@ -251,6 +277,11 @@ export default async function orgRoutes(app) {
     const { org } = await access(req, req.params.id, ['admin']);
     const { uid } = req.params;
     const role = req.query.role;
+    for (const r of role ? [role] : ['admin', 'teacher']) {
+      if (r === 'student') continue;
+      const [has] = await db.query('SELECT 1 FROM org_members WHERE organization_id = ? AND user_id = ? AND role = ?', [org.id, uid, r]);
+      if (has[0]) await trashMember(db, { orgId: org.id, userId: uid, role: r, by: req.user.id });
+    }
     await tx(db, async (c) => {
       if (!role || role === 'admin') {
         // On ne retire jamais le dernier administrateur de l'établissement (il resterait sans responsable local).
@@ -323,6 +354,7 @@ export default async function orgRoutes(app) {
   app.delete('/:id/classes/:gid', { schema: { params: idGidParam } }, async (req) => {
     const { org } = await access(req, req.params.id, ['admin']);
     await classOf(org.id, req.params.gid);
+    await trashGroup(db, req.params.gid, { by: req.user.id, orgId: org.id }); // corbeille (60 jours)
     await db.query('DELETE FROM study_groups WHERE id = ?', [req.params.gid]); // les fiches élèves restent, seules les affectations tombent
     return { ok: true };
   });

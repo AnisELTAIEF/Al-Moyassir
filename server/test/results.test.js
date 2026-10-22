@@ -123,7 +123,7 @@ test('certificat : type vérifié sur le contenu, stockage hors base, notificati
   assert.equal((await cert('orgadmin', { dataBase64: b64(Buffer.from('<html>pas un pdf</html>')) })).body.error, 'invalid_file');
   assert.equal((await cert('orgadmin', { dataBase64: '' })).status, 400);
   assert.equal((await cert('orgadmin', { dataBase64: b64(Buffer.concat([PDF, Buffer.alloc(5 * 1024 * 1024)])) })).body.error, 'invalid_file', 'plus de 5 Mo');
-  assert.equal((await cert('orgadmin', { assessmentId: S.aid.replace(/.$/, '0') })).body.error, 'invalid_assessment');
+  assert.equal((await cert('orgadmin', { assessmentId: S.aid.replace(/.$/, (c) => (c === '0' ? '1' : '0')) })).body.error, 'invalid_assessment');
   const ok = await cert('orgadmin', { assessmentId: S.aid, fileName: '../../etc/passwd.pdf' });
   assert.equal(ok.status, 200, JSON.stringify(ok.body));
   S.cid = ok.body.certificate.id;

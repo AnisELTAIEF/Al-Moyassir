@@ -398,3 +398,62 @@ test('inviter un enseignant dans une classe : sans e-mail (code), avec e-mail, e
   assert.ok([403, 404].includes((await call('POST', orgUrl('/invitations'), { ...T('outsider'), body: { displayName: 'Xx' } })).status));
   assert.equal((await inv({})).status, 400, 'un nom ou un e-mail est requis');
 });
+
+test('corbeille à deux niveaux : classe supprimée → restaurable 30 jours par l’établissement, puis par l’admin global, puis perdue', async () => {
+  const cls = (await call('POST', orgUrl('/classes'), { ...T('orgadmin'), body: { name: 'Classe Corbeille' } })).body.class;
+  const st = (await call('POST', orgUrl('/students'), { ...T('orgadmin'), body: student({ fullName: 'Élève Corbeille', groupIds: [cls.id] }) })).body.student;
+  await call('PUT', orgUrl('/members'), { ...T('orgadmin'), body: { email: 'prof1@x.io', role: 'teacher' } });
+  await call('PUT', orgUrl(`/classes/${cls.id}/teachers`), { ...T('orgadmin'), body: { userId: U.teacher.id } });
+  assert.equal((await call('DELETE', orgUrl(`/classes/${cls.id}`), T('orgadmin'))).status, 200);
+
+  const list = (await call('GET', orgUrl('/trash'), T('orgadmin'))).body.items;
+  const item = list.find((i) => i.label === 'Classe Corbeille');
+  assert.equal(item.kind, 'class');
+  assert.equal(item.level, 1);
+  assert.ok(item.daysLeft >= 29);
+  assert.ok([403, 404].includes((await call('GET', orgUrl('/trash'), T('outsider'))).status));
+
+  // Restauration : la classe revient avec son enseignant et son élève.
+  assert.equal((await call('POST', orgUrl(`/trash/${item.id}/restore`), T('orgadmin'))).status, 200);
+  const classes = (await call('GET', orgUrl('/classes'), T('orgadmin'))).body.classes;
+  const back = classes.find((c) => c.id === cls.id);
+  assert.equal(back.studentCount, 1);
+  assert.equal(back.teachers.length, 1);
+  assert.equal((await call('POST', orgUrl(`/trash/${item.id}/restore`), T('orgadmin'))).status, 404, 'déjà restauré');
+  assert.ok(st.id);
+
+  // Niveau 2 (après 30 jours) : l'administratif ne voit plus l'élément ; l'admin global le restaure.
+  await call('DELETE', orgUrl(`/classes/${cls.id}`), T('orgadmin'));
+  const [[row]] = await pool.query("SELECT id FROM trash WHERE label = 'Classe Corbeille' ORDER BY deleted_at DESC LIMIT 1");
+  await pool.query('UPDATE trash SET deleted_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 31 DAY) WHERE id = ?', [row.id]);
+  assert.equal((await call('GET', orgUrl('/trash'), T('orgadmin'))).body.items.some((i) => i.id === row.id), false);
+  assert.equal((await call('POST', orgUrl(`/trash/${row.id}/restore`), T('orgadmin'))).status, 403);
+  const all = (await call('GET', '/admin/trash', T('admin'))).body.items;
+  assert.equal(all.find((i) => i.id === row.id).level, 2);
+  assert.equal((await call('POST', `/admin/trash/${row.id}/restore`, T('admin'))).status, 200);
+
+  // Au-delà de 60 jours : supprimé définitivement.
+  await call('DELETE', orgUrl(`/classes/${cls.id}`), T('orgadmin'));
+  const [[row2]] = await pool.query("SELECT id FROM trash WHERE label = 'Classe Corbeille' ORDER BY deleted_at DESC LIMIT 1");
+  await pool.query('UPDATE trash SET deleted_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 61 DAY) WHERE id = ?', [row2.id]);
+  assert.equal((await call('DELETE', '/admin/trash/expired', T('admin'))).body.purged >= 1, true);
+  assert.equal((await call('POST', `/admin/trash/${row2.id}/restore`, T('admin'))).status, 404);
+});
+
+test('corbeille : enseignant retiré de l’équipe, invitation révoquée, examen supprimé', async () => {
+  await call('PUT', orgUrl('/members'), { ...T('orgadmin'), body: { email: 'prof2@x.io', role: 'teacher' } });
+  await call('DELETE', orgUrl(`/members/${U.teacher2.id}?role=teacher`), T('orgadmin'));
+  const list = (await call('GET', orgUrl('/trash'), T('orgadmin'))).body.items;
+  const m = list.find((i) => i.kind === 'member' && /Prof Deux/.test(i.label));
+  assert.ok(m, JSON.stringify(list));
+  assert.equal((await call('POST', orgUrl(`/trash/${m.id}/restore`), T('orgadmin'))).status, 200);
+  const team = (await call('GET', orgUrl('/members'), T('orgadmin'))).body.members;
+  assert.ok(team.find((x) => x.userId === U.teacher2.id)?.roles.includes('teacher'));
+
+  const inv = (await call('POST', orgUrl('/invitations'), { ...T('orgadmin'), body: { displayName: 'À révoquer' } })).body;
+  await call('DELETE', orgUrl(`/invitations/${inv.id}`), T('orgadmin'));
+  const it = (await call('GET', orgUrl('/trash'), T('orgadmin'))).body.items.find((i) => i.kind === 'invitation');
+  assert.ok(it);
+  assert.equal((await call('POST', orgUrl(`/trash/${it.id}/restore`), T('orgadmin'))).status, 200);
+  assert.equal((await call('GET', `/auth/invitations/${inv.code}`)).status, 200, 'le code redevient valable');
+});

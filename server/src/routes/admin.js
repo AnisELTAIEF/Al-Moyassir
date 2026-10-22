@@ -5,6 +5,7 @@ import { tx } from '../db.js';
 import { uuid, sha256, normalizeCode, newInvitationCode } from '../security.js';
 import { createInvitation, invitationRow, applyToExistingUser, notifyAccessChange } from '../invitations.js';
 import { runImport } from '../bulkImport.js';
+import { trashGroup, toTrash, restoreItem, purgeTrash, dto as trashDto } from '../trash.js';
 import { iso, otherActiveAdmins } from '../users.js';
 import { progressOf, STATS_SQL, statsRow } from '../progress.js';
 
@@ -180,6 +181,8 @@ export default async function adminRoutes(app) {
   }));
 
   app.delete('/invitations/:id', { schema: { params: idParam } }, async (req) => {
+    const [[inv]] = await app.db.query('SELECT id, email FROM invitations WHERE id = ? AND accepted_at IS NULL AND revoked_at IS NULL', [req.params.id]);
+    if (inv) await toTrash(app.db, { kind: 'invitation', by: req.user.id, label: inv.email ?? 'Invitation', payload: { id: inv.id } });
     const [res] = await app.db.query(
       'UPDATE invitations SET revoked_at = UTC_TIMESTAMP(3) WHERE id = ? AND accepted_at IS NULL AND revoked_at IS NULL', [req.params.id]);
     if (!res.affectedRows) throw new HttpError(404, 'not_found', 'Invitation introuvable ou déjà utilisée.');
@@ -211,6 +214,7 @@ export default async function adminRoutes(app) {
   });
 
   app.delete('/groups/:id', { schema: { params: idParam } }, async (req) => {
+    await trashGroup(app.db, req.params.id, { by: req.user.id });
     await app.db.query('DELETE FROM study_groups WHERE id = ?', [req.params.id]);
     return { ok: true };
   });
@@ -233,5 +237,28 @@ export default async function adminRoutes(app) {
   app.delete('/groups/:id/members/:uid', async (req) => {
     await app.db.query('DELETE FROM group_members WHERE group_id = ? AND user_id = ?', [req.params.id, req.params.uid]);
     return { ok: true };
+  });
+
+  // ── Corbeille (tous niveaux, tous établissements) ──
+  app.get('/trash', async () => {
+    const [rows] = await app.db.query(
+      `SELECT t.*, o.name AS org_name, u.display_name AS deleted_by_name FROM trash t
+       LEFT JOIN organizations o ON o.id = t.organization_id LEFT JOIN users u ON u.id = t.deleted_by ORDER BY t.deleted_at DESC LIMIT 1000`);
+    return { items: rows.map((r) => trashDto(r)).filter((r) => r.level !== 3) };
+  });
+
+  app.post('/trash/:id/restore', { schema: { params: idParam } }, async (req) => {
+    const [[item]] = await app.db.query('SELECT * FROM trash WHERE id = ?', [req.params.id]);
+    if (!item) throw new HttpError(404, 'not_found', 'Élément introuvable dans la corbeille.');
+    await restoreItem(app.db, item);
+    return { ok: true };
+  });
+
+  /** Suppression définitive immédiate d'un élément (ou de tout ce qui a plus de 60 jours si id = 'expired'). */
+  app.delete('/trash/:id', { schema: { params: { type: 'object', properties: { id: { type: 'string', maxLength: 36 } } } } }, async (req) => {
+    if (req.params.id === 'expired') return { purged: await purgeTrash(app.db) };
+    const [r] = await app.db.query('DELETE FROM trash WHERE id = ?', [req.params.id]);
+    if (!r.affectedRows) throw new HttpError(404, 'not_found', 'Élément introuvable dans la corbeille.');
+    return { purged: 1 };
   });
 }

@@ -4,6 +4,7 @@ import { tx } from '../db.js';
 import { progressOf, statsRow } from '../progress.js';
 import { createInvitation, invitationRow, notifyAccessChange } from '../invitations.js';
 import { assignGroupCode } from '../groupCodes.js';
+import { toTrash } from '../trash.js';
 import { runImport } from '../bulkImport.js';
 
 const idParam = { type: 'object', properties: { id: { type: 'string', minLength: 36, maxLength: 36 } } };
@@ -169,6 +170,8 @@ export default async function groupRoutes(app) {
 
   app.delete('/:id/invitations/:inv', { schema: { params: idParam } }, async (req) => {
     await guard(req);
+    const [[inv]] = await app.db.query('SELECT id, email FROM invitations WHERE id = ? AND group_id = ? AND accepted_at IS NULL AND revoked_at IS NULL', [req.params.inv, req.params.id]);
+    if (inv) await toTrash(app.db, { kind: 'invitation', by: req.user.id, label: inv.email ?? 'Invitation', payload: { id: inv.id } });
     const [res] = await app.db.query(
       'UPDATE invitations SET revoked_at = UTC_TIMESTAMP(3) WHERE id = ? AND group_id = ? AND accepted_at IS NULL AND revoked_at IS NULL',
       [req.params.inv, req.params.id]);
